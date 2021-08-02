@@ -4,11 +4,7 @@ import numpy as np
 import torch
 from datetime import datetime
 import csv
-import optuna
-
-id = 0
-
-name = "jacqueline_clone"
+import os
 
 
 def sac_training(
@@ -17,13 +13,17 @@ def sac_training(
     hidden_layers=[256, 256],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=5e5,
+    training_steps=2e5,
     consecutive_explore_episodes=1,
-    steps_between_eval=2.5e4,
-    eval_episodes=50,
+    steps_between_eval=1e4,
+    eval_episodes=100,
     batch_size=64,
     heatup=1000,
+    log_folder: str = "",
 ):
+
+    if not os.path.isdir(log_folder):
+        os.mkdir(log_folder)
     success = 0.0
     env_factory = tiltmaze.LNK1(dt_step=2 / 3)
     env = env_factory.create_env()
@@ -40,7 +40,7 @@ def sac_training(
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
     agent = stacierl.agent.SingleAgent(algo, env_factory, replay_buffer, consecutive_action_steps=1)
 
-    logfile = datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
+    logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["lr", "gamma", "hidden_layers"])
@@ -49,7 +49,7 @@ def sac_training(
 
     next_eval_step_limt = steps_between_eval
     agent.heatup(steps=heatup)
-    while agent.explore_step_counter < training_steps and success < 1.0:
+    while agent.explore_step_counter < training_steps:
         agent.explore(episodes=consecutive_explore_episodes)
 
         learn_steps = agent.explore_step_counter - agent.learn_step_counter
@@ -69,30 +69,12 @@ def sac_training(
     return success, agent.explore_step_counter
 
 
-def optuna_run(trial):
-    lr = trial.suggest_loguniform("lr", 3e-4, 1e-2)
-    gamma = trial.suggest_float("gamma", 0.99, 0.9999)
-    n_layers = trial.suggest_int("n_layers", 1, 2)
-    n_nodes = trial.suggest_categorical("n_nodes", [128, 256])
-    hidden_layers = [n_nodes for _ in range(n_layers)]
-    success, steps = sac_training(lr=lr, gamma=gamma, hidden_layers=hidden_layers)
-    with open(name + ".csv", "a+") as csvfile:
-        writer = csv.writer(csvfile, delimiter=";")
-        writer.writerow([trial.number, success, trial.params, steps])
-    return success
-
-
 if __name__ == "__main__":
-    search_space = {
-        "n_nodes": [128, 256],
-        "gamma": np.linspace(0.99, 0.9999, num=3),
-        "n_layers": [1, 2],
-        "lr": np.linspace(3e-4, 1e-3, num=4),
-    }
-
-    study = optuna.create_study(
-        study_name="test_optuna",
-        direction="maximize",
-        sampler=optuna.samplers.GridSampler(search_space),
+    cwd = os.getcwd()
+    log_folder = cwd + "/fast_learner_example_results/"
+    result = sac_training(
+        lr=0.005857455980764544,
+        gamma=0.990019014056533,
+        hidden_layers=[128, 128],
+        log_folder=log_folder,
     )
-    study.optimize(optuna_run, n_trials=20)

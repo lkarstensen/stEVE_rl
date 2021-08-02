@@ -13,8 +13,6 @@ class SAC(Algo):
     def __init__(
         self,
         model: model.SAC,
-        alpha: float = 0.1,
-        alpha_lr: float = 0.0007525,
         gamma: float = 0.99,
         tau: float = 0.005,
         reward_scaling: float = 1,
@@ -28,7 +26,6 @@ class SAC(Algo):
         self.gamma = gamma
         self.tau = tau
         self.exploration_action_noise = exploration_action_noise
-        self.alpha_lr = alpha_lr
         # Model
         self.model = model
 
@@ -38,13 +35,8 @@ class SAC(Algo):
         self.update_step = 0
 
         # ENTROPY TEMPERATURE
-        self.alpha = alpha
-        self.target_entropy = 0.0
-        # self.target_entropy = -torch.prod(torch.Tensor(self.model.policy_net.n_actions)).item()
-
+        self.alpha = 0.0
         self.target_entropy = -self.model.policy_net.n_actions
-        # self.log_alpha = torch.zeros(1, requires_grad=True, device=device)
-        # self.alpha_optim = optim.Adam([self.log_alpha], lr=self.alpha_lr)
 
         self.model.to(device)
 
@@ -182,3 +174,26 @@ class SAC(Algo):
         self.model.target_q_net_1.eval()
         self.model.target_q_net_2.eval()
         self.model.policy_net.eval()
+
+    def copy(self):
+        copy = self.__class__(
+            self.model.copy(),
+            self.gamma,
+            self.tau,
+            self.reward_scaling,
+            self.action_scaling,
+            self.exploration_action_noise,
+        )
+        return copy
+
+    def copy_shared_memory(self):
+        copy = self.__class__(
+            self.model.copy_shared_memory(),
+            self.gamma,
+            self.tau,
+            self.reward_scaling,
+            self.action_scaling,
+            self.exploration_action_noise,
+            device=self.device,
+        )
+        return copy

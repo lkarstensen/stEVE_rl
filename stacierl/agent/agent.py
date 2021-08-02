@@ -14,8 +14,11 @@ def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
 
 
 class Agent(ABC):
+    def update(self, steps, batch_size):
+        return self._update(steps, batch_size)
+
     @abstractmethod
-    def update(self, steps):
+    def _update(self, steps):
         ...
 
     def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:

@@ -24,3 +24,11 @@ class Algo(ABC):
     @abstractmethod
     def load_model(self, path):
         ...
+
+    @abstractmethod
+    def copy(self):
+        ...
+
+    @abstractmethod
+    def copy_shared_memory(self):
+        ...

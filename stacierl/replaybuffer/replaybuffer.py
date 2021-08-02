@@ -42,3 +42,7 @@ class ReplayBuffer(ABC):
     @abstractmethod
     def sample(self, batch_size: int) -> Batch:
         ...
+
+    @abstractmethod
+    def copy(self):
+        ...

@@ -3,25 +3,24 @@ from stacierl.replaybuffer import replaybuffer
 from .agent import Agent, dict_state_to_flat_np_state
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
-from ..environment import EnvFactory
+from ..environment import EnvFactory, Environment
 
 
 class SingleAgent(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_factory: EnvFactory,
+        env: Environment,
         replay_buffer: ReplayBuffer,
         consecutive_action_steps: int = 1,
     ) -> None:
         self.algo = algo
-        self.env_factory = env_factory
+        self.env = env
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
 
-        self.env = env_factory.create_env()
         self.explore_step_counter = 0
-        self.learn_step_counter = 0
+        self.update_step_counter = 0
         self.eval_step_counter = 0
         self.explore_episode_counter = 0
         self.eval_episode_counter = 0
@@ -79,14 +78,14 @@ class SingleAgent(Agent):
 
         return average_reward, average_success
 
-    def update(self, steps, batch_size) -> None:
+    def _update(self, steps, batch_size) -> None:
         if len(self.replay_buffer) < batch_size:
             return
 
         for _ in range(steps):
             batch = self.replay_buffer.sample(batch_size)
             self.algo.update(batch)
-            self.learn_step_counter += 1
+            self.update_step_counter += 1
 
     def _evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         step_limit = self.eval_step_counter + steps

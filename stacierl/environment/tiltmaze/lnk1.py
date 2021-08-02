@@ -8,7 +8,7 @@ class LNK1(EnvFactory):
         self.dt_step = dt_step
 
     def create_env(self) -> tiltmaze.Env:
-        maze = tiltmaze.maze.RSS0(episodes_btw_geometry_change=math.inf)
+        maze = tiltmaze.maze.RSS0(episodes_btw_geometry_change=math.inf, seed=1234)
         velocity_limits = (100, 0.5)
         physic = tiltmaze.physics.BallVelocity(
             maze=maze,

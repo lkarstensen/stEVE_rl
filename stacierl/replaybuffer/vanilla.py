@@ -44,3 +44,10 @@ class Vanilla(ReplayBuffer):
 
     def get_length(self):
         return len(self.buffer)
+
+    def copy(self):
+        copy = self.__class__(self.capacity)
+        for i in range(len(self.buffer)):
+            copy.buffer.append(self.buffer[i])
+        copy.position = self.position
+        return copy

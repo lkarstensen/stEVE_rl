@@ -1,8 +1,6 @@
 import queue
 from typing import List, Tuple
 
-from tiltmaze.env import Env
-from stacierl.replaybuffer import replaybuffer
 from .agent import Agent
 from .singleagent import SingleAgent, dict_state_to_flat_np_state
 from ..algo import Algo

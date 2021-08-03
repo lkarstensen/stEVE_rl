@@ -47,21 +47,22 @@ class SAC(Algo):
         return action
 
     def get_eval_action(self, flat_state: np.ndarray):
-        flat_state = torch.FloatTensor(flat_state).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            flat_state = torch.FloatTensor(flat_state).unsqueeze(0).to(self.device)
 
-        mean, log_std = self.model.policy_net.forward(flat_state)
-        std = log_std.exp()
+            mean, log_std = self.model.policy_net.forward(flat_state)
+            std = log_std.exp()
 
-        normal = Normal(mean, std)
-        z = normal.sample()
-        action = torch.tanh(z)
-        action = action.cpu().detach().squeeze(0).numpy()
-        action *= self.action_scaling
-        return action
+            normal = Normal(mean, std)
+            z = normal.sample()
+            action = torch.tanh(z)
+            action = action.cpu().detach().squeeze(0).numpy()
+            action *= self.action_scaling
+            return action
 
         # epsilon makes sure that log(0) does not occur
 
-    def _evaluate_action(
+    def _get_update_action(
         self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         mean_batch, log_std = self.model.policy_net.forward(state_batch)
@@ -89,7 +90,7 @@ class SAC(Algo):
         dones = torch.FloatTensor(dones).to(self.device)
         dones = torch.reshape(dones, (-1, 1))
 
-        next_actions, next_log_pi, _, _ = self._evaluate_action(next_states)
+        next_actions, next_log_pi, _, _ = self._get_update_action(next_states)
         next_q1 = self.model.target_q_net_1.forward(next_states, next_actions)
         next_q2 = self.model.target_q_net_2.forward(next_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
@@ -113,7 +114,7 @@ class SAC(Algo):
         self.model.q2_optimizer.step()
 
         # UPDATE POLICY NETWORK
-        new_actions, log_pi, _, _ = self._evaluate_action(states)
+        new_actions, log_pi, _, _ = self._get_update_action(states)
         min_q = torch.min(
             self.model.q_net_1.forward(states, new_actions),
             self.model.q_net_2.forward(states, new_actions),

@@ -98,3 +98,39 @@ class SAC(Model):
         )
 
         return copy
+
+    def all_state_dicts(self):
+        all_state_dicts = {
+            "q_net_1": self.q_net_1.state_dict(),
+            "q_net_2": self.q_net_2.state_dict(),
+            "target_q_net_1": self.target_q_net_1.state_dict(),
+            "target_q_net_2": self.target_q_net_2.state_dict(),
+            "policy_net": self.policy_net.state_dict(),
+        }
+        return all_state_dicts
+
+    def all_parameters(self):
+        all_parameters = {
+            "q_net_1": self.q_net_1.parameters(),
+            "q_net_2": self.q_net_2.parameters(),
+            "target_q_net_1": self.target_q_net_1.parameters(),
+            "target_q_net_2": self.target_q_net_2.parameters(),
+            "policy_net": self.policy_net.parameters(),
+        }
+        return all_parameters
+
+    def load_all_state_dicts(self, all_state_dicts: dict):
+        self.q_net_1.load_state_dict(all_state_dicts["q_net_1"])
+        self.q_net_2.load_state_dict(all_state_dicts["q_net_2"])
+        self.target_q_net_1.load_state_dict(all_state_dicts["target_q_net_1"])
+        self.target_q_net_2.load_state_dict(all_state_dicts["target_q_net_2"])
+        self.policy_net.load_state_dict(all_state_dicts["policy_net"])
+
+    def soft_tau_update_all(self, all_parameters: dict, tau: float):
+
+        for net, net_key in zip(
+            [self.q_net_1, self.q_net_2, self.target_q_net_1, self.target_q_net_2, self.policy_net],
+            ["q_net_1", "q_net_2", "target_q_net_1", "target_q_net_2", "policy_net"],
+        ):
+            for self_param, extern_param in zip(net.parameters(), all_parameters[net_key]):
+                self_param.data.copy_(tau * extern_param + (1 - tau) * self_param)

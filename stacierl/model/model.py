@@ -27,3 +27,19 @@ class Model(ABC):
     @abstractmethod
     def initial_hidden_state(self) -> Optional[torch.Tensor]:
         ...
+
+    @abstractmethod
+    def all_state_dicts(self):
+        ...
+
+    @abstractmethod
+    def all_parameters(self):
+        ...
+
+    @abstractmethod
+    def load_all_state_dicts(self, all_state_dicts: dict):
+        ...
+
+    @abstractmethod
+    def soft_tau_update_all(self, all_parameters: dict, tau: float):
+        ...

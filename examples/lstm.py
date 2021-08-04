@@ -6,6 +6,7 @@ import torch
 from datetime import datetime
 import csv
 import os
+import torch.multiprocessing as mp
 
 
 def sac_training(
@@ -15,16 +16,18 @@ def sac_training(
     n_lstm_nodes: int = 128,
     n_lstm_layer: int = 1,
     gamma=0.990019014056533,
-    replay_buffer=1e6,
+    replay_buffer=1e4,
     training_steps=2e5,
     consecutive_explore_episodes=1,
     steps_between_eval=1e4,
     eval_episodes=100,
     batch_size=64,
     heatup=1000,
+    sequence_length=10,
     log_folder: str = "",
     id: int = 0,
     name="",
+    n_agents=3,
 ):
 
     if not os.path.isdir(log_folder):
@@ -57,8 +60,12 @@ def sac_training(
         learning_rate=lr,
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma, device=device)
-    replay_buffer = stacierl.replaybuffer.VanillaLSTM(replay_buffer, sequence_length=15)
-    agent = stacierl.agent.SingleAgent(algo, env, replay_buffer, consecutive_action_steps=1)
+    replay_buffer = stacierl.replaybuffer.VanillaLSTM(
+        replay_buffer, sequence_length=sequence_length
+    )
+    agent = stacierl.agent.ParallelAgent(
+        n_agents, algo, env_factory, replay_buffer, consecutive_action_steps=1
+    )
 
     logfile = log_folder + name + "_" + str(id) + ".csv"
     with open(logfile, "w", newline="") as csvfile:
@@ -90,8 +97,10 @@ def sac_training(
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn")
     cwd = os.getcwd()
     log_folder = cwd + "/lstm_example_results/"
+    torch.autograd.set_detect_anomaly(True)
     result = sac_training(
         lr=0.005857455980764544,
         gamma=0.990019014056533,

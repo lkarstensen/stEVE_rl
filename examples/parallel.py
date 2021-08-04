@@ -22,7 +22,7 @@ def sac_training(
     batch_size=64,
     heatup=5000,
     log_folder: str = "",
-    n_agents=4,
+    n_agents=3,
 ):
 
     if not os.path.isdir(log_folder):
@@ -94,5 +94,5 @@ if __name__ == "__main__":
         gamma=0.990019014056533,
         hidden_layers=[128, 128],
         log_folder=log_folder,
-        n_agents=4,
+        n_agents=3,
     )

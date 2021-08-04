@@ -42,7 +42,8 @@ class LNK1(EnvFactory):
 
         success = tiltmaze.success.TargetReached(target)
         visu = tiltmaze.visualisation.VisualisationDummy(maze, physic, target)
-
+        #visu = tiltmaze.visualisation.PLT(maze,physic,target)
+        
         return tiltmaze.Env(
             maze=maze,
             state=state,

@@ -4,6 +4,7 @@ from .agent import Agent, dict_state_to_flat_np_state
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
 from ..environment import EnvFactory, Environment
+from my_socket.wrapper.socketwrapper import SocketWrapper
 
 
 class SingleAgent(Agent):
@@ -15,7 +16,10 @@ class SingleAgent(Agent):
         consecutive_action_steps: int = 1,
     ) -> None:
         self.algo = algo
+        self.save_db = False
         self.env = env
+        if self.save_db:
+            self.env = SocketWrapper(env, player="fastlearner")
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
 
@@ -131,6 +135,8 @@ class SingleAgent(Agent):
                 episode_reward += reward
                 step_counter += 1
                 if done:
+                    if self.save_db:
+                        self.env.episode.episode_reward = episode_reward
                     break
             if done:
                 break

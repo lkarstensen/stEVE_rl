@@ -211,3 +211,7 @@ class SAC(Algo):
             device=self.device,
         )
         return copy
+
+    def to(self, device: torch.device):
+        self.device = device
+        self.model.to(device)

@@ -22,20 +22,22 @@ class Vanilla(ReplayBuffer):
                 episode.next_states[i],
                 episode.dones[i],
             )
+            if episode.hidden_states:
+                self.buffer[self.position] = self.buffer[self.position] + tuple(
+                    [episode.hidden_states[i]]
+                )
             self.position = int((self.position + 1) % self.capacity)  # as a ring buffer
 
     def sample(self, batch_size: int) -> Batch:
         batch = random.sample(self.buffer, batch_size)
-        state, action, reward, next_state, done = map(
-            np.stack, zip(*batch)
-        )  # stack for each element
+        batch = map(np.stack, zip(*batch))  # stack for each element
         """ 
         the * serves as unpack: sum(a,b) <=> batch=(a,b), sum(*batch) ;
         zip: a=[1,2], b=[2,3], zip(a,b) => [(1, 2), (2, 3)] ;
         the map serves as mapping the function on each list element: map(square, [2,3]) => [4,9] ;
         np.stack((1,2)) => array([1, 2])
         """
-        return Batch(state, action, reward, next_state, done)
+        return Batch(*batch)
 
     def __len__(
         self,

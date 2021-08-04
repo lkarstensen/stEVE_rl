@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod, abstractproperty
-from typing import Tuple
+from typing import Optional, Tuple
 import numpy as np
 from ..replaybuffer import Batch
+import torch
 
 
 class Algo(ABC):
@@ -10,11 +11,19 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
+    def get_exploration_action(
+        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
+    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
         ...
 
     @abstractmethod
-    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
+    def get_eval_action(
+        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
+    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
+        ...
+
+    @abstractmethod
+    def get_initial_hidden_state(self):
         ...
 
     @abstractmethod

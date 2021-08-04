@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import NamedTuple
+from typing import List, NamedTuple
 import numpy as np
 
 
@@ -12,7 +12,15 @@ class Episode:
         self.dones = []
         self.hidden_states = []
 
-    def add_transition(self, state, action, reward, next_state, done, hidden_state=None):
+    def add_transition(
+        self,
+        state: np.ndarray,
+        action: np.ndarray,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool,
+        hidden_state: np.ndarray = None,
+    ):
         self.states.append(state)
         self.actions.append(action)
         self.rewards.append(reward)
@@ -28,10 +36,13 @@ class Episode:
 class Batch(NamedTuple):
     states: np.ndarray
     actions: np.ndarray
-    rewards: float
+    rewards: np.ndarray
     next_states: np.ndarray
-    dones: bool
+    dones: np.ndarray
     hidden_states: np.ndarray = None
+    hidden_next_states: np.ndarray = None
+    cell_states: np.ndarray = None
+    cell_next_states: np.ndarray = None
 
 
 class ReplayBuffer(ABC):

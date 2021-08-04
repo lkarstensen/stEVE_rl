@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List
+from typing import List, Tuple, Optional
 from .network import Network
 
 
@@ -28,7 +28,14 @@ class QNetwork(Network):
         self.layers[-1].weight.data.uniform_(-init_w, init_w)
         self.layers[-1].bias.data.uniform_(-init_w, init_w)
 
-    def forward(self, state_batch: torch.Tensor, action_batch: torch.Tensor) -> torch.Tensor:
+        self._initial_hidden_state = None
+
+    def forward(
+        self,
+        state_batch: torch.Tensor,
+        action_batch: torch.Tensor,
+        hidden_state_batch: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         input = torch.cat([state_batch, action_batch], dim=1)
         for i in range(len(self.layers) - 1):
             output = self.layers[i](input)
@@ -38,7 +45,7 @@ class QNetwork(Network):
         # output without relu
         q_value_batch = self.layers[-1](output)
 
-        return q_value_batch
+        return q_value_batch, None
 
     def copy(self):
 

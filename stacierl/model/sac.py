@@ -1,4 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Tuple
+import numpy as np
+
+from torch.distributions.normal import Normal
 from .model import Model
 from .. import network
 import torch.optim as optim
@@ -35,6 +38,25 @@ class SAC(Model):
     def _init_alpha(self, learning_rate):
         self.log_alpha = torch.zeros(1, requires_grad=True)
         self.alpha_optim = optim.Adam([self.log_alpha], lr=learning_rate)
+
+    def get_action(
+        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
+    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
+        with torch.no_grad():
+            flat_state = torch.FloatTensor(flat_state).unsqueeze(0).to(self.device)
+
+            mean, log_std, hidden_state_out = self.policy_net(flat_state, hidden_state)
+            std = log_std.exp()
+
+            normal = Normal(mean, std)
+            z = normal.sample()
+            action = torch.tanh(z)
+            action = action.cpu().detach().squeeze(0).numpy()
+            return action, hidden_state_out
+
+    @property
+    def initial_hidden_state(self) -> Optional[torch.Tensor]:
+        return None
 
     def to(self, device: torch.device):
         self.device = device

@@ -2,30 +2,34 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
-from .network import Network
+from .gaussianpolicy import GaussianPolicy
 
 
-class GaussianPolicy(Network):
+class GaussianPolicyLSTM(GaussianPolicy):
     def __init__(
         self,
         n_observations: int,
         n_actions: int,
         hidden_layers: List[int],
+        n_lstm_nodes: int,
+        n_lstm_layer: int,
         init_w=3e-3,
         log_std_min=-20,
         log_std_max=2,
     ):
-        super().__init__()
-        self.n_actions = n_actions
-        self.n_observations = n_observations
-        self.hidden_layers = hidden_layers
-        self.init_w = init_w
-        self.log_std_min = log_std_min
-        self.log_std_max = log_std_max
+        super().__init__(n_observations, n_actions, hidden_layers, init_w, log_std_min, log_std_max)
+        self.n_lstm_nodes = n_lstm_nodes
+        self.n_lstm_layer = n_lstm_layer
+        self.lstm = nn.LSTM(
+            input_size=n_observations,
+            hidden_size=n_lstm_nodes,
+            num_layers=n_lstm_layer,
+            batch_first=True,
+        )
 
-        layers_input = [n_observations] + hidden_layers[:-1]
+        layers_input = [n_lstm_nodes] + hidden_layers[:-1]
         layers_output = hidden_layers
 
         self.layers = nn.ModuleList()
@@ -47,12 +51,15 @@ class GaussianPolicy(Network):
         self.log_std.weight.data.uniform_(-init_w, init_w)
         self.log_std.bias.data.uniform_(-init_w, init_w)
 
-        self._initial_hidden_state = None
+        hidden_shape = (n_lstm_layer, 1, n_lstm_nodes)
+        self._initial_hidden_state = (torch.zeros(hidden_shape), torch.zeros(hidden_shape))
 
     def forward(
-        self, state_batch: torch.Tensor, hidden_state_batch: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
-        input = state_batch
+        self, state_batch: torch.Tensor, hidden_state_batch: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+
+        lstm_output, hidden_out = self.lstm(state_batch, hidden_state_batch)
+        input = lstm_output
         for i in range(len(self.layers)):
             output = self.layers[i](input)
             output = F.relu(output)
@@ -62,7 +69,7 @@ class GaussianPolicy(Network):
         log_std = self.log_std(output)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
-        return mean, log_std, None
+        return mean, log_std, hidden_out
 
     def copy(self):
 
@@ -70,6 +77,8 @@ class GaussianPolicy(Network):
             self.n_observations,
             self.n_actions,
             self.hidden_layers,
+            self.n_lstm_nodes,
+            self.n_lstm_layer,
             self.init_w,
             self.log_std_min,
             self.log_std_max,

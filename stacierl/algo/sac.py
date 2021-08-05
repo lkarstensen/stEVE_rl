@@ -86,11 +86,11 @@ class SAC(Algo):
         actions = torch.as_tensor(actions, dtype=torch.float32, device=self.device)
         rewards = torch.as_tensor(rewards, dtype=torch.float32, device=self.device)
         rewards = rewards.unsqueeze(-1)
-        next_states = torch.as_tensor(next_states, device=self.device)
+        next_states = torch.as_tensor(next_states, dtype=torch.float32, device=self.device)
         dones = torch.as_tensor(dones, dtype=torch.float32, device=self.device)
         dones = dones.unsqueeze(-1)
         if np.any(hidden_states):
-            hidden_states = torch.as_tensor(hidden_states, device=self.device)
+            hidden_states = torch.as_tensor(hidden_states, dtype=torch.float32, device=self.device)
             hidden_next_states = torch.as_tensor(
                 hidden_next_states, dtype=torch.float32, device=self.device
             )

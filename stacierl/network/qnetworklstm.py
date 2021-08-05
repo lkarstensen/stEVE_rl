@@ -50,6 +50,7 @@ class QNetworkLSTM(QNetwork):
         action_batch: torch.Tensor,
         hidden_state_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+
         lstm_output, hidden_out = self.lstm(state_batch, hidden_state_batch)
 
         input = torch.cat([lstm_output, action_batch], dim=-1)

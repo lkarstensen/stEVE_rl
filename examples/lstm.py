@@ -27,7 +27,7 @@ def sac_training(
     log_folder: str = "",
     id: int = 0,
     name="lstm",
-    n_agents=4,
+    n_agents=2,
 ):
 
     if not os.path.isdir(log_folder):
@@ -59,12 +59,17 @@ def sac_training(
         target_q_net_2=q_net_2.copy(),
         learning_rate=lr,
     )
-    algo = stacierl.algo.SAC(sac_model, gamma=gamma, device=device)
+    algo = stacierl.algo.SAC(sac_model, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaLSTM(
         replay_buffer, sequence_length=sequence_length
     )
     agent = stacierl.agent.Parallel(
-        n_agents, algo, env_factory, replay_buffer, consecutive_action_steps=1
+        n_agents,
+        algo,
+        env_factory,
+        replay_buffer,
+        device=device,
+        consecutive_action_steps=1,
     )
 
     logfile = log_folder + name + "_" + str(id) + ".csv"

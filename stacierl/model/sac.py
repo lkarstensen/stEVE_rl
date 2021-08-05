@@ -40,7 +40,9 @@ class SAC(Model):
         self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
     ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
         with torch.no_grad():
-            flat_state = torch.as_tensor(flat_state, device=self.device).unsqueeze(0)
+            flat_state = torch.as_tensor(
+                flat_state, dtype=torch.float32, device=self.device
+            ).unsqueeze(0)
 
             mean, log_std, hidden_state_out = self.policy_net(flat_state, hidden_state)
             std = log_std.exp()

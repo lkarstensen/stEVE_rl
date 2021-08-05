@@ -4,6 +4,7 @@ from .agent import Agent, dict_state_to_flat_np_state
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
 from ..environment import EnvFactory, Environment
+import torch
 
 
 class Single(Agent):
@@ -13,7 +14,9 @@ class Single(Agent):
         env: Environment,
         replay_buffer: ReplayBuffer,
         consecutive_action_steps: int = 1,
+        device:torch.device = torch.device("cpu"),
     ) -> None:
+        self.device = device
         self.algo = algo
         self.env = env
         self.replay_buffer = replay_buffer
@@ -24,6 +27,7 @@ class Single(Agent):
         self.eval_step_counter = 0
         self.explore_episode_counter = 0
         self.eval_episode_counter = 0
+        self.algo.to(device)
 
     def _heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         step_counter = 0

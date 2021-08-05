@@ -18,9 +18,7 @@ class SAC(Algo):
         reward_scaling: float = 1,
         action_scaling: float = 1,
         exploration_action_noise: float = 0.2,
-        device: torch.device = torch.device("cpu"),
     ):
-        self.device = device
 
         # HYPERPARAMETERS
         self.gamma = gamma
@@ -37,8 +35,6 @@ class SAC(Algo):
         # ENTROPY TEMPERATURE
         self.alpha = 0.0
         self.target_entropy = -self.model.policy_net.n_actions
-
-        self.model.to(device)
 
     def get_initial_hidden_state(self):
         return self.model.initial_hidden_state

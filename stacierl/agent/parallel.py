@@ -19,17 +19,22 @@ class SingleAgentProcess(mp.Process, Single):
         algo: Algo,
         env: Environment,
         replay_buffer: ReplayBuffer,
-        consecutive_action_steps: int = 1,
+        device: torch.device,
+        consecutive_action_steps: int,
     ) -> None:
         mp.Process.__init__(
             self,
         )
-        Single.__init__(self, algo, env, replay_buffer, consecutive_action_steps)
+        Single.__init__(
+            self, algo, env, replay_buffer, consecutive_action_steps, torch.device("cpu")
+        )
         self.id = id
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
         self._result_queue = mp.Queue()
         self._model_queue = mp.SimpleQueue()
+
+        self.device = device
 
         self.explore_step_counter_mp = mp.Value("i", 0)
         self.explore_episode_counter_mp = mp.Value("i", 0)
@@ -38,6 +43,7 @@ class SingleAgentProcess(mp.Process, Single):
         self.eval_episode_counter_mp = mp.Value("i", 0)
 
     def run(self):
+        self.algo.to(self.device)
         while not self._shutdown_event.is_set():
             try:
                 task = self._task_queue.get(timeout=0.5)
@@ -57,16 +63,14 @@ class SingleAgentProcess(mp.Process, Single):
             elif task_name == "update":
                 self._update(task[1], task[2])
                 self.update_step_counter_mp.value = self.update_step_counter
-                device = self.algo.device
                 self.algo.to(torch.device("cpu"))
                 self._model_queue.put(self.algo.model.all_state_dicts())
-                self.algo.to(device)
+                self.algo.to(self.device)
                 continue
             elif task_name == "set_all_state_dicts":
-                device = self.algo.device
                 self.algo.to(torch.device("cpu"))
                 result = self.algo.model.load_all_state_dicts(task[1])
-                self.algo.to(device)
+                self.algo.to(self.device)
                 continue
             self._result_queue.put(result)
 
@@ -116,8 +120,10 @@ class Parallel(Agent):
         replay_buffer: ReplayBuffer,
         consecutive_action_steps: int = 1,
         model_update_per_agent_tau=0.35,
+        device: torch.device = torch.device("cpu"),
     ) -> None:
 
+        self.device = device
         self.algo = algo
         self.dummy_algo = self.algo.copy()
         # self.dummy_algo.model.to(self.algo.device)
@@ -130,19 +136,16 @@ class Parallel(Agent):
         self.agents: List[SingleAgentProcess] = []
 
         for i in range(n_agents):
-            algo_copy = self.algo.copy()
-            algo_copy.to(self.algo.device)
             self.agents.append(
                 SingleAgentProcess(
                     i,
-                    algo_copy,
+                    self.algo.copy(),
                     self.env_factory.create_env(),
                     replay_buffer.copy(),
+                    self.device,
                     consecutive_action_steps,
                 )
             )
-
-        self.algo.to(torch.device("cpu"))
 
         for agent in self.agents:
             agent.start()

@@ -17,10 +17,9 @@ class SACsharedLSTM(SAC):
         target_q_net_1: network.QNetworkLSTM,
         policy_net: network.GaussianPolicyLSTM,
         learning_rate: float = 0.0007525,
-        device: Optional[torch.device] = None,
     ) -> None:
         super().__init__(
-            q_net_1, q_net_2, target_q_net_1, target_q_net_2, policy_net, learning_rate, device
+            q_net_1, q_net_2, target_q_net_1, target_q_net_2, policy_net, learning_rate
         )
 
         self._init_lstm()

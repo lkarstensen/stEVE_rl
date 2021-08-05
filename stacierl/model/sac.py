@@ -17,7 +17,6 @@ class SAC(Model):
         target_q_net_1: network.QNetwork,
         policy_net: network.GaussianPolicy,
         learning_rate: float = 0.0007525,
-        device: Optional[torch.device] = None,
     ) -> None:
         self.q_net_1 = q_net_1
         self.q_net_2 = q_net_2
@@ -27,8 +26,6 @@ class SAC(Model):
         self.learning_rate = learning_rate
         self._init_optimizer(learning_rate)
         self._init_alpha(learning_rate)
-        if device:
-            self.to(device)
 
     def _init_optimizer(self, learning_rate):
         self.q1_optimizer = optim.Adam(self.q_net_1.parameters(), lr=learning_rate)

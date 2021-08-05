@@ -46,11 +46,7 @@ class SingleAgentProcess(mp.Process, Single):
     def run(self):
         self.algo.to(self.device)
         while not self._shutdown_event.is_set():
-            if self._task_queue.empty():
-                sleep(0.1)
-                continue
-            else:
-                task = self._task_queue.get()
+            task = self._task_queue.get()
 
             task_name = task[0]
             if task_name == "heatup":
@@ -76,6 +72,8 @@ class SingleAgentProcess(mp.Process, Single):
                 self.algo.to(torch.device("cpu"))
                 result = self.algo.model.load_all_state_dicts(task[1])
                 self.algo.to(self.device)
+                continue
+            else:
                 continue
             self._result_queue.put(result)
 
@@ -105,6 +103,7 @@ class SingleAgentProcess(mp.Process, Single):
 
     def shutdown(self):
         self._shutdown_event.set()
+        self._task_queue.put(["shutdown"])
 
 
 class Parallel(Agent):

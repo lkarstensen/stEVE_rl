@@ -51,7 +51,7 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma, device=device)
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
-    agent = stacierl.agent.ParallelAgent(
+    agent = stacierl.agent.Parallel(
         n_agents, algo, env_factory, replay_buffer, consecutive_action_steps=1
     )
 

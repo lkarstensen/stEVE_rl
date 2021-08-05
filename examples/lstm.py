@@ -63,7 +63,7 @@ def sac_training(
     replay_buffer = stacierl.replaybuffer.VanillaLSTM(
         replay_buffer, sequence_length=sequence_length
     )
-    agent = stacierl.agent.ParallelAgent(
+    agent = stacierl.agent.Parallel(
         n_agents, algo, env_factory, replay_buffer, consecutive_action_steps=1
     )
 

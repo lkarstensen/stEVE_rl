@@ -2,7 +2,7 @@ import queue
 from typing import List, Tuple
 
 from .agent import Agent
-from .singleagent import SingleAgent, dict_state_to_flat_np_state
+from .single import Single, dict_state_to_flat_np_state
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
 from ..environment import Environment, EnvFactory
@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 
-class SingleAgentProcess(mp.Process, SingleAgent):
+class SingleAgentProcess(mp.Process, Single):
     def __init__(
         self,
         id,
@@ -24,7 +24,7 @@ class SingleAgentProcess(mp.Process, SingleAgent):
         mp.Process.__init__(
             self,
         )
-        SingleAgent.__init__(self, algo, env, replay_buffer, consecutive_action_steps)
+        Single.__init__(self, algo, env, replay_buffer, consecutive_action_steps)
         self.id = id
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
@@ -107,7 +107,7 @@ class SingleAgentProcess(mp.Process, SingleAgent):
         self._shutdown_event.set()
 
 
-class ParallelAgent(Agent):
+class Parallel(Agent):
     def __init__(
         self,
         n_agents: int,

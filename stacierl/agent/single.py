@@ -6,7 +6,7 @@ from ..replaybuffer import ReplayBuffer, Episode
 from ..environment import EnvFactory, Environment
 
 
-class SingleAgent(Agent):
+class Single(Agent):
     def __init__(
         self,
         algo: Algo,

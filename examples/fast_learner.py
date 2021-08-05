@@ -48,7 +48,7 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma, device=device)
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
-    agent = stacierl.agent.SingleAgent(algo, env, replay_buffer, consecutive_action_steps=1)
+    agent = stacierl.agent.Single(algo, env, replay_buffer, consecutive_action_steps=1)
 
     logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
     with open(logfile, "w", newline="") as csvfile:

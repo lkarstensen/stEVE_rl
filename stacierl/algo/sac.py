@@ -1,7 +1,6 @@
 from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
-import torch.optim as optim
 from torch.distributions import Normal
 from .algo import Algo
 from .. import model
@@ -83,19 +82,21 @@ class SAC(Algo):
         ) = batch
         # actions /= self.action_scaling
 
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.FloatTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
+        states = torch.as_tensor(states, dtype=torch.float, device=self.device)
+        actions = torch.as_tensor(actions, dtype=torch.float, device=self.device)
+        rewards = torch.as_tensor(rewards, dtype=torch.float, device=self.device)
         rewards = rewards.unsqueeze(-1)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
+        next_states = torch.as_tensor(next_states, dtype=torch.float, device=self.device)
+        dones = torch.as_tensor(dones, dtype=torch.float, device=self.device)
         dones = dones.unsqueeze(-1)
         if np.any(hidden_states):
-            hidden_states = torch.FloatTensor(hidden_states).to(self.device)
-            hidden_next_states = torch.FloatTensor(hidden_next_states).to(self.device)
+            hidden_states = torch.as_tensor(hidden_states, dtype=torch.float, device=self.device)
+            hidden_next_states = torch.as_tensor(
+                hidden_next_states, dtype=torch.float, device=self.device
+            )
         if np.any(cell_states):
-            cell_states = torch.FloatTensor(cell_states).to(self.device)
-            cell_next_states = torch.FloatTensor(cell_next_states).to(self.device)
+            cell_states = torch.as_tensor(cell_states, dtype=torch.float, device=self.device)
+            cell_next_states = torch.as_tensor(cell_next_states, dtype=torch.float, device=self.device)
             hidden_states = (hidden_states, cell_states)
             hidden_next_states = (hidden_next_states, cell_next_states)
 

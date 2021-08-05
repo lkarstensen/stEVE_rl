@@ -7,9 +7,10 @@ from math import inf
 def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
     keys = sorted(state.keys())
 
-    flat_state = np.array([])
+    flat_state = []
     for key in keys:
-        flat_state = np.append(flat_state, state[key].flatten())
+        flat_state.append(state[key].flatten())
+    flat_state = np.array(flat_state).flatten()
     return flat_state
 
 

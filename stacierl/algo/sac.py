@@ -82,21 +82,21 @@ class SAC(Algo):
         ) = batch
         # actions /= self.action_scaling
 
-        states = torch.as_tensor(states, dtype=torch.float, device=self.device)
-        actions = torch.as_tensor(actions, dtype=torch.float, device=self.device)
-        rewards = torch.as_tensor(rewards, dtype=torch.float, device=self.device)
+        states = torch.as_tensor(states, device=self.device)
+        actions = torch.as_tensor(actions, device=self.device)
+        rewards = torch.as_tensor(rewards, dtype=torch.float16, device=self.device)
         rewards = rewards.unsqueeze(-1)
-        next_states = torch.as_tensor(next_states, dtype=torch.float, device=self.device)
-        dones = torch.as_tensor(dones, dtype=torch.float, device=self.device)
+        next_states = torch.as_tensor(next_states, device=self.device)
+        dones = torch.as_tensor(dones, dtype=torch.float16, device=self.device)
         dones = dones.unsqueeze(-1)
         if np.any(hidden_states):
-            hidden_states = torch.as_tensor(hidden_states, dtype=torch.float, device=self.device)
+            hidden_states = torch.as_tensor(hidden_states, device=self.device)
             hidden_next_states = torch.as_tensor(
                 hidden_next_states, dtype=torch.float, device=self.device
             )
         if np.any(cell_states):
-            cell_states = torch.as_tensor(cell_states, dtype=torch.float, device=self.device)
-            cell_next_states = torch.as_tensor(cell_next_states, dtype=torch.float, device=self.device)
+            cell_states = torch.as_tensor(cell_states, device=self.device)
+            cell_next_states = torch.as_tensor(cell_next_states, device=self.device)
             hidden_states = (hidden_states, cell_states)
             hidden_next_states = (hidden_next_states, cell_next_states)
 
@@ -205,7 +205,6 @@ class SAC(Algo):
             self.reward_scaling,
             self.action_scaling,
             self.exploration_action_noise,
-            device=self.device,
         )
         return copy
 

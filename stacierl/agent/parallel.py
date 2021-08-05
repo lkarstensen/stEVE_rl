@@ -10,6 +10,7 @@ from torch import multiprocessing as mp
 from math import inf, ceil
 import numpy as np
 import torch
+from time import sleep
 
 
 class SingleAgentProcess(mp.Process, Single):
@@ -30,8 +31,8 @@ class SingleAgentProcess(mp.Process, Single):
         )
         self.id = id
         self._shutdown_event = mp.Event()
-        self._task_queue = mp.Queue()
-        self._result_queue = mp.Queue()
+        self._task_queue = mp.SimpleQueue()
+        self._result_queue = mp.SimpleQueue()
         self._model_queue = mp.SimpleQueue()
 
         self.device = device
@@ -45,10 +46,12 @@ class SingleAgentProcess(mp.Process, Single):
     def run(self):
         self.algo.to(self.device)
         while not self._shutdown_event.is_set():
-            try:
-                task = self._task_queue.get(timeout=0.5)
-            except queue.Empty:
+            if self._task_queue.empty():
+                sleep(0.1)
                 continue
+            else:
+                task = self._task_queue.get()
+
             task_name = task[0]
             if task_name == "heatup":
                 result = self._heatup(task[1], task[2])
@@ -63,28 +66,18 @@ class SingleAgentProcess(mp.Process, Single):
             elif task_name == "update":
                 self._update(task[1], task[2])
                 self.update_step_counter_mp.value = self.update_step_counter
+                continue
+            elif task_name == "put_state_dict":
                 self.algo.to(torch.device("cpu"))
                 self._model_queue.put(self.algo.model.all_state_dicts())
                 self.algo.to(self.device)
                 continue
-            elif task_name == "set_all_state_dicts":
+            elif task_name == "set_state_dict":
                 self.algo.to(torch.device("cpu"))
                 result = self.algo.model.load_all_state_dicts(task[1])
                 self.algo.to(self.device)
                 continue
             self._result_queue.put(result)
-
-        while True:
-            try:
-                self._task_queue.get(block=False)
-            except queue.Empty:
-                break
-
-        while True:
-            try:
-                self._result_queue.get(block=False)
-            except queue.Empty:
-                break
 
     def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         self._task_queue.put(["heatup", steps, episodes])
@@ -98,8 +91,11 @@ class SingleAgentProcess(mp.Process, Single):
     def update(self, steps, batch_size):
         self._task_queue.put(["update", steps, batch_size])
 
-    def set_all_state_dicts(self, all_state_dicts):
-        self._task_queue.put(["set_all_state_dicts", all_state_dicts])
+    def set_state_dict(self, all_state_dicts):
+        self._task_queue.put(["set_state_dict", all_state_dicts])
+
+    def put_state_dict(self):
+        self._task_queue.put(["put_state_dict"])
 
     def get_result(self):
         return self._result_queue.get()
@@ -118,9 +114,9 @@ class Parallel(Agent):
         algo: Algo,
         env_factory: EnvFactory,
         replay_buffer: ReplayBuffer,
+        device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
         model_update_per_agent_tau=0.35,
-        device: torch.device = torch.device("cpu"),
     ) -> None:
 
         self.device = device
@@ -154,6 +150,7 @@ class Parallel(Agent):
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
             agent.update(steps_per_agent, batch_size)
+            agent.put_state_dict()
         for agent in self.agents:
             state_dict = agent.get_state_dict()
             self.dummy_algo.model.load_all_state_dicts(state_dict)
@@ -162,7 +159,7 @@ class Parallel(Agent):
 
         all_state_dicts = self.algo.model.all_state_dicts()
         for agent in self.agents:
-            agent.set_all_state_dicts(all_state_dicts)
+            agent.set_state_dict(all_state_dicts)
 
     def _heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)

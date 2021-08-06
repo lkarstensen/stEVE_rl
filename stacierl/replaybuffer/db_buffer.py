@@ -1,7 +1,7 @@
-from replaybuffer import ReplayBuffer,Episode,Batch
+from .replaybuffer import ReplayBuffer,Episode,Batch
 import random
 import numpy as np 
-from nptyping import Dict
+from typing import Dict
 from my_socket.socketclient import SocketClient
 
 
@@ -13,26 +13,37 @@ class DBBuffer(ReplayBuffer):
         self.buffer = []
         self.dbbuffer = [] 
         self.position = 0
+        self.sample_counter = 1
+        self.init_with_db()
+        
 
 
 
     def init_with_db(self):
         counter = 0
         con = SocketClient()
-        doc_limit = 14000
+        doc_limit = 0
         if self.mixed:
-            doc_limit = 7000
+            doc_limit = 20000
         #__raw__ = {"steps": {"$elemMatch":{"info":True}},"episode_length":{"$gt":20}} 
-        episodes = con.get_episodes(limit = doc_limit,player = "fastlearner")
-        #episodes =  episodes + con.get_episodes(limit=7000)
+        #__raw__={"steps": {"$elemMatch":{"extra_info":1}},
+        episodes = con.get_episodes( player="fastlearner")
+        episodes = episodes + episodes
+        # If you want to sort:
+        #episodes.sort(key = lambda episode: episode.episode_reward)
         for episode in episodes:
             steps = episode.steps
-            for i in range(len(steps)-1):
+            for i in range(len(steps)):
                 if counter == self.capacity:
                     print("capacity_limit reached")
                     break
-                self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i+1]["action"],steps[i]["reward"],\
-                    self.dict_state_to_flat_np_state(steps[i+1]["state"]),steps[i]["done"]))
+                if i == len(steps)-1:
+                    self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["action"],steps[i]["reward"],\
+                        self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["done"]))
+                    print(steps[i]["done"]  )
+                else:
+                    self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["action"],steps[i]["reward"],\
+                        self.dict_state_to_flat_np_state(steps[i+1]["state"]),steps[i]["done"]))
                 counter+= 1
             else:
                 continue
@@ -44,7 +55,7 @@ class DBBuffer(ReplayBuffer):
 
 
 
-    def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
+    def dict_state_to_flat_np_state(self,state: Dict[str, np.ndarray]) -> np.ndarray:
         keys = sorted(state.keys())
 
         flat_state = np.array([])
@@ -73,18 +84,30 @@ class DBBuffer(ReplayBuffer):
             batch = random.sample(self.buffer,int(batch_size/2))
             batch + random.sample(self.dbbuffer,int(batch_size/2))
         else:
-            batch = random.sample(self.dbbuffer,batch_size)
-        state, action, reward, next_state, done = map(
-            np.stack, zip(*batch)
-        )  # stack for each element
+            """
+            if self.sample_counter * batch_size < len(self.dbbuffer):
+                sample_area  = self.dbbuffer[:self.sample_counter*batch_size]
+                batch = random.sample(sample_area, batch_size)
+                self.sample_counter +=  1  '
+            else:
+            """
+            batch = random.sample(self.dbbuffer, batch_size)
+        
 
+        
+            
+            
+        
+        batch = map(np.stack, zip(*batch))  # stack for each element
+
+       
         """ 
         the * serves as unpack: sum(a,b) <=> batch=(a,b), sum(*batch) ;
         zip: a=[1,2], b=[2,3], zip(a,b) => [(1, 2), (2, 3)] ;
         the map serves as mapping the function on each list element: map(square, [2,3]) => [4,9] ;
         np.stack((1,2)) => array([1, 2])
         """
-        return Batch(state, action, reward, next_state, done)
+        return Batch(*batch)
 
     def __len__(
         self,

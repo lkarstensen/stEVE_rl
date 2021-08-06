@@ -49,8 +49,8 @@ def sac_training(
         learning_rate=lr,
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma, device=device)
-    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
-    replay_buffer = stacierl.replaybuffer.DBBuffer(replay_buffer)
+    #replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
+    replay_buffer = stacierl.replaybuffer.DBBuffer(replay_buffer,mixed=False)
     agent = stacierl.agent.SingleAgent(algo, env, replay_buffer, consecutive_action_steps=1)
 
     logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"

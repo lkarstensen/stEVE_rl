@@ -84,8 +84,8 @@ class SingleAgent(Agent):
 
     def _update(self, steps, batch_size) -> None:
         if len(self.replay_buffer) < batch_size:
+            print("NO LEARNING")
             return
-
         for _ in range(steps):
             batch = self.replay_buffer.sample(batch_size)
             self.algo.update(batch)
@@ -130,6 +130,7 @@ class SingleAgent(Agent):
                 episode_transitions.add_transition(
                     state, action, reward, next_state, done, hidden_state
                 )
+                
                 state = next_state
                 hidden_state = hidden_next_state
                 episode_reward += reward

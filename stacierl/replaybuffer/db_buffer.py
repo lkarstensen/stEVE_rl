@@ -21,14 +21,14 @@ class DBBuffer(ReplayBuffer):
 
     def init_with_db(self):
         counter = 0
-        con = SocketClient()
+        con = SocketClient(host="10.15.16.73")
         doc_limit = 0
         if self.mixed:
             doc_limit = 20000
         #__raw__ = {"steps": {"$elemMatch":{"info":True}},"episode_length":{"$gt":20}} 
         #__raw__={"steps": {"$elemMatch":{"extra_info":1}},
         episodes = con.get_episodes( player="fastlearner")
-        episodes = episodes + episodes
+        #episodes = episodes + episodes
         # If you want to sort:
         #episodes.sort(key = lambda episode: episode.episode_reward)
         for episode in episodes:

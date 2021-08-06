@@ -62,12 +62,12 @@ class VanillaLSTM(ReplayBuffer):
                 n_padding = self.sequence_length - len(episode)
 
                 state_padding_shape = tuple([n_padding]) + state_seq[0].shape
-                state_padding = np.full(state_padding_shape, 0.0)
+                state_padding = np.full(state_padding_shape, 0.0, dtype=np.float32)
                 state_seq = np.concatenate((state_padding, state_seq), axis=0)
                 next_state_seq = np.concatenate((state_padding, next_state_seq), axis=0)
 
                 action_padding_shape = tuple([n_padding]) + action_seq[0].shape
-                action_padding = np.full(action_padding_shape, 0.0)
+                action_padding = np.full(action_padding_shape, 0.0, dtype=np.float32)
                 action_seq = np.concatenate((action_padding, action_seq), axis=0)
 
                 reward_seq = [0] * n_padding + reward_seq
@@ -118,7 +118,7 @@ class VanillaLSTM(ReplayBuffer):
         return len(self.buffer)
 
     def copy(self):
-        copy = self.__class__(self.capacity)
+        copy = self.__class__(self.capacity, self.sequence_length)
         for i in range(len(self.buffer)):
             copy.buffer.append(self.buffer[i])
         copy.position = self.position

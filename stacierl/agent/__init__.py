@@ -1,3 +1,4 @@
 from .agent import Agent
-from .singleagent import SingleAgent
-from .parallelagent import ParallelAgent
+from .single import Single
+from .parallel import Parallel
+from .parallelshared import ParallelShared

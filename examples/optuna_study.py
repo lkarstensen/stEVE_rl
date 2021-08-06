@@ -28,7 +28,7 @@ def optuna_run(trial):
         n_lstm_layer=n_lstm_layers,
         n_lstm_nodes=n_lstm_nodes,
         id=trial.number,
-        training_steps=5e5,
+        training_steps=2.5e5,
         name=name,
         log_folder=cwd + "/optuna_results/",
     )

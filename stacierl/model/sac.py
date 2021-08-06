@@ -17,7 +17,6 @@ class SAC(Model):
         target_q_net_1: network.QNetwork,
         policy_net: network.GaussianPolicy,
         learning_rate: float = 0.0007525,
-        device: Optional[torch.device] = None,
     ) -> None:
         self.q_net_1 = q_net_1
         self.q_net_2 = q_net_2
@@ -27,8 +26,6 @@ class SAC(Model):
         self.learning_rate = learning_rate
         self._init_optimizer(learning_rate)
         self._init_alpha(learning_rate)
-        if device:
-            self.to(device)
 
     def _init_optimizer(self, learning_rate):
         self.q1_optimizer = optim.Adam(self.q_net_1.parameters(), lr=learning_rate)
@@ -43,7 +40,9 @@ class SAC(Model):
         self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
     ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
         with torch.no_grad():
-            flat_state = torch.FloatTensor(flat_state).unsqueeze(0).to(self.device)
+            flat_state = torch.as_tensor(
+                flat_state, dtype=torch.float32, device=self.device
+            ).unsqueeze(0)
 
             mean, log_std, hidden_state_out = self.policy_net(flat_state, hidden_state)
             std = log_std.exp()
@@ -94,7 +93,42 @@ class SAC(Model):
             self.target_q_net_2,
             self.policy_net,
             self.learning_rate,
-            device=self.device,
         )
 
         return copy
+
+    def all_state_dicts(self):
+        all_state_dicts = {
+            "q_net_1": self.q_net_1.state_dict(),
+            "q_net_2": self.q_net_2.state_dict(),
+            "target_q_net_1": self.target_q_net_1.state_dict(),
+            "target_q_net_2": self.target_q_net_2.state_dict(),
+            "policy_net": self.policy_net.state_dict(),
+        }
+        return all_state_dicts
+
+    def all_parameters(self):
+        all_parameters = {
+            "q_net_1": self.q_net_1.parameters(),
+            "q_net_2": self.q_net_2.parameters(),
+            "target_q_net_1": self.target_q_net_1.parameters(),
+            "target_q_net_2": self.target_q_net_2.parameters(),
+            "policy_net": self.policy_net.parameters(),
+        }
+        return all_parameters
+
+    def load_all_state_dicts(self, all_state_dicts: dict):
+        self.q_net_1.load_state_dict(all_state_dicts["q_net_1"])
+        self.q_net_2.load_state_dict(all_state_dicts["q_net_2"])
+        self.target_q_net_1.load_state_dict(all_state_dicts["target_q_net_1"])
+        self.target_q_net_2.load_state_dict(all_state_dicts["target_q_net_2"])
+        self.policy_net.load_state_dict(all_state_dicts["policy_net"])
+
+    def soft_tau_update_all(self, all_parameters: dict, tau: float):
+
+        for net, net_key in zip(
+            [self.q_net_1, self.q_net_2, self.target_q_net_1, self.target_q_net_2, self.policy_net],
+            ["q_net_1", "q_net_2", "target_q_net_1", "target_q_net_2", "policy_net"],
+        ):
+            for self_param, extern_param in zip(net.parameters(), all_parameters[net_key]):
+                self_param.data.copy_(tau * extern_param + (1 - tau) * self_param)

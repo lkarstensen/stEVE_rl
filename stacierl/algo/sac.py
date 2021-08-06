@@ -1,7 +1,6 @@
 from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
-import torch.optim as optim
 from torch.distributions import Normal
 from .algo import Algo
 from .. import model
@@ -18,9 +17,7 @@ class SAC(Algo):
         reward_scaling: float = 1,
         action_scaling: float = 1,
         exploration_action_noise: float = 0.2,
-        device: torch.device = torch.device("cpu"),
     ):
-        self.device = device
 
         # HYPERPARAMETERS
         self.gamma = gamma
@@ -37,8 +34,6 @@ class SAC(Algo):
         # ENTROPY TEMPERATURE
         self.alpha = 0.0
         self.target_entropy = -self.model.policy_net.n_actions
-
-        self.model.to(device)
 
     def get_initial_hidden_state(self):
         return self.model.initial_hidden_state
@@ -87,19 +82,23 @@ class SAC(Algo):
         ) = batch
         # actions /= self.action_scaling
 
-        states = torch.FloatTensor(states).to(self.device)
-        actions = torch.FloatTensor(actions).to(self.device)
-        rewards = torch.FloatTensor(rewards).to(self.device)
+        states = torch.as_tensor(states, dtype=torch.float32, device=self.device)
+        actions = torch.as_tensor(actions, dtype=torch.float32, device=self.device)
+        rewards = torch.as_tensor(rewards, dtype=torch.float32, device=self.device)
         rewards = rewards.unsqueeze(-1)
-        next_states = torch.FloatTensor(next_states).to(self.device)
-        dones = torch.FloatTensor(dones).to(self.device)
+        next_states = torch.as_tensor(next_states, dtype=torch.float32, device=self.device)
+        dones = torch.as_tensor(dones, dtype=torch.float32, device=self.device)
         dones = dones.unsqueeze(-1)
         if np.any(hidden_states):
-            hidden_states = torch.FloatTensor(hidden_states).to(self.device)
-            hidden_next_states = torch.FloatTensor(hidden_next_states).to(self.device)
+            hidden_states = torch.as_tensor(hidden_states, dtype=torch.float32, device=self.device)
+            hidden_next_states = torch.as_tensor(
+                hidden_next_states, dtype=torch.float32, device=self.device
+            )
         if np.any(cell_states):
-            cell_states = torch.FloatTensor(cell_states).to(self.device)
-            cell_next_states = torch.FloatTensor(cell_next_states).to(self.device)
+            cell_states = torch.as_tensor(cell_states, dtype=torch.float32, device=self.device)
+            cell_next_states = torch.as_tensor(
+                cell_next_states, dtype=torch.float32, device=self.device
+            )
             hidden_states = (hidden_states, cell_states)
             hidden_next_states = (hidden_next_states, cell_next_states)
 
@@ -208,6 +207,9 @@ class SAC(Algo):
             self.reward_scaling,
             self.action_scaling,
             self.exploration_action_noise,
-            device=self.device,
         )
         return copy
+
+    def to(self, device: torch.device):
+        self.device = device
+        self.model.to(device)

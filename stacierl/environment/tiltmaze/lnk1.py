@@ -22,11 +22,9 @@ class LNK1(EnvFactory):
         imaging = tiltmaze.imaging.ImagingDummy((500, 500), maze, physic)
 
         pos = tiltmaze.state.Position(physic)
-        # pos = tiltmaze.state.wrapper.Memory(pos, 2, reset_mode="fill")
         pos = tiltmaze.state.wrapper.Normalize(pos)
         target_state = tiltmaze.state.Target(target)
         target_state = tiltmaze.state.wrapper.Normalize(target_state)
-        # action_state = tiltmaze.state.Action(physic)
         rotation = tiltmaze.state.Rotation(physic)
         state = tiltmaze.state.Combination(
             {"position": pos, "rotation": rotation, "target": target_state}

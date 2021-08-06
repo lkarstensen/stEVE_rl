@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple
 import numpy as np
-from math import inf
+from dataclasses import dataclass
 
 
 def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
@@ -14,43 +14,57 @@ def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
     return flat_state
 
 
+@dataclass
+class EpisodeCounter:
+    exploration: int = 0
+    eval: int = 0
+
+    def __iadd__(self, other):
+        self.exploration += other.exploration
+        self.eval += other.eval
+        return self
+
+
+@dataclass
+class StepCounter:
+    exploration: int = 0
+    eval: int = 0
+    update: int = 0
+
+    def __iadd__(self, other):
+        self.exploration += other.exploration
+        self.eval += other.eval
+        self.update += other.update
+        return self
+
+
 class Agent(ABC):
-    def update(self, steps, batch_size):
-        return self._update(steps, batch_size)
-
     @abstractmethod
-    def _update(self, steps):
-        ...
-
     def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
-        if steps is None and episodes is None:
-            raise ValueError("One of the two (steps or episodes) needs to be given")
-        steps = steps or inf
-        episodes = episodes or inf
-        return self._heatup(steps, episodes)
-
-    @abstractmethod
-    def _heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         ...
 
+    @abstractmethod
     def explore(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
-        if steps is None and episodes is None:
-            raise ValueError("One of the two (steps or episodes) needs to be given")
-        steps = steps or inf
-        episodes = episodes or inf
-        return self._explore(steps, episodes)
-
-    @abstractmethod
-    def _explore(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         ...
 
-    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
-        if steps is None and episodes is None:
-            raise ValueError("One of the two (steps or episodes) needs to be given")
-        steps = steps or inf
-        episodes = episodes or inf
-        return self._evaluate(steps, episodes)
+    @abstractmethod
+    def update(self, steps) -> None:
+        ...
 
     @abstractmethod
-    def _evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+        ...
+
+    @abstractmethod
+    def close(self) -> None:
+        ...
+
+    @property
+    @abstractmethod
+    def step_counter(self) -> StepCounter:
+        ...
+
+    @property
+    @abstractmethod
+    def episode_counter(self) -> EpisodeCounter:
         ...

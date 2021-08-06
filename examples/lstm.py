@@ -1,4 +1,3 @@
-from torch.nn.functional import poisson_nll_loss
 import stacierl
 import stacierl.environment.tiltmaze as tiltmaze
 import numpy as np
@@ -27,7 +26,7 @@ def sac_training(
     log_folder: str = "",
     id: int = 0,
     name="lstm",
-    n_agents=2,
+    n_agents=4,
 ):
 
     if not os.path.isdir(log_folder):
@@ -42,10 +41,10 @@ def sac_training(
         n_observations += np.prod(obs_shape)
     n_actions = np.prod(env.action_space.shape)
 
-    q_net_1 = stacierl.network.QNetworkLSTM(
+    q_net_1 = stacierl.network.QNetworkLSTM2(
         n_observations, n_actions, hidden_layers, n_lstm_nodes, n_lstm_layer
     )
-    q_net_2 = stacierl.network.QNetworkLSTM(
+    q_net_2 = stacierl.network.QNetworkLSTM2(
         n_observations, n_actions, hidden_layers, n_lstm_nodes, n_lstm_layer
     )
     policy_net = stacierl.network.GaussianPolicyLSTM(
@@ -63,7 +62,7 @@ def sac_training(
     replay_buffer = stacierl.replaybuffer.VanillaLSTM(
         replay_buffer, sequence_length=sequence_length
     )
-    agent = stacierl.agent.Parallel(
+    agent = stacierl.agent.ParallelShared(
         n_agents,
         algo,
         env_factory,
@@ -81,30 +80,31 @@ def sac_training(
 
     next_eval_step_limt = steps_between_eval
     agent.heatup(steps=heatup)
-    while agent.explore_step_counter < training_steps:
+    step_counter = agent.step_counter
+    while step_counter.exploration < training_steps:
         agent.explore(episodes=consecutive_explore_episodes)
-
-        update_steps = agent.explore_step_counter - agent.update_step_counter
+        step_counter = agent.step_counter
+        update_steps = step_counter.exploration - step_counter.update
         agent.update(update_steps, batch_size)
 
-        if agent.explore_step_counter > next_eval_step_limt:
+        if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
             next_eval_step_limt += steps_between_eval
 
-            print(f"Steps: {agent.explore_step_counter}, Reward: {reward}, Success: {success}")
+            print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")
             with open(logfile, "a+", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
                 writer.writerow(
-                    [agent.explore_episode_counter, agent.explore_step_counter, reward, success]
+                    [agent.episode_counter.exploration, step_counter.exploration, reward, success]
                 )
     agent.close()
 
-    return success, agent.explore_step_counter
+    return success, step_counter.exploration
 
 
 if __name__ == "__main__":
     time_start = time()
-    mp.set_start_method("spawn")
+    mp.set_start_method("spawn", force=True)
     cwd = os.getcwd()
     log_folder = cwd + "/lstm_example_results/"
     result = sac_training(

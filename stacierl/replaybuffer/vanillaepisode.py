@@ -4,7 +4,7 @@ import numpy as np
 from .replaybuffer import ReplayBuffer, Episode, Batch
 
 
-class VanillaLSTM(ReplayBuffer):
+class VanillaEpisode(ReplayBuffer):
     def __init__(self, capacity, sequence_length: int):
         self.capacity = capacity
         self.sequence_length = sequence_length
@@ -12,12 +12,22 @@ class VanillaLSTM(ReplayBuffer):
         self.position = 0
 
     def push(self, episode: Episode):
-
-        for i in range(len(episode)):
-            episode.hidden_states[i] = (
-                episode.hidden_states[i][0].cpu().numpy().squeeze(1),
-                episode.hidden_states[i][1].cpu().numpy().squeeze(1),
-            )
+        if episode.hidden_states:
+            for i in range(len(episode)):
+                if isinstance(episode.hidden_states[i], tuple):
+                    episode.hidden_states[i] = (
+                        episode.hidden_states[i][0].cpu().numpy().squeeze(1),
+                        episode.hidden_states[i][1].cpu().numpy().squeeze(1),
+                    )
+                    episode.next_hidden_states[i] = (
+                        episode.next_hidden_states[i][0].cpu().numpy().squeeze(1),
+                        episode.next_hidden_states[i][1].cpu().numpy().squeeze(1),
+                    )
+                else:
+                    episode.hidden_states[i] = (episode.hidden_states[i].cpu().numpy().squeeze(1),)
+                    episode.next_hidden_states[i] = (
+                        episode.next_hidden_states[i].cpu().numpy().squeeze(1),
+                    )
 
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
@@ -32,9 +42,7 @@ class VanillaLSTM(ReplayBuffer):
         next_state_batch = []
         done_batch = []
         hidden_state_batch = []
-        hidden_next_state_batch = []
-        cell_state_batch = []
-        cell_next_state_batch = []
+        next_hidden_state_batch = []
         for episode in episodes:
             state_seq = episode.states
             action_seq = episode.actions
@@ -42,6 +50,7 @@ class VanillaLSTM(ReplayBuffer):
             next_state_seq = episode.next_states
             done_seq = episode.dones
             hidden_state_seq = episode.hidden_states
+            next_hidden_state_seq = episode.next_hidden_states
 
             if len(episode) == 1:
                 continue
@@ -56,7 +65,7 @@ class VanillaLSTM(ReplayBuffer):
                 next_state_seq = next_state_seq[start_idx:end_idx]
                 done_seq = done_seq[start_idx:end_idx]
                 hidden_state = hidden_state_seq[start_idx]
-                hidden_next_state = hidden_state_seq[start_idx + 1]
+                next_hidden_state = next_hidden_state_seq[start_idx]
 
             else:
                 n_padding = self.sequence_length - len(episode)
@@ -74,29 +83,27 @@ class VanillaLSTM(ReplayBuffer):
 
                 done_seq = [False] * n_padding + done_seq
                 hidden_state = hidden_state_seq[0]
-                hidden_next_state = hidden_state_seq[1]
+                next_hidden_state = next_hidden_state_seq[1]
             state_batch.append(state_seq)
             action_batch.append(action_seq)
             reward_batch.append(reward_seq)
             next_state_batch.append(next_state_seq)
             done_batch.append(done_seq)
-            hidden_state_batch.append(hidden_state[0])
-            hidden_next_state_batch.append(hidden_next_state[0])
-            cell_state_batch.append(hidden_state[1])
-            cell_next_state_batch.append(hidden_next_state[1])
+            hidden_state_batch.append(hidden_state)
+            next_hidden_state_batch.append(next_hidden_state)
         state_batch = np.asarray(state_batch)
         action_batch = np.asarray(action_batch)
         reward_batch = np.asarray(reward_batch)
         next_state_batch = np.asarray(next_state_batch)
         done_batch = np.asarray(done_batch)
         hidden_state_batch = np.asarray(hidden_state_batch)
-        hidden_state_batch = np.swapaxes(hidden_state_batch, 0, 1).copy()
-        hidden_next_state_batch = np.asarray(hidden_next_state_batch)
-        hidden_next_state_batch = np.swapaxes(hidden_next_state_batch, 0, 1).copy()
-        cell_state_batch = np.asarray(cell_state_batch)
-        cell_state_batch = np.swapaxes(cell_state_batch, 0, 1).copy()
-        cell_next_state_batch = np.asarray(cell_next_state_batch)
-        cell_next_state_batch = np.swapaxes(cell_next_state_batch, 0, 1).copy()
+        hidden_state_batch = np.moveaxis(hidden_state_batch, 0, -2).copy()
+        next_hidden_state_batch = np.asarray(next_hidden_state_batch)
+        next_hidden_state_batch = np.moveaxis(next_hidden_state_batch, 0, -2).copy()
+        if len(hidden_state_batch.shape) > 3:
+            hidden_state_batch = (hidden_state_batch[0], hidden_state_batch[1])
+            next_hidden_state_batch = (next_hidden_state_batch[0], next_hidden_state_batch[1])
+
         return Batch(
             state_batch,
             action_batch,
@@ -104,9 +111,7 @@ class VanillaLSTM(ReplayBuffer):
             next_state_batch,
             done_batch,
             hidden_state_batch,
-            hidden_next_state_batch,
-            cell_state_batch,
-            cell_next_state_batch,
+            next_hidden_state_batch,
         )
 
     def __len__(

@@ -86,8 +86,6 @@ class SAC(Algo):
             dones,
             hidden_states,
             hidden_next_states,
-            cell_states,
-            cell_next_states,
         ) = batch
         # actions /= self.action_scaling
 
@@ -98,18 +96,23 @@ class SAC(Algo):
         next_states = torch.as_tensor(next_states, dtype=torch.float32, device=self._device)
         dones = torch.as_tensor(dones, dtype=torch.float32, device=self._device)
         dones = dones.unsqueeze(-1)
-        if np.any(hidden_states):
-            hidden_states = torch.as_tensor(hidden_states, dtype=torch.float32, device=self._device)
-            hidden_next_states = torch.as_tensor(
-                hidden_next_states, dtype=torch.float32, device=self._device
-            )
-        if np.any(cell_states):
-            cell_states = torch.as_tensor(cell_states, dtype=torch.float32, device=self._device)
-            cell_next_states = torch.as_tensor(
-                cell_next_states, dtype=torch.float32, device=self._device
-            )
-            hidden_states = (hidden_states, cell_states)
-            hidden_next_states = (hidden_next_states, cell_next_states)
+        if np.any(hidden_states) is not None:
+            if isinstance(hidden_states, tuple):
+                hidden_states = [
+                    torch.as_tensor(state, dtype=torch.float32, device=self._device)
+                    for state in hidden_states
+                ]
+                hidden_next_states = [
+                    torch.as_tensor(state, dtype=torch.float32, device=self._device)
+                    for state in hidden_next_states
+                ]
+            else:
+                hidden_states = torch.as_tensor(
+                    hidden_states, dtype=torch.float32, device=self._device
+                )
+                hidden_next_states = torch.as_tensor(
+                    hidden_next_states, dtype=torch.float32, device=self._device
+                )
 
         next_actions, next_log_pi = self._get_update_action(next_states, hidden_next_states)
         next_q1, _ = self._model.target_q_net_1(next_states, next_actions, hidden_next_states)

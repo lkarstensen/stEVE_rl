@@ -16,12 +16,12 @@ def sac_training(
     n_lstm_layer: int = 1,
     gamma=0.990019014056533,
     replay_buffer=1e4,
-    training_steps=2e5,
+    training_steps=3e5,
     consecutive_explore_episodes=1,
-    steps_between_eval=1e4,
+    steps_between_eval=5e3,
     eval_episodes=100,
-    batch_size=10,
-    heatup=1000,
+    batch_size=20,
+    heatup=5000,
     sequence_length=10,
     log_folder: str = "",
     id: int = 0,
@@ -41,10 +41,10 @@ def sac_training(
         n_observations += np.prod(obs_shape)
     n_actions = np.prod(env.action_space.shape)
 
-    q_net_1 = stacierl.network.QNetworkLSTM2(
+    q_net_1 = stacierl.network.QNetworkLSTM(
         n_observations, n_actions, hidden_layers, n_lstm_nodes, n_lstm_layer
     )
-    q_net_2 = stacierl.network.QNetworkLSTM2(
+    q_net_2 = stacierl.network.QNetworkLSTM(
         n_observations, n_actions, hidden_layers, n_lstm_nodes, n_lstm_layer
     )
     policy_net = stacierl.network.GaussianPolicyLSTM(
@@ -62,7 +62,7 @@ def sac_training(
     replay_buffer = stacierl.replaybuffer.VanillaLSTM(
         replay_buffer, sequence_length=sequence_length
     )
-    agent = stacierl.agent.ParallelShared(
+    agent = stacierl.agent.Parallel(
         n_agents,
         algo,
         env_factory,

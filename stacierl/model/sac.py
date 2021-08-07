@@ -110,7 +110,7 @@ class SAC(Model):
     def _init_optimizer(self, learning_rate):
         self.q1_optimizer = optim.Adam(self._nets.q_net_1.parameters(), lr=learning_rate)
         self.q2_optimizer = optim.Adam(self._nets.q_net_2.parameters(), lr=learning_rate)
-        self.policy_optimizer = optim.Adam(self._nets.policy_net.parameters(), lr=learning_rate / 2)
+        self.policy_optimizer = optim.Adam(self._nets.policy_net.parameters(), lr=learning_rate)
 
     def _init_alpha(self, learning_rate):
         self.log_alpha = torch.zeros(1, requires_grad=True)

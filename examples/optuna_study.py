@@ -1,16 +1,9 @@
-import stacierl
-import stacierl.environment.tiltmaze as tiltmaze
-import numpy as np
-import torch
 import csv
 import optuna
 import os
 from lstm import sac_training
 import torch.multiprocessing as mp
-
-id = 0
-
-name = "lstm_optuna_trial"
+import argparse
 
 
 def optuna_run(trial):
@@ -39,10 +32,16 @@ def optuna_run(trial):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Optuna Study.")
+    parser.add_argument("name", type=str, help="an integer for the accumulator")
+    parser.add_argument("n_trials", type=int, help="number of study trials")
+    args = parser.parse_args()
+    name = args.name
+    n_trials = args.n_trials
     mp.set_start_method("spawn", force=True)
     study = optuna.create_study(
         study_name=name,
         direction="maximize",
-        sampler=optuna.samplers.TPESampler(),
+        sampler=optuna.samplers.RandomSampler(),
     )
-    study.optimize(optuna_run, n_trials=200)
+    study.optimize(optuna_run, n_trials=n_trials)

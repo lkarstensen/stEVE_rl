@@ -31,17 +31,12 @@ class SACsharedLSTM(SAC):
     def get_action(
         self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
     ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
-        with torch.no_grad():
-            flat_state = torch.FloatTensor(flat_state).unsqueeze(0).unsqueeze(0).to(self.device)
+        flat_state = np.expand_dims(flat_state, 0)
 
-            mean, log_std, hidden_state_out = self.policy_net(flat_state, hidden_state)
-            std = log_std.exp()
+        action, hidden_state_out = super().get_action(flat_state, hidden_state)
 
-            normal = Normal(mean, std)
-            z = normal.sample()
-            action = torch.tanh(z)
-            action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
-            return action, hidden_state_out
+        action = action.squeeze(0)
+        return action, hidden_state_out
 
     @property
     def initial_hidden_state(self) -> Optional[torch.Tensor]:

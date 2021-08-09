@@ -23,7 +23,7 @@ class Single(Agent):
         self.save_db = False
         self.env = env
         if self.save_db:
-            self.env = SocketWrapper(env, player="fastlearner")
+            self.env = SocketWrapper(env, player="fastlearner",host="10.15.16.73")
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
 

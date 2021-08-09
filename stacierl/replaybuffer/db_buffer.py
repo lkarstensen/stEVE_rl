@@ -27,23 +27,19 @@ class DBBuffer(ReplayBuffer):
             doc_limit = 20000
         #__raw__ = {"steps": {"$elemMatch":{"info":True}},"episode_length":{"$gt":20}} 
         #__raw__={"steps": {"$elemMatch":{"extra_info":1}},
-        episodes = con.get_episodes( player="fastlearner")
+        
+        episodes = con.get_episodes(player="fastlearner")
         #episodes = episodes + episodes
         # If you want to sort:
-        #episodes.sort(key = lambda episode: episode.episode_reward)
+        episodes.sort(key = lambda episode: episode.episode_reward)
         for episode in episodes:
             steps = episode.steps
-            for i in range(len(steps)):
+            for i in range(len(steps)-1):
                 if counter == self.capacity:
                     print("capacity_limit reached")
                     break
-                if i == len(steps)-1:
-                    self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["action"],steps[i]["reward"],\
-                        self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["done"]))
-                    print(steps[i]["done"]  )
-                else:
-                    self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["state"]),steps[i]["action"],steps[i]["reward"],\
-                        self.dict_state_to_flat_np_state(steps[i+1]["state"]),steps[i]["done"]))
+                self.dbbuffer.append((self.dict_state_to_flat_np_state(steps[i]["next_state"]),steps[i+1]["action"],steps[i+1]["reward"],\
+                    self.dict_state_to_flat_np_state(steps[i+1]["next_state"]),steps[i+1]["done"]))
                 counter+= 1
             else:
                 continue
@@ -84,14 +80,14 @@ class DBBuffer(ReplayBuffer):
             batch = random.sample(self.buffer,int(batch_size/2))
             batch + random.sample(self.dbbuffer,int(batch_size/2))
         else:
-            """
+            
             if self.sample_counter * batch_size < len(self.dbbuffer):
                 sample_area  = self.dbbuffer[:self.sample_counter*batch_size]
                 batch = random.sample(sample_area, batch_size)
-                self.sample_counter +=  1  '
+                self.sample_counter +=  1  
             else:
-            """
-            batch = random.sample(self.dbbuffer, batch_size)
+                
+                batch = random.sample(self.dbbuffer, batch_size)
         
 
         

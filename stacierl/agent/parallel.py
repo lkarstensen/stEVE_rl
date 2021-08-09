@@ -93,14 +93,14 @@ class SingleAgentProcess(Agent):
                 step_counter_update.value = agent.step_counter.update
                 continue
             elif task_name == "put_state_dict":
-                agent.to(torch.device("cpu"))
-                model_queue.put(agent.algo.model.all_state_dicts())
-                agent.to(device)
+                state_dicts = agent.algo.model.nets.state_dicts
+                state_dicts.to(torch.device("cpu"))
+                model_queue.put(state_dicts)
                 continue
             elif task_name == "set_state_dict":
-                agent.to(torch.device("cpu"))
-                result = agent.algo.model.load_all_state_dicts(task[1])
-                agent.to(device)
+                state_dicts = task[1]
+                state_dicts.to(device)
+                agent.algo.model.nets.load_state_dicts(state_dicts)
                 continue
             else:
                 continue
@@ -158,28 +158,19 @@ class Parallel(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
-        model_update_per_agent_tau=0.35,
     ) -> None:
 
-        self.device = device
-        self.algo = algo
-        self.dummy_algo = self.algo.copy()
-        self.env_factory = env_factory
-        self.replay_buffer = replay_buffer
-        self.consecutive_action_steps = consecutive_action_steps
         self.n_agents = n_agents
-        self.model_update_per_agent_tau = model_update_per_agent_tau
-
         self.agents: List[SingleAgentProcess] = []
 
         for i in range(n_agents):
             self.agents.append(
                 SingleAgentProcess(
                     i,
-                    self.algo.copy(),
-                    self.env_factory.create_env(),
+                    algo.copy(),
+                    env_factory.create_env(),
                     replay_buffer.copy(),
-                    self.device,
+                    device,
                     consecutive_action_steps,
                 )
             )
@@ -213,15 +204,17 @@ class Parallel(Agent):
         for agent in self.agents:
             agent.update(steps_per_agent, batch_size)
             agent.put_state_dict()
-        for agent in self.agents:
-            state_dict = agent.get_state_dict()
-            self.dummy_algo.model.load_all_state_dicts(state_dict)
-            all_parameters = self.dummy_algo.model.all_parameters()
-            self.algo.model.soft_tau_update_all(all_parameters, self.model_update_per_agent_tau)
 
-        all_state_dicts = self.algo.model.all_state_dicts()
+        new_state_dict = None
         for agent in self.agents:
-            agent.set_state_dict(all_state_dicts)
+            state_dicts = agent.get_state_dict() / self.n_agents
+            if new_state_dict is None:
+                new_state_dict = state_dicts
+            else:
+                new_state_dict += state_dicts
+
+        for agent in self.agents:
+            agent.set_state_dict(new_state_dict)
 
     def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)

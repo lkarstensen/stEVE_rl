@@ -126,19 +126,19 @@ class Single(Agent):
         hidden_state = self.algo.get_initial_hidden_state()
         while True:
             if mode == "exploration":
-                action, hidden_next_state = self.algo.get_exploration_action(state, hidden_state)
+                action, next_hidden_state = self.algo.get_exploration_action(state, hidden_state)
             else:
-                action, hidden_next_state = self.algo.get_eval_action(state, hidden_state)
+                action, next_hidden_state = self.algo.get_eval_action(state, hidden_state)
             for _ in range(consecutive_actions):
                 next_state, reward, done, info, success = self.env.step(action)
                 next_state = dict_state_to_flat_np_state(next_state)
                 self.env.render()
                 episode_transitions.add_transition(
-                    state, action, reward, next_state, done, hidden_state
+                    state, action, reward, next_state, done, hidden_state, next_hidden_state
                 )
                 
                 state = next_state
-                hidden_state = hidden_next_state
+                hidden_state = next_hidden_state
                 episode_reward += reward
                 step_counter += 1
                 if done:

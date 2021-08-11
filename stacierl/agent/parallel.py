@@ -14,7 +14,7 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env: Environment,
+        env_factory: EnvFactory,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -38,7 +38,7 @@ class SingleAgentProcess(Agent):
             args=[
                 id,
                 algo,
-                env,
+                env_factory,
                 replay_buffer,
                 device,
                 consecutive_action_steps,
@@ -59,7 +59,7 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env: Environment,
+        env_factory: EnvFactory,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -73,6 +73,7 @@ class SingleAgentProcess(Agent):
         episode_counter_eval: mp.Value,
         step_counter_update: mp.Value,
     ):
+        env = env_factory.create_env()
         agent = Single(algo, env, replay_buffer, device, consecutive_action_steps)
         while not shutdown_event.is_set():
             task = task_queue.get()
@@ -168,7 +169,7 @@ class Parallel(Agent):
                 SingleAgentProcess(
                     i,
                     algo.copy(),
-                    env_factory.create_env(),
+                    env_factory,
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,

@@ -29,7 +29,7 @@ class ParallelShared(Parallel):
                 SingleAgentProcess(
                     i,
                     algo.copy_shared_memory(),
-                    self.env_factory.create_env(),
+                    env_factory,
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,

@@ -78,12 +78,10 @@ def sac_training(
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")
             with open(logfile, "a+", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
-                writer.writerow(
-                    [agent.episode_counter.exploration, step_counter.exploration, reward, success]
-                )
+                writer.writerow([agent.episode_counter.exploration, step_counter.exploration, reward, success])
 
     agent.close()
-    return (success,)  # agent.explore_step_counter
+    return (success, step_counter)  # agent.explore_step_counter
 
 
 if __name__ == "__main__":
@@ -96,4 +94,5 @@ if __name__ == "__main__":
         hidden_layers=[128, 128],
         log_folder=log_folder,
         n_agents=3,
+        device=torch.device("cpu"),
     )

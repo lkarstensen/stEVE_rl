@@ -27,11 +27,11 @@ class DBBuffer(ReplayBuffer):
             doc_limit = 20000
         #__raw__ = {"steps": {"$elemMatch":{"info":True}},"episode_length":{"$gt":20}} 
         #__raw__={"steps": {"$elemMatch":{"extra_info":1}},
-        
-        episodes = con.get_episodes(player="fastlearner")
+        #player = "fastlearner",__raw__={"steps": {"$elemMatch":{"extra_info":1}}}
+        episodes = con.get_episodes(player = "fastlearner",__raw__={"steps": {"$elemMatch":{"extra_info":1}}})
         #episodes = episodes + episodes
         # If you want to sort:
-        episodes.sort(key = lambda episode: episode.episode_reward)
+        #episodes.sort(key = lambda episode: episode.episode_reward)
         for episode in episodes:
             steps = episode.steps
             for i in range(len(steps)-1):
@@ -57,6 +57,7 @@ class DBBuffer(ReplayBuffer):
         flat_state = np.array([])
         for key in keys:
             flat_state = np.append(flat_state, state[key].flatten())
+        flat_state = np.array(flat_state).flatten()
         return flat_state
 
     def push(self, episode: Episode):
@@ -80,14 +81,14 @@ class DBBuffer(ReplayBuffer):
             batch = random.sample(self.buffer,int(batch_size/2))
             batch + random.sample(self.dbbuffer,int(batch_size/2))
         else:
-            
+            """
             if self.sample_counter * batch_size < len(self.dbbuffer):
                 sample_area  = self.dbbuffer[:self.sample_counter*batch_size]
                 batch = random.sample(sample_area, batch_size)
                 self.sample_counter +=  1  
             else:
-                
-                batch = random.sample(self.dbbuffer, batch_size)
+            """    
+            batch = random.sample(self.dbbuffer, batch_size)
         
 
         

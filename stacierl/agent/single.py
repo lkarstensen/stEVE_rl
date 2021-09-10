@@ -1,4 +1,6 @@
 from typing import Tuple
+
+from torch.autograd.grad_mode import F
 from .agent import Agent, dict_state_to_flat_np_state, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
@@ -23,7 +25,7 @@ class Single(Agent):
         self.save_db = False
         self.env = env
         if self.save_db:
-            self.env = SocketWrapper(env, player="fastlearner",host="10.15.16.73")
+            self.env = SocketWrapper(env, player="my_learner",host="10.15.16.73",port =65430)
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
 
@@ -129,6 +131,7 @@ class Single(Agent):
                 action, next_hidden_state = self.algo.get_exploration_action(state, hidden_state)
             else:
                 action, next_hidden_state = self.algo.get_eval_action(state, hidden_state)
+
             for _ in range(consecutive_actions):
                 next_state, reward, done, info, success = self.env.step(action)
                 next_state = dict_state_to_flat_np_state(next_state)

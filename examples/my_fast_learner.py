@@ -1,3 +1,7 @@
+import sys
+from typing import NamedTuple
+sys.path.append(".")
+from stacierl import replaybuffer
 from torch.nn.functional import poisson_nll_loss
 import stacierl
 import stacierl.environment.tiltmaze as tiltmaze
@@ -6,6 +10,12 @@ import torch
 from datetime import datetime
 import csv
 import os
+import time
+
+
+
+class Test(NamedTuple):
+    cause = 10
 
 
 def sac_training(
@@ -26,9 +36,10 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_factory = tiltmaze.LNK1(dt_step=2 / 3)
+    #env_factory = tiltmaze.LNK1(dt_step=2 / 3)
+    env_factory = tiltmaze.LNK2(dt_step=2 / 3)
     env = env_factory.create_env()
-
+   
     obs_dict_shape = env.observation_space.shape
     n_observations = 0
     for obs_shape in obs_dict_shape.values():
@@ -48,10 +59,11 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
+    #replay_buffer = stacierl.replaybuffer.DBBuffer(replay_buffer)
     agent = stacierl.agent.Single(
         algo, env, replay_buffer, consecutive_action_steps=1, device=device
     )
-
+    begin_time  = time.time()
     logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
@@ -83,7 +95,8 @@ def sac_training(
                         success,
                     ]
                 )
-
+    print("Perfomance time:")
+    print(time.time()- begin_time)
     return success, agent.step_counter.exploration
 
 
@@ -96,3 +109,4 @@ if __name__ == "__main__":
         hidden_layers=[128, 128],
         log_folder=log_folder,
     )
+

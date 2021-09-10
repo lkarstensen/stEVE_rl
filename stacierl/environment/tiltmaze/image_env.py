@@ -4,7 +4,7 @@ import tiltmaze
 import math
 
 
-class LNK1(EnvFactory):
+class LNK2(EnvFactory):
     def __init__(self, dt_step=1 / 10) -> None:
         self.dt_step = dt_step
 
@@ -20,15 +20,18 @@ class LNK1(EnvFactory):
         target = tiltmaze.target.CenterlineRandom(maze, physic, 10)
         pathfinder = tiltmaze.pathfinder.NodesBFS(maze, target, physic)
         start = tiltmaze.start.Origin(physic)
-        imaging = tiltmaze.imaging.ImagingDummy((500, 500), maze, physic)
+        imaging = tiltmaze.imaging.ImagingDummy()
+        imaging = tiltmaze.imaging.LNK1((500, 500), maze, physic)
 
         pos = tiltmaze.state.Position(physic)
         pos = tiltmaze.state.wrapper.Normalize(pos)
+        image_state = tiltmaze.state.Image(imaging)
+        image_state = tiltmaze.state.imagewrapper.ShowCorridors(image_state,maze)
         target_state = tiltmaze.state.Target(target)
         target_state = tiltmaze.state.wrapper.Normalize(target_state)
         rotation = tiltmaze.state.Rotation(physic)
         state = tiltmaze.state.Combination(
-            {"position": pos, "rotation": rotation, "target": target_state}
+            {"image":image_state}
         )
         
         #state = tiltmaze.state.Image(imaging)

@@ -103,6 +103,9 @@ class SingleAgentProcess(Agent):
                 state_dicts.to(device)
                 agent.algo.model.nets.load_state_dicts(state_dicts)
                 continue
+            elif task_name == "shutdown":
+                agent.close()
+                continue
             else:
                 continue
             result_queue.put(result)

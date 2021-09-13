@@ -34,7 +34,7 @@ class LNK2(EnvFactory):
         target_state = eve.state.wrapper.Normalize(target_state)
         last_action = eve.state.LastAction(simulation)
         last_action = eve.state.wrapper.Memory(
-            simulation, 2, eve.state.wrapper.MemoryResetMode.ZERO
+            last_action, 2, eve.state.wrapper.MemoryResetMode.ZERO
         )
         state = eve.state.Combination([position, target_state, last_action])
 

@@ -29,7 +29,7 @@ docker-build:
         tag=":$CI_COMMIT_REF_SLUG"
         echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
-    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" --build_arg USER=$STACIE_ACCESS_USER --build-arg PW=$STACIE_ACCESS_TOKEN.
+    - docker build --pull -t "$CI_REGISTRY_IMAGE${tag}" --build_arg USER=$STACIE_ACCESS_USER --build-arg PW=$STACIE_ACCESS_TOKEN .
     - docker push "$CI_REGISTRY_IMAGE${tag}"
   # Run this job in a branch where a Dockerfile exists
   rules:

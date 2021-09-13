@@ -83,6 +83,8 @@ RUN cmake --install ${SOFA_DIR}/build
 
 ENV SOFA_ROOT ${SOFA_DIR}/build/install/
 
+ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
+
 RUN git clone -b pamb_v2106_testing https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/sofa_beamadapter.git $SOFA_DIR/src/applications/plugins/BeamAdapter
 RUN sed -i '$asofa_add_plugin(BeamAdapter BeamAdapter)' $SOFA_DIR/src/applications/plugins/CMakeLists.txt
 

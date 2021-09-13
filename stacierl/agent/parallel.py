@@ -159,16 +159,22 @@ class Parallel(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
+        shared_model=False,
     ) -> None:
 
         self.n_agents = n_agents
+        self.shared_model = shared_model
         self.agents: List[SingleAgentProcess] = []
 
         for i in range(n_agents):
+            if shared_model:
+                new_algo = algo.copy_shared_memory()
+            else:
+                new_algo = algo.copy()
             self.agents.append(
                 SingleAgentProcess(
                     i,
-                    algo.copy(),
+                    new_algo,
                     env_factory,
                     replay_buffer.copy(),
                     device,
@@ -201,21 +207,25 @@ class Parallel(Agent):
         return tuple(results)
 
     def update(self, steps, batch_size):
+
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
             agent.update(steps_per_agent, batch_size)
-            agent.put_state_dict()
 
-        new_state_dict = None
-        for agent in self.agents:
-            state_dicts = agent.get_state_dict() / self.n_agents
-            if new_state_dict is None:
-                new_state_dict = state_dicts
-            else:
-                new_state_dict += state_dicts
+        if not self.shared_model:
+            for agent in self.agents:
+                agent.put_state_dict()
 
-        for agent in self.agents:
-            agent.set_state_dict(new_state_dict)
+            new_state_dict = None
+            for agent in self.agents:
+                state_dicts = agent.get_state_dict() / self.n_agents
+                if new_state_dict is None:
+                    new_state_dict = state_dicts
+                else:
+                    new_state_dict += state_dicts
+
+            for agent in self.agents:
+                agent.set_state_dict(new_state_dict)
 
     def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)

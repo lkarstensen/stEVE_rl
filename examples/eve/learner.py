@@ -22,9 +22,10 @@ def sac_training(
     eval_episodes=100,
     batch_size=128,
     heatup=1000,
-    n_agents=20,
+    n_worker=20,
     n_trainer=4,
     log_folder: str = "",
+    id=0,
 ):
 
     if not os.path.isdir(log_folder):
@@ -53,7 +54,7 @@ def sac_training(
     algo = stacierl.algo.SAC(sac_model, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaShared(replay_buffer)
     agent = stacierl.agent.Synchron(
-        n_worker=n_agents,
+        n_worker=n_worker,
         n_trainer=n_trainer,
         algo=algo,
         env_factory=env_factory,
@@ -63,7 +64,7 @@ def sac_training(
         share_trainer_model=True,
     )
 
-    logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
+    logfile = log_folder + "/run_" + str(id) + ".csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["lr", "gamma", "hidden_layers"])

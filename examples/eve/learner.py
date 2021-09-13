@@ -15,11 +15,12 @@ def sac_training(
     hidden_layers=[256, 256],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=2e6,
-    consecutive_explore_episodes=20,
+    training_steps=1e6,
+    consecutive_explore_episodes=50,
+    update_steps_per_exploration_step=1,
     steps_between_eval=5e4,
     eval_episodes=100,
-    batch_size=64,
+    batch_size=128,
     heatup=1000,
     n_agents=20,
     n_trainer=4,
@@ -72,10 +73,14 @@ def sac_training(
     next_eval_step_limt = steps_between_eval
     agent.heatup(steps=heatup)
     step_counter = agent.step_counter
+    last_exporation_steps = step_counter.exploration
     while step_counter.exploration < training_steps:
         agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
-        update_steps = step_counter.exploration - step_counter.update
+        update_steps = int(
+            (step_counter.exploration - last_exporation_steps) * update_steps_per_exploration_step
+        )
+        last_exporation_steps = step_counter.exploration
         agent.update(update_steps, batch_size)
 
         if step_counter.exploration > next_eval_step_limt:

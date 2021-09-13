@@ -79,23 +79,25 @@ RUN cmake -G"CodeBlocks - Unix Makefiles" \
     -B ${SOFA_DIR}/build
 RUN cmake --build ${SOFA_DIR}/build -j
 
-# RUN cmake -DSOFA_FETCH_SOFAPYTHON3=ON -DSP3_LINK_TO_USER_SITE=ON -DSP3_PYTHON_PACKAGES_LINK_DIRECTORY=/usr/lib/python3.8/dist-packages -S ${SOFA_DIR}/src -B ${SOFA_DIR}/build
-# RUN cmake --build ${SOFA_DIR}/build -j
 RUN cmake --install ${SOFA_DIR}/build
 
 ENV SOFA_ROOT ${SOFA_DIR}/build/install/
 
 RUN git clone -b pamb_v2106_testing https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/sofa_beamadapter.git $SOFA_DIR/src/applications/plugins/BeamAdapter
-#stacierl-docker:RTgDt4csDJYGasbeigUs
 RUN sed -i '$asofa_add_plugin(BeamAdapter BeamAdapter)' $SOFA_DIR/src/applications/plugins/CMakeLists.txt
 
 RUN cmake -DPLUGIN_SOFADISTANCEGRID=ON -DPLUGIN_SOFAIMPLICITFIELD=ON -DPLUGIN_BEAMADAPTER=ON -DBEAMADAPTER_BUILD_TESTS=OFF -S ${SOFA_DIR}/src -B ${SOFA_DIR}/build
 RUN cmake --build ${SOFA_DIR}/build -j
 
 RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/eve.git /opt/eve
-#stacierl-docker:3H8SxghgWkNBuYDze6Sv
 RUN python3 -m pip install /opt/eve[all]
 
 RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/toy-problems/tiltmaze.git /opt/tiltmaze 
-#stacierl-docker:migyUjUWkTQfB5hMfF8e
 RUN python3 -m pip install /opt/tiltmaze
+
+RUN python3 -m pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+
+RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/stacierl.git /opt/stacierl
+RUN python3 -m pip install /opt/stacierl
+
+RUN python3 -m pip install optuna

@@ -19,21 +19,31 @@ class LNK1(EnvFactory):
         success = eve.success.TargetReached(target)
         pathfinder = eve.pathfinder.Centerline(vessel_tree, simulation, target)
 
-        position = eve.state.Tracking(simulation, vessel_tree, n_points=2)
+        dim_to_delete = eve.state.wrapper.Dimension.Y
+        position = eve.state.Tracking(simulation, vessel_tree, n_points=5)
         position = eve.state.wrapper.RelativeToFirstRow(position)
+        position = eve.state.wrapper.CoordinatesTo2D(position, dimension_to_delete=dim_to_delete)
         position = eve.state.wrapper.Normalize(position)
-        position_2 = eve.state.wrapper.RelativeToLastState(position, name="Delta_Tracking")
+        position_2 = eve.state.Tracking(simulation, vessel_tree, n_points=1)
+        position_2 = eve.state.wrapper.CoordinatesTo2D(
+            position_2, dimension_to_delete=dim_to_delete
+        )
+        position_2 = eve.state.wrapper.Normalize(position_2)
+        position_2 = eve.state.wrapper.RelativeToLastState(position_2, name="Delta_Tracking")
         target_state = eve.state.Target(target, vessel_tree)
+        target_state = eve.state.wrapper.CoordinatesTo2D(
+            target_state, dimension_to_delete=dim_to_delete
+        )
         target_state = eve.state.wrapper.Normalize(target_state)
         last_action = eve.state.LastAction(simulation)
-        state = eve.state.Combination([position, target_state, last_action])
+        state = eve.state.Combination([position, position_2, target_state, last_action])
 
         target_reward = eve.reward.TargetReached(target, factor=1.0)
         # step_reward = eve.reward.Step(factor=-0.01)
         path_delta = eve.reward.PathLengthDelta(pathfinder, 0.01)
         reward = eve.reward.Combination([target_reward, path_delta])
 
-        max_steps = eve.done.MaxSteps(300)
+        max_steps = eve.done.MaxSteps(200)
         target_reached = eve.done.TargetReached(target)
         done = eve.done.Combination([max_steps, target_reached])
 

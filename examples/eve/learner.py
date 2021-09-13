@@ -104,6 +104,8 @@ def sac_training(
                     ]
                 )
 
+    agent.close()
+
     return success, agent.step_counter.exploration
 
 

@@ -23,6 +23,7 @@ def optuna_run(trial):
         log_folder=log_folder + "/" + name,
         n_worker=n_worker,
         n_trainer=n_trainer,
+        env=env,
     )
     with open(log_folder + "/" + name + ".csv", "a+") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
@@ -33,8 +34,9 @@ def optuna_run(trial):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Optuna Study.")
     parser.add_argument("name", type=str, help="an integer for the accumulator")
-    parser.add_argument("n_trials", type=int, help="number of study trials")
     parser.add_argument("logfolder", type=str, help="Folder to save logfiles")
+    parser.add_argument("env", type=str, help="Environment to use")
+    parser.add_argument("n_trials", type=int, help="number of study trials")
     parser.add_argument("n_worker", type=int, help="Amount of Exploration Workers")
     parser.add_argument("n_trainer", type=int, help="Amount of NN Training Agents")
     args = parser.parse_args()
@@ -43,6 +45,7 @@ if __name__ == "__main__":
     log_folder = args.logfolder
     n_worker = args.n_worker
     n_trainer = args.n_trainer
+    env = args.env
     mp.set_start_method("spawn", force=True)
     study = optuna.create_study(
         study_name=name,

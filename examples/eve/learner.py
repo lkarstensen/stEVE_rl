@@ -26,12 +26,16 @@ def sac_training(
     n_trainer=4,
     log_folder: str = "",
     id=0,
+    env: str = "lnk1",
 ):
 
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_factory = eve.LNK1(dt_step=2 / 3)
+    if env == "lnk1":
+        env_factory = eve.LNK1()
+    elif env == "lnk2":
+        env_factory = eve.LNK2()
     env = env_factory.create_env()
 
     obs_dict_shape = env.observation_space.shape

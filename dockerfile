@@ -80,7 +80,6 @@ RUN cmake -G"CodeBlocks - Unix Makefiles" \
     -S ${SOFA_DIR}/src \
     -B ${SOFA_DIR}/build
 RUN cmake --build ${SOFA_DIR}/build -j
-
 RUN cmake --install ${SOFA_DIR}/build
 
 ENV SOFA_ROOT ${SOFA_DIR}/build/install/
@@ -90,6 +89,7 @@ RUN sed -i '$asofa_add_plugin(BeamAdapter BeamAdapter)' $SOFA_DIR/src/applicatio
 
 RUN cmake -DPLUGIN_SOFADISTANCEGRID=ON -DPLUGIN_SOFAIMPLICITFIELD=ON -DPLUGIN_BEAMADAPTER=ON -DBEAMADAPTER_BUILD_TESTS=OFF -S ${SOFA_DIR}/src -B ${SOFA_DIR}/build
 RUN cmake --build ${SOFA_DIR}/build -j
+RUN cmake --install ${SOFA_DIR}/build
 
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 
@@ -103,3 +103,6 @@ RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/stacierl.
 RUN python3 -m pip install /opt/stacierl
 
 RUN python3 -m pip install optuna
+
+
+#docker run --gpus all --mount type=bind,source=$PWD/experiments,target=/experiments registry.gitlab.cc-asp.fraunhofer.de/stacie/stacierl python3 /opt/stacierl/examples/eve/optuna_study.py initial_trial 50 /experiments 50 5

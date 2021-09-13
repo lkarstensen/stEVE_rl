@@ -3,6 +3,7 @@
 *.egg-info
 
 /examples/*results
+*experiments
 *results
 
 test.py

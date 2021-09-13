@@ -59,7 +59,7 @@ def sac_training(
         learning_rate=lr,
     )
     algo = stacierl.algo.SAC(sac_model, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaLSTM(
+    replay_buffer = stacierl.replaybuffer.VanillaEpisode(
         replay_buffer, sequence_length=sequence_length
     )
     agent = stacierl.agent.Parallel(

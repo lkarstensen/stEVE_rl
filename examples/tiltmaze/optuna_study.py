@@ -8,22 +8,24 @@ import argparse
 
 def optuna_run(trial):
     cwd = os.getcwd()
+    if not os.path.isdir(cwd + "/optuna_results/"):
+        os.mkdir(cwd + "/optuna_results/")
     lr = trial.suggest_loguniform("lr", 1e-6, 1e-2)
     gamma = trial.suggest_float("gamma", 0.98, 0.9999)
-    n_layers = trial.suggest_int("n_layers", 1, 3)
-    n_nodes = trial.suggest_int("n_nodes", 32, 256)
-    hidden_layers = [n_nodes for _ in range(n_layers)]
+    # n_layers = trial.suggest_int("n_layers", 1, 3)
+    # n_nodes = trial.suggest_int("n_nodes", 32, 256)
+    # hidden_layers = [n_nodes for _ in range(n_layers)]
     n_lstm_layers = trial.suggest_int("n_lstm_layers", 1, 2)
     n_lstm_nodes = trial.suggest_int("n_lstm_nodes", 32, 256)
     success, steps = sac_training(
         lr=lr,
         gamma=gamma,
-        hidden_layers=hidden_layers,
+        # hidden_layers=hidden_layers,
         n_lstm_layer=n_lstm_layers,
         n_lstm_nodes=n_lstm_nodes,
         id=trial.number,
         name=name,
-        log_folder=cwd + "/optuna_results/",
+        log_folder=cwd + "/optuna_results/" + name,
     )
     with open(cwd + "/optuna_results/" + name + ".csv", "a+") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")

@@ -1,7 +1,7 @@
 FROM nvidia/cuda:11.1.1-cudnn8-runtime-ubuntu20.04
 
-ARG USER=gitlab+deploy-token-934
-ARG PW=ZxsVEvyKHa-WdW-qNoy3
+ARG USER
+ARG PW
 
 # Install APT tools and repos
 RUN apt-get update && apt-get upgrade -y

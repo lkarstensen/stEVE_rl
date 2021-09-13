@@ -4,8 +4,8 @@ import math
 
 
 class LNK1(EnvFactory):
-    def __init__(self, dt_step=1 / 10) -> None:
-        self.dt_step = dt_step
+    def __init__(self) -> None:
+        ...
 
     def create_env(self) -> eve.Env:
         tree_name = eve.vesseltree.CAD_VesselTrees.ORGANIC_V2

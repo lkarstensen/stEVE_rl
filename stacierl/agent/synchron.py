@@ -29,6 +29,7 @@ class Synchron(Agent):
         self.share_trainer_model = share_trainer_model
         self.worker: List[SingleAgentProcess] = []
         self.trainer: List[SingleAgentProcess] = []
+        self.replay_buffer = replay_buffer
 
         for i in range(n_worker):
             self.worker.append(
@@ -130,6 +131,7 @@ class Synchron(Agent):
             agent.close()
         for agent in self.trainer:
             agent.close()
+        self.replay_buffer.close()
 
     def _divide_steps_and_episodes(self, steps, episodes, n_agents) -> Tuple[int, int]:
 

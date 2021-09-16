@@ -9,6 +9,7 @@ import os
 
 
 def sac_training(
+    shutdown,
     worker_device=torch.device("cpu"),
     trainer_device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     lr=0.000766667,
@@ -16,7 +17,7 @@ def sac_training(
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=1e6,
-    consecutive_explore_episodes=50,
+    consecutive_explore_episodes=1,
     update_steps_per_exploration_step=1,
     steps_between_eval=5e4,
     eval_episodes=100,
@@ -27,15 +28,18 @@ def sac_training(
     log_folder: str = "",
     id=0,
     env: str = "lnk1",
+    image_frequency=7.5,
+    path_reward_factor=0.01,
 ):
 
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
+    env_str = env
     if env == "lnk1":
-        env_factory = eve.LNK1()
+        env_factory = eve.LNK1(image_frequency, path_reward_factor)
     elif env == "lnk2":
-        env_factory = eve.LNK2()
+        env_factory = eve.LNK2(image_frequency, path_reward_factor)
     env = env_factory.create_env()
 
     obs_dict_shape = env.observation_space.shape
@@ -71,15 +75,17 @@ def sac_training(
     logfile = log_folder + "/run_" + str(id) + ".csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
-        writer.writerow(["lr", "gamma", "hidden_layers"])
-        writer.writerow([lr, gamma, hidden_layers])
+        writer.writerow(
+            ["lr", "gamma", "hidden_layers", "image_frequency", "path_reward_factor", "environment"]
+        )
+        writer.writerow([lr, gamma, hidden_layers, image_frequency, path_reward_factor, env_str])
         writer.writerow(["Episodes", "Steps", "Reward", "Success"])
 
     next_eval_step_limt = steps_between_eval
     agent.heatup(steps=heatup)
     step_counter = agent.step_counter
     last_exporation_steps = step_counter.exploration
-    while step_counter.exploration < training_steps:
+    while step_counter.exploration < training_steps and not shutdown.is_set():
         agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
         update_steps = int(
@@ -111,15 +117,43 @@ def sac_training(
 
 if __name__ == "__main__":
     import torch.multiprocessing as mp
+    import argparse
 
+    parser = argparse.ArgumentParser(description="Optuna Study.")
+    parser.add_argument("logfolder", type=str, help="Folder to save logfiles")
+    parser.add_argument("env", type=str, help="Environment to use")
+    parser.add_argument("n_worker", type=int, help="Amount of Exploration Workers")
+    parser.add_argument("n_trainer", type=int, help="Amount of NN Training Agents")
+    parser.add_argument(
+        "image_frequency",
+        type=float,
+        help="Frquency of the imaging system and therefore control frequency",
+    )
+    parser.add_argument(
+        "path_reward_factor", type=float, help="Factor of the path_length_delta reward"
+    )
+    parser.add_argument("lr", type=float, help="Learning rate")
+    parser.add_argument("name", type=str, help="an integer for the accumulator")
+    args = parser.parse_args()
+    name = args.name
+    log_folder = args.logfolder
+    n_worker = args.n_worker
+    n_trainer = args.n_trainer
+    env = args.env
+    image_frequency = args.image_frequency
+    path_reward_factor = args.path_reward_factor
+    lr = args.lr
     mp.set_start_method("spawn", force=True)
-    cwd = os.getcwd()
-    log_folder = cwd + "/eve_learner_example_results/"
     hidden_layers = [128, 128, 128]
-
     result = sac_training(
-        lr=0.0025,
-        gamma=0.99,
+        lr=lr,
+        gamma=0.999,
         hidden_layers=hidden_layers,
         log_folder=log_folder,
+        id=name,
+        n_worker=n_worker,
+        n_trainer=n_trainer,
+        env=env,
+        image_frequency=image_frequency,
+        path_reward_factor=path_reward_factor,
     )

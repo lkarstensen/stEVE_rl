@@ -56,8 +56,7 @@ RUN python3 -m pip install --upgrade pip \
 # Install cmake
 RUN apt-get install -y cmake
 
-RUN python3 -m pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
-
+#PYBIND11 for SOFAPython3
 ENV PYBIND11_DIR /tmp/pybind11
 
 RUN git clone -b v2.4 --depth 1 https://github.com/pybind/pybind11.git $PYBIND11_DIR/src
@@ -66,6 +65,8 @@ RUN cmake -DCMAKE_BUILD_TYPE=Release -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYBI
 RUN cmake --build ${PYBIND11_DIR}/build
 RUN cmake --install ${PYBIND11_DIR}/build 
 
+
+#Compile Sofa
 ENV SOFA_DIR /opt/sofa
 
 RUN mkdir $SOFA_DIR
@@ -91,18 +92,23 @@ RUN cmake -DPLUGIN_SOFADISTANCEGRID=ON -DPLUGIN_SOFAIMPLICITFIELD=ON -DPLUGIN_BE
 RUN cmake --build ${SOFA_DIR}/build -j
 RUN cmake --install ${SOFA_DIR}/build
 
+#stacie dependencies
+
+
+RUN python3 -m pip install torch==1.9.0+cu111 torchvision==0.10.0+cu111 torchaudio==0.9.0 -f https://download.pytorch.org/whl/torch_stable.html
+RUN python3 -m pip install numpy scikit-image pyvista pillow pymunk
+RUN python3 -m pip install optuna
+
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 
 RUN git clone -b refactoring_to_tiltmaze_style https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/eve.git /opt/eve
-RUN python3 -m pip install /opt/eve[all]
+RUN python3 -m pip install /opt/eve[meshing]
 
 RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/toy-problems/tiltmaze.git /opt/tiltmaze 
 RUN python3 -m pip install /opt/tiltmaze
 
-RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/stacierl.git /opt/stacierl
+#RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/stacierl.git /opt/stacierl
+COPY . /opt/stacierl
 RUN python3 -m pip install /opt/stacierl
 
-RUN python3 -m pip install optuna
-
-
-#docker run --gpus all --mount type=bind,source=$PWD/experiments,target=/experiments registry.gitlab.cc-asp.fraunhofer.de/stacie/stacierl python3 /opt/stacierl/examples/eve/optuna_study.py initial_trial 50 /experiments 50 5
+#docker run --gpus all --mount type=bind,source=$PWD/experiments,target=/experiments registry.gitlab.cc-asp.fraunhofer.de/stacie/stacierl python3 /opt/stacierl/examples/eve/optuna_study.py lnk1 /experiments lnk1 50 50 5

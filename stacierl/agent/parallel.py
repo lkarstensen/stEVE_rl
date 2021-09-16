@@ -1,3 +1,5 @@
+import logging
+
 from typing import List, Tuple
 
 from .agent import Agent, dataclass
@@ -18,8 +20,18 @@ class SingleAgentProcess(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
+        name: str,
     ) -> None:
-
+        log_level = logging.root.level
+        for handler in logging.root.handlers:
+            # check the handler is a file handler
+            # (rotating handler etc. inherit from this, so it will still work)
+            # stream handlers write to stderr, so their filename is not useful to us
+            if isinstance(handler, logging.FileHandler):
+                # h.stream should be an open file handle, it's name is the path
+                log_file = f"{handler.baseFilename}-{name}"
+                log_format = handler.formatter._fmt
+                break
         self.id = id
         self._shutdown_event = mp.Event()
         self._task_queue = mp.SimpleQueue()
@@ -42,16 +54,11 @@ class SingleAgentProcess(Agent):
                 replay_buffer,
                 device,
                 consecutive_action_steps,
-                self._task_queue,
-                self._result_queue,
-                self._model_queue,
-                self._shutdown_event,
-                self._step_counter_exploration,
-                self._episode_counter_exploration,
-                self._step_counter_eval,
-                self._episode_counter_eval,
-                self._step_counter_update,
+                log_file,
+                log_level,
+                log_format,
             ],
+            name=name,
         )
         self._process.start()
 
@@ -63,40 +70,41 @@ class SingleAgentProcess(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
-        task_queue: mp.SimpleQueue,
-        result_queue: mp.SimpleQueue,
-        model_queue: mp.SimpleQueue,
-        shutdown_event: mp.Event,
-        step_counter_exploration: mp.Value,
-        episode_counter_exploration: mp.Value,
-        step_counter_eval: mp.Value,
-        episode_counter_eval: mp.Value,
-        step_counter_update: mp.Value,
+        log_file: str,
+        log_level,
+        log_format,
     ):
+        logging.basicConfig(
+            filename=log_file,
+            level=log_level,
+            format=log_format,
+        )
+        logging.info("logging initialized")
+
         env = env_factory.create_env()
         agent = Single(algo, env, replay_buffer, device, consecutive_action_steps)
-        while not shutdown_event.is_set():
-            task = task_queue.get()
+        while not self._shutdown_event.is_set():
+            task = self._task_queue.get()
 
             task_name = task[0]
             if task_name == "heatup":
                 result = agent.heatup(task[1], task[2])
             elif task_name == "explore":
                 result = agent.explore(task[1], task[2])
-                episode_counter_exploration.value = agent.episode_counter.exploration
-                step_counter_exploration.value = agent.step_counter.exploration
+                self._episode_counter_exploration.value = agent.episode_counter.exploration
+                self._step_counter_exploration.value = agent.step_counter.exploration
             elif task_name == "evaluate":
                 result = agent.evaluate(task[1], task[2])
-                episode_counter_eval.value = agent.episode_counter.eval
-                step_counter_eval.value = agent.step_counter.eval
+                self._episode_counter_eval.value = agent.episode_counter.eval
+                self._step_counter_eval.value = agent.step_counter.eval
             elif task_name == "update":
                 agent.update(task[1], task[2])
-                step_counter_update.value = agent.step_counter.update
+                self._step_counter_update.value = agent.step_counter.update
                 continue
             elif task_name == "put_state_dict":
                 state_dicts = agent.algo.model.nets.state_dicts
                 state_dicts.to(torch.device("cpu"))
-                model_queue.put(state_dicts)
+                self._model_queue.put(state_dicts)
                 continue
             elif task_name == "set_state_dict":
                 state_dicts = task[1]
@@ -108,7 +116,10 @@ class SingleAgentProcess(Agent):
                 continue
             else:
                 continue
-            result_queue.put(result)
+            self._result_queue.put(result)
+
+        env.close()
+        replay_buffer.close()
 
     def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         self._task_queue.put(["heatup", steps, episodes])
@@ -183,6 +194,7 @@ class Parallel(Agent):
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,
+                    name="agent_" + str(i),
                 )
             )
 

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional, Tuple
 import torch
 import torch.nn.functional as F
@@ -18,7 +19,7 @@ class SAC(Algo):
         action_scaling: float = 1,
         exploration_action_noise: float = 0.2,
     ):
-
+        self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
         self.gamma = gamma
         self.tau = tau
@@ -65,9 +66,11 @@ class SAC(Algo):
     def _get_update_action(
         self, state_batch: torch.Tensor, hidden_state: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self.logger.debug(f"State Batch:\n{state_batch}")
         mean_batch, log_std, _ = self._model.policy_net(state_batch, hidden_state)
         std_batch = log_std.exp()
-
+        self.logger.debug(f"Mean Batch:\n{mean_batch}")
+        self.logger.debug(f"std Batch:\n{std_batch}")
         normal = Normal(mean_batch, std_batch)
         z = normal.rsample()
         action_batch = torch.tanh(z)

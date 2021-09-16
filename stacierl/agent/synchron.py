@@ -40,6 +40,7 @@ class Synchron(Agent):
                     replay_buffer.copy(),
                     worker_device,
                     consecutive_action_steps,
+                    name="worker_" + str(i),
                 )
             )
 
@@ -56,6 +57,7 @@ class Synchron(Agent):
                     replay_buffer.copy(),
                     trainer_device,
                     consecutive_action_steps,
+                    name="trainer_" + str(i),
                 )
             )
 

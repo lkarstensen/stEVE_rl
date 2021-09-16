@@ -1,3 +1,4 @@
+import logging
 from typing import Tuple
 from .agent import Agent, dict_state_to_flat_np_state, StepCounter, EpisodeCounter
 from ..algo import Algo
@@ -16,6 +17,7 @@ class Single(Agent):
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
     ) -> None:
+        self.logger = logging.getLogger(self.__module__)
         self.device = device
         self.algo = algo
         self.env = env
@@ -115,6 +117,7 @@ class Single(Agent):
         assert mode in ["exploration", "eval"]
         episode_transitions = Episode()
         state = self.env.reset()
+        self.logger.debug(f"Reset state:\n{state}")
         state = dict_state_to_flat_np_state(state)
         episode_reward = 0
         step_counter = 0
@@ -124,8 +127,10 @@ class Single(Agent):
                 action, next_hidden_state = self.algo.get_exploration_action(state, hidden_state)
             else:
                 action, next_hidden_state = self.algo.get_eval_action(state, hidden_state)
+            self.logger.debug(f"Action: {action}")
             for _ in range(consecutive_actions):
                 next_state, reward, done, info, success = self.env.step(action)
+                self.logger.debug(f"Next state:\n{next_state}")
                 next_state = dict_state_to_flat_np_state(next_state)
                 self.env.render()
                 episode_transitions.add_transition(

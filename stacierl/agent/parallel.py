@@ -168,6 +168,7 @@ class Parallel(Agent):
         self.n_agents = n_agents
         self.shared_model = shared_model
         self.agents: List[SingleAgentProcess] = []
+        self.replay_buffer = replay_buffer
 
         for i in range(n_agents):
             if shared_model:
@@ -245,6 +246,7 @@ class Parallel(Agent):
     def close(self):
         for agent in self.agents:
             agent.close()
+        self.replay_buffer.close()
 
     def _divide_steps_and_episodes(self, steps, episodes) -> Tuple[int, int]:
 

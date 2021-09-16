@@ -128,3 +128,6 @@ class VanillaEpisode(ReplayBuffer):
             copy.buffer.append(self.buffer[i])
         copy.position = self.position
         return copy
+
+    def close(self):
+        ...

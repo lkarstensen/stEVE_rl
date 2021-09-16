@@ -59,3 +59,7 @@ class ReplayBuffer(ABC):
     @abstractmethod
     def copy(self):
         ...
+
+    @abstractmethod
+    def close(self):
+        ...

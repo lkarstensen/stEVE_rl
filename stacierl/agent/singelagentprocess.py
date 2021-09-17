@@ -11,20 +11,22 @@ import torch
 import queue
 
 import logging.config
+from random import randint
 
 
 def file_handler_callback(handler: logging.FileHandler):
     handler_dict = {
         handler.name: {
             "level": handler.level,
-            "formatter": handler.name,
             "class": "logging.FileHandler",
             "filename": handler.baseFilename,
             "mode": handler.mode,
         }
     }
     if handler.formatter is not None:
-        formatter_dict = {handler.name: {"format": handler.formatter._fmt}}
+        formatter_name = handler.name or randint(1, 99999)
+        handler_dict[handler.name]["formatter"] = str(formatter_name)
+        formatter_dict = {str(formatter_name): {"format": handler.formatter._fmt}}
     else:
         formatter_dict = None
     return handler_dict, formatter_dict, handler.name

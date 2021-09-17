@@ -1,11 +1,10 @@
 import logging
 from typing import List, Tuple
 
-from .agent import Agent, dataclass
+from .agent import Agent
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
-from ..environment import EnvFactory
-from torch import multiprocessing as mp
+from ..environment import EnvFactory, DummyEnvFactory
 from math import ceil
 import numpy as np
 import torch
@@ -55,10 +54,10 @@ class Synchron(Agent):
                 SingleAgentProcess(
                     i,
                     new_algo,
-                    env_factory,
+                    DummyEnvFactory(),
                     replay_buffer.copy(),
                     trainer_device,
-                    consecutive_action_steps,
+                    0,
                     name="trainer_" + str(i),
                     parent_agent=self,
                 )

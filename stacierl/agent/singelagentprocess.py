@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Tuple
 
 from .agent import Agent
-from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer, Environment
+from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from ..environment import EnvFactory
 from torch import multiprocessing as mp
 import torch

@@ -1,9 +1,7 @@
-import logging
-
 from typing import List, Tuple
 
-from .agent import Agent, dataclass
-from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .agent import Agent
+from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
 from ..environment import EnvFactory
 from torch import multiprocessing as mp

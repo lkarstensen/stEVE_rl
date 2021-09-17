@@ -19,24 +19,27 @@ def sigterm_callback(nr, frame):
 def optuna_run(trial):
     if shutdown.is_set():
         return None
-    lr = trial.suggest_loguniform("lr", 1e-3, 1e-1)
+    lr = trial.suggest_loguniform("lr", 1e-4, 1e-2)
     gamma = trial.suggest_float("gamma", 0.99, 0.999)
     n_layers = trial.suggest_int("n_layers", 2, 3)
     n_nodes = trial.suggest_int("n_nodes", 64, 256)
     hidden_layers = [n_nodes for _ in range(n_layers)]
-    success, steps = sac_training(
-        shutdown=shutdown,
-        lr=lr,
-        gamma=gamma,
-        hidden_layers=hidden_layers,
-        id=trial.number,
-        log_folder=log_folder,
-        n_worker=n_worker,
-        n_trainer=n_trainer,
-        env=env,
-        image_frequency=image_frequency,
-        path_reward_factor=path_reward_factor,
-    )
+    try:
+        success, steps = sac_training(
+            shutdown=shutdown,
+            lr=lr,
+            gamma=gamma,
+            hidden_layers=hidden_layers,
+            id=trial.number,
+            log_folder=log_folder,
+            n_worker=n_worker,
+            n_trainer=n_trainer,
+            env=env,
+            image_frequency=image_frequency,
+            path_reward_factor=path_reward_factor,
+        )
+    except ValueError:
+        success = -1
     with open(log_folder + "/results.csv", "a+") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(
@@ -84,7 +87,7 @@ if __name__ == "__main__":
         os.mkdir(log_folder + "/logging")
     logging.basicConfig(
         filename=f"{log_folder}/logging/optuna_study.log",
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s-%(name)s-%(levelname)s-%(message)s",
     )
     logging.info("logging initialized")

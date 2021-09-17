@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import numpy as np
 from ..replaybuffer import Batch
 from .. import model
@@ -22,7 +22,7 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def update(self, batch: Batch) -> None:
+    def update(self, batch: Batch) -> List[float]:
         ...
 
     @abstractmethod

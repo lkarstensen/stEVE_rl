@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple
+from typing import List, Tuple
 from .agent import Agent, dict_state_to_flat_np_state, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
@@ -84,14 +84,16 @@ class Single(Agent):
 
         return average_reward, average_success
 
-    def update(self, steps, batch_size) -> None:
+    def update(self, steps, batch_size) -> List[float]:
         if len(self.replay_buffer) < batch_size:
             return
 
         for _ in range(steps):
             batch = self.replay_buffer.sample(batch_size)
-            self.algo.update(batch)
+            result = self.algo.update(batch)
             self.step_counter.update += 1
+
+        return result
 
     def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         steps, episodes = self._check_steps_and_episodes(steps, episodes)

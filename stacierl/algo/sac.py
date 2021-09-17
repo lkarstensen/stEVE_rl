@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
@@ -69,7 +69,7 @@ class SAC(Algo):
         self.logger.debug(f"State Batch:\n{state_batch}")
         mean_batch, log_std, _ = self._model.policy_net(state_batch, hidden_state)
         std_batch = log_std.exp()
-        self.logger.debug(f"Mean Batch:\n{mean_batch}")
+        # self.logger.debug(f"Mean Batch:\n{mean_batch}")
         self.logger.debug(f"std Batch:\n{std_batch}")
         normal = Normal(mean_batch, std_batch)
         z = normal.rsample()
@@ -79,7 +79,7 @@ class SAC(Algo):
         log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
         return action_batch, log_pi_batch
 
-    def update(self, batch: Batch):
+    def update(self, batch: Batch) -> List[float]:
 
         (
             states,
@@ -172,6 +172,11 @@ class SAC(Algo):
         self.alpha = self._model.log_alpha.exp()
 
         self.update_step += 1
+        return [
+            q1_loss.detach().cpu().numpy(),
+            q2_loss.detach().cpu().numpy(),
+            policy_loss.detach().cpu().numpy(),
+        ]
 
     def save_model(self, path: str):
         print("... saving model ...")

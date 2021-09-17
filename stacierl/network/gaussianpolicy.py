@@ -1,3 +1,4 @@
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -18,6 +19,7 @@ class GaussianPolicy(Network):
         log_std_max=2,
     ):
         super().__init__()
+        self.logger = logging.getLogger(self.__module__)
         self.n_actions = n_actions
         self.n_observations = n_observations
         self.hidden_layers = hidden_layers
@@ -60,6 +62,8 @@ class GaussianPolicy(Network):
 
         mean = self.mean(output)
         log_std = self.log_std(output)
+        self.logger.debug(f"mean: {mean}")
+        self.logger.debug(f"log_std: {log_std}")
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
         return mean, log_std, None

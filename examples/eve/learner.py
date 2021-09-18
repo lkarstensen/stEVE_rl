@@ -22,7 +22,7 @@ def sac_training(
     steps_between_eval=5e4,
     eval_episodes=100,
     batch_size=128,
-    heatup=1000,
+    heatup=10000,
     n_worker=20,
     n_trainer=4,
     log_folder: str = "",
@@ -40,6 +40,8 @@ def sac_training(
         env_factory = eve.LNK1(image_frequency, path_reward_factor)
     elif env == "lnk2":
         env_factory = eve.LNK2(image_frequency, path_reward_factor)
+    elif env == "lnk3":
+        env_factory = eve.LNK3(image_frequency, path_reward_factor)
     env = env_factory.create_env()
 
     obs_dict_shape = env.observation_space.shape

@@ -18,8 +18,8 @@ def sac_training(
     consecutive_explore_episodes=1,
     steps_between_eval=1e4,
     eval_episodes=100,
-    batch_size=64,
-    heatup=1000,
+    batch_size=8,
+    heatup=100,
     log_folder: str = "",
 ):
 
@@ -29,25 +29,19 @@ def sac_training(
     env_factory = tiltmaze.LNK1(dt_step=2 / 3)
     env = env_factory.create_env()
 
-    obs_dict_shape = env.observation_space.shape
-    n_observations = 0
-    for obs_shape in obs_dict_shape.values():
-        n_observations += np.prod(obs_shape)
-    n_actions = np.prod(env.action_space.shape)
-
-    q_net_1 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    q_net_2 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    policy_net = stacierl.network.GaussianPolicy(n_observations, n_actions, hidden_layers)
+    q_net_1 = stacierl.network.QNetwork(hidden_layers)
+    q_net_2 = stacierl.network.QNetwork(hidden_layers)
+    policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
     sac_model = stacierl.model.SAC(
-        q_net_1=q_net_1,
-        q_net_2=q_net_2,
-        policy_net=policy_net,
-        target_q_net_1=q_net_1.copy(),
-        target_q_net_2=q_net_2.copy(),
+        q1=q_net_1,
+        q2=q_net_2,
+        policy=policy_net,
         learning_rate=lr,
+        obs_space=env.observation_space,
+        action_space=env.action_space,
     )
-    algo = stacierl.algo.SAC(sac_model, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
+    algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
+    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
     agent = stacierl.agent.Single(
         algo, env, replay_buffer, consecutive_action_steps=1, device=device
     )
@@ -66,7 +60,7 @@ def sac_training(
         agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
         update_steps = step_counter.exploration - step_counter.update
-        agent.update(update_steps, batch_size)
+        agent.update(update_steps)
 
         if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)

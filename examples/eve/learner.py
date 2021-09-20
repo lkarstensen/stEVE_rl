@@ -19,7 +19,7 @@ def sac_training(
     training_steps=1e6,
     consecutive_explore_episodes=1,
     update_steps_per_exploration_step=1,
-    steps_between_eval=5e4,
+    steps_between_eval=2e5,
     eval_episodes=100,
     batch_size=128,
     heatup=10000,
@@ -27,7 +27,7 @@ def sac_training(
     n_trainer=4,
     log_folder: str = "",
     id=0,
-    env: str = "lnk1",
+    env_str: str = "lnk1",
     image_frequency=7.5,
     path_reward_factor=0.01,
 ):
@@ -35,34 +35,28 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_str = env
-    if env == "lnk1":
+    env_str = env_str
+    if env_str == "lnk1":
         env_factory = eve.LNK1(image_frequency, path_reward_factor)
-    elif env == "lnk2":
+    elif env_str == "lnk2":
         env_factory = eve.LNK2(image_frequency, path_reward_factor)
-    elif env == "lnk3":
+    elif env_str == "lnk3":
         env_factory = eve.LNK3(image_frequency, path_reward_factor)
     env = env_factory.create_env()
 
-    obs_dict_shape = env.observation_space.shape
-    n_observations = 0
-    for obs_shape in obs_dict_shape.values():
-        n_observations += np.prod(obs_shape)
-    n_actions = np.prod(env.action_space.shape)
-
-    q_net_1 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    q_net_2 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    policy_net = stacierl.network.GaussianPolicy(n_observations, n_actions, hidden_layers)
+    q_net_1 = stacierl.network.QNetwork(hidden_layers)
+    q_net_2 = stacierl.network.QNetwork(hidden_layers)
+    policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
     sac_model = stacierl.model.SAC(
-        q_net_1=q_net_1,
-        q_net_2=q_net_2,
-        policy_net=policy_net,
-        target_q_net_1=q_net_1.copy(),
-        target_q_net_2=q_net_2.copy(),
+        q1=q_net_1,
+        q2=q_net_2,
+        policy=policy_net,
         learning_rate=lr,
+        obs_space=env.observation_space,
+        action_space=env.action_space,
     )
-    algo = stacierl.algo.SAC(sac_model, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaShared(replay_buffer)
+    algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
+    replay_buffer = stacierl.replaybuffer.VanillaShared(replay_buffer, batch_size)
     agent = stacierl.agent.Synchron(
         n_worker=n_worker,
         n_trainer=n_trainer,
@@ -94,7 +88,7 @@ def sac_training(
             (step_counter.exploration - last_exporation_steps) * update_steps_per_exploration_step
         )
         last_exporation_steps = step_counter.exploration
-        agent.update(update_steps, batch_size)
+        agent.update(update_steps)
 
         if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)

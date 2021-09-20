@@ -23,6 +23,8 @@ def sac_training(
     heatup=5000,
     log_folder: str = "",
     n_agents=3,
+    id=0,
+    name="",
 ):
 
     if not os.path.isdir(log_folder):
@@ -31,31 +33,24 @@ def sac_training(
     env_factory = tiltmaze.LNK1(dt_step=2 / 3)
     env = env_factory.create_env()
 
-    obs_dict_shape = env.observation_space.shape
-    n_observations = 0
-    for obs_shape in obs_dict_shape.values():
-        n_observations += np.prod(obs_shape)
-    n_actions = np.prod(env.action_space.shape)
-    env.close()
-
-    q_net_1 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    q_net_2 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    policy_net = stacierl.network.GaussianPolicy(n_observations, n_actions, hidden_layers)
+    q_net_1 = stacierl.network.QNetwork(hidden_layers)
+    q_net_2 = stacierl.network.QNetwork(hidden_layers)
+    policy_net = stacierl.network.GaussianPolicy(hidden_layers, action_space=env.action_space)
     sac_model = stacierl.model.SAC(
-        q_net_1=q_net_1,
-        q_net_2=q_net_2,
-        policy_net=policy_net,
-        target_q_net_1=q_net_1.copy(),
-        target_q_net_2=q_net_2.copy(),
+        q1=q_net_1,
+        q2=q_net_2,
+        policy=policy_net,
         learning_rate=lr,
+        obs_space=env.observation_space,
+        action_space=env.action_space,
     )
-    algo = stacierl.algo.SAC(sac_model, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer)
+    algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
+    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
     agent = stacierl.agent.Parallel(
         n_agents, algo, env_factory, replay_buffer, device=device, consecutive_action_steps=1
     )
 
-    logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
+    logfile = log_folder + f"/{name}_{id}.csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["lr", "gamma", "hidden_layers"])
@@ -69,7 +64,7 @@ def sac_training(
         agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
         update_steps = step_counter.exploration - step_counter.update
-        agent.update(update_steps, batch_size)
+        agent.update(update_steps)
 
         if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
@@ -78,7 +73,9 @@ def sac_training(
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")
             with open(logfile, "a+", newline="") as csvfile:
                 writer = csv.writer(csvfile, delimiter=";")
-                writer.writerow([agent.episode_counter.exploration, step_counter.exploration, reward, success])
+                writer.writerow(
+                    [agent.episode_counter.exploration, step_counter.exploration, reward, success]
+                )
 
     agent.close()
     return (success, step_counter)  # agent.explore_step_counter

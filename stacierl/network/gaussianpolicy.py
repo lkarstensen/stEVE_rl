@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
 
-from torch.nn.utils.rnn import PackedSequence
+from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 
 from .network import Network
 from ..environment import ActionSpace
@@ -71,8 +71,8 @@ class GaussianPolicy(Network):
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_observations, n_output))
 
-    def forward(self, state_batch: PackedSequence) -> Tuple[torch.Tensor, torch.Tensor]:
-        input = state_batch.data
+    def forward(self, state_batch: PackedSequence) -> Tuple[PackedSequence, PackedSequence]:
+        input, seq_length = pad_packed_sequence(state_batch, batch_first=True)
         for layer in self.layers:
             output = layer(input)
             output = F.relu(output)
@@ -82,6 +82,8 @@ class GaussianPolicy(Network):
         log_std = self.log_std(output)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
+        mean = pack_padded_sequence(mean, seq_length, batch_first=True, enforce_sorted=False)
+        log_std = pack_padded_sequence(log_std, seq_length, batch_first=True, enforce_sorted=False)
         return mean, log_std
 
     def copy(self):

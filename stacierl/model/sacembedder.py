@@ -236,19 +236,22 @@ class SACembedder(SAC):
             )
 
             mean, log_std = self.policy.forward(embedded_state)
+
+            mean, _ = pad_packed_sequence(mean, batch_first=True)
+            log_std, _ = pad_packed_sequence(log_std, batch_first=True)
             std = log_std.exp()
 
             normal = Normal(mean, std)
             z = normal.sample()
             action = torch.tanh(z)
-            action = action.cpu().detach().squeeze(0).numpy()
+            action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
             return action
 
     def get_q_values(
         self,
         state_batch: PackedSequence,
         action_batch: PackedSequence,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[PackedSequence, PackedSequence]:
         self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
@@ -273,7 +276,7 @@ class SACembedder(SAC):
         self,
         state_batch: PackedSequence,
         action_batch: PackedSequence,
-    ) -> Tuple[float, float]:
+    ) -> Tuple[PackedSequence, PackedSequence]:
         with torch.no_grad():
             self.reset()
             embedded_state = self._get_embedded_state(
@@ -308,6 +311,9 @@ class SACembedder(SAC):
             self.policy_common_input_embedder,
         )
         mean_batch, log_std = self.policy.forward(embedded_state)
+        mean_batch, seq_length = pad_packed_sequence(mean_batch, batch_first=True)
+        log_std, _ = pad_packed_sequence(log_std, batch_first=True)
+
         std_batch = log_std.exp()
         normal = Normal(mean_batch, std_batch)
         z = normal.rsample()
@@ -315,6 +321,13 @@ class SACembedder(SAC):
 
         log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
         log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
+
+        action_batch = pack_padded_sequence(
+            action_batch, seq_length, batch_first=True, enforce_sorted=False
+        )
+        log_pi_batch = pack_padded_sequence(
+            log_pi_batch, seq_length, batch_first=True, enforce_sorted=False
+        )
         return action_batch, log_pi_batch
 
     def _get_embedded_state(

@@ -3,7 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple, Optional
 
-from torch.nn.utils.rnn import PackedSequence, pack_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import (
+    PackedSequence,
+    pack_padded_sequence,
+    pad_packed_sequence,
+)
 from .network import Network
 
 
@@ -39,7 +43,7 @@ class MLP(Network):
         self,
         input_batch: PackedSequence,
     ) -> PackedSequence:
-        input = pad_packed_sequence(input_batch, batch_first=True)[0]
+        input, seq_length = pad_packed_sequence(input_batch, batch_first=True)[0]
         for layer in self.layers[:-1]:
             output = layer(input)
             output = F.relu(output)
@@ -48,7 +52,9 @@ class MLP(Network):
         # output without relu
         output = self.layers[-1](input)
 
-        output_batch = pack_sequence(list(output))
+        output_batch = pack_padded_sequence(
+            output, seq_length, batch_first=True, enforce_sorted=False
+        )
         return output_batch
 
     def copy(self):

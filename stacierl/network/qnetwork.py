@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple, Optional
 
-from torch.nn.utils.rnn import PackedSequence
+from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 from .network import Network
 
 
@@ -53,10 +53,10 @@ class QNetwork(Network):
         self,
         state_batch: PackedSequence,
         action_batch: PackedSequence,
-    ) -> torch.Tensor:
-        state = state_batch.data
-        action = action_batch.data
-        input = torch.cat([state, action], dim=1)
+    ) -> PackedSequence:
+        state, seq_length = pad_packed_sequence(state_batch, batch_first=True)
+        action, _ = pad_packed_sequence(action_batch, batch_first=True)
+        input = torch.cat([state, action], dim=-1)
         for layer in self.layers[:-1]:
             output = layer(input)
             output = F.relu(output)
@@ -64,7 +64,9 @@ class QNetwork(Network):
 
         # output without relu
         q_value_batch = self.layers[-1](output)
-
+        q_value_batch = pack_padded_sequence(
+            output, seq_length, batch_first=True, enforce_sorted=False
+        )
         return q_value_batch
 
     def copy(self):

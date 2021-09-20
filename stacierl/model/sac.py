@@ -203,16 +203,26 @@ class SAC(Model):
         return copy
 
     def copy_shared_memory(self):
+
+        copy = self.__class__(
+            self.q1.copy(),
+            self.q2.copy(),
+            self.policy.copy(),
+            self.learning_rate,
+            self.obs_space,
+            self.action_space,
+        )
         self.q1.share_memory()
         self.q2.share_memory()
         self.target_q1.share_memory()
         self.target_q2.share_memory()
         self.policy.share_memory()
-        copy = self.__class__(
-            self.q1, self.q2, self.policy, self.learning_rate, self.obs_space, self.action_space
-        )
+        copy.q1 = self.q1
+        copy.q2 = self.q2
+        copy.policy = self.policy
         copy.target_q1 = self.target_q1
         copy.target_q2 = self.target_q2
+        copy._init_optimizer()
 
         return copy
 

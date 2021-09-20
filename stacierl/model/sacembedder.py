@@ -454,6 +454,8 @@ class SACembedder(SAC):
         return copy
 
     def copy_shared_memory(self):
+        copy = self.copy()
+
         self.q1.share_memory()
         self.q2.share_memory()
         self.target_q1.share_memory()
@@ -462,24 +464,15 @@ class SACembedder(SAC):
         if self.all_embed_networks is not None:
             for net in self.all_embed_networks.values():
                 net.share_memory()
-        copy = self.__class__(
-            self.q1,
-            self.q2,
-            self.policy,
-            self.learning_rate,
-            self.obs_space,
-            self.action_space,
-            self.all_embed_networks,
-            self.q1_common_input_embedder,
-            self.q2_common_input_embedder,
-            self.policy_common_input_embedder,
-            self.q1_hydra_input_embedders,
-            self.q2_hydra_input_embedders,
-            self.policy_hydra_input_embedders,
-        )
+
+        copy.q1 = self.q1
+        copy.q2 = self.q2
         copy.target_q1 = self.target_q1
         copy.target_q2 = self.target_q2
-
+        copy.policy = self.policy
+        if self.all_embed_networks is not None:
+            for name, net in self.all_embed_networks.items():
+                copy.all_embed_networks[name] = net
         return copy
 
     def load_state_dicts(self, state_dicts: SACEmbeddedStateDicts):

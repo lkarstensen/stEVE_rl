@@ -26,9 +26,7 @@ class LNK1(EnvFactory):
         target_state = tiltmaze.state.Target(target)
         target_state = tiltmaze.state.wrapper.Normalize(target_state)
         rotation = tiltmaze.state.Rotation(physic)
-        state = tiltmaze.state.Combination(
-            {"position": pos, "rotation": rotation, "target": target_state}
-        )
+        state = tiltmaze.state.Combination([pos, rotation, target_state])
 
         target_reward = tiltmaze.reward.TargetReached(1.0, target)
         step_reward = tiltmaze.reward.Step(-0.005)

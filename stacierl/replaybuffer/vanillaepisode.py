@@ -1,7 +1,7 @@
 import random
 from typing import List
 import torch
-from torch.nn.utils.rnn import pack_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_sequence
 from .replaybuffer import ReplayBuffer, Episode, Batch
 
 
@@ -30,12 +30,29 @@ class VanillaEpisode(ReplayBuffer):
         reward_batch = [torch.from_numpy(episode.rewards) for episode in episodes]
         next_state_batch = [torch.from_numpy(episode.next_states) for episode in episodes]
         done_batch = [torch.from_numpy(episode.dones) for episode in episodes]
+        lengths = [state.shape[0] for state in state_batch]
 
-        state_batch = pack_sequence(state_batch, enforce_sorted=False)
-        action_batch = pack_sequence(action_batch, enforce_sorted=False)
-        reward_batch = pack_sequence(reward_batch, enforce_sorted=False)
-        next_state_batch = pack_sequence(next_state_batch, enforce_sorted=False)
-        done_batch = pack_sequence(done_batch, enforce_sorted=False)
+        state_batch = pad_sequence(state_batch, batch_first=True)
+        action_batch = pad_sequence(action_batch, batch_first=True)
+        reward_batch = pad_sequence(reward_batch, batch_first=True)
+        next_state_batch = pad_sequence(next_state_batch, batch_first=True)
+        done_batch = pad_sequence(done_batch, batch_first=True)
+
+        state_batch = pack_padded_sequence(
+            state_batch, lengths, batch_first=True, enforce_sorted=False
+        )
+        action_batch = pack_padded_sequence(
+            action_batch, lengths, batch_first=True, enforce_sorted=False
+        )
+        reward_batch = pack_padded_sequence(
+            reward_batch, lengths, batch_first=True, enforce_sorted=False
+        )
+        next_state_batch = pack_padded_sequence(
+            next_state_batch, lengths, batch_first=True, enforce_sorted=False
+        )
+        done_batch = pack_padded_sequence(
+            done_batch, lengths, batch_first=True, enforce_sorted=False
+        )
 
         return Batch(state_batch, action_batch, reward_batch, next_state_batch, done_batch)
 

@@ -1,7 +1,12 @@
 import random
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pack_sequence
+from torch.nn.utils.rnn import (
+    pack_padded_sequence,
+    pack_sequence,
+    pad_packed_sequence,
+    pad_sequence,
+)
 from .replaybuffer import ReplayBuffer, Episode, Batch
 
 
@@ -43,8 +48,13 @@ class Vanilla(ReplayBuffer):
         """
 
         batch = [list(torch.from_numpy(batch_entry).unsqueeze(1)) for batch_entry in batch]
-        batch = [pack_sequence(batch_entry) for batch_entry in batch]
-        return Batch(*batch)
+        lengths = [state.shape[0] for state in batch[0]]
+        padded_batch = [pad_sequence(batch_entry, batch_first=True) for batch_entry in batch]
+        packed_batch = [
+            pack_padded_sequence(batch_entry, lengths, batch_first=True, enforce_sorted=False)
+            for batch_entry in padded_batch
+        ]
+        return Batch(*packed_batch)
 
     def __len__(
         self,

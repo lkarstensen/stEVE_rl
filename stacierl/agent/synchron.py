@@ -83,12 +83,12 @@ class Synchron(Agent):
         results = self._get_worker_results()
         return tuple(results)
 
-    def update(self, steps, batch_size):
+    def update(self, steps):
 
-        self.logger.debug(f"update: {steps} steps / {batch_size} batch_size")
+        self.logger.debug(f"update: {steps} steps")
         steps_per_agent = ceil(steps / self.n_trainer)
         for agent in self.trainer:
-            agent.update(steps_per_agent, batch_size)
+            agent.update(steps_per_agent)
 
         results = self._get_trainer_results()
 

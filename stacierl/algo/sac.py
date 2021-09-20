@@ -3,16 +3,19 @@ from typing import List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
-from .algo import Algo
+from torch.nn.utils.rnn import PackedSequence
+from .algo import Algo, ModelStateDicts
 from .. import model
 import numpy as np
 from ..replaybuffer import Batch
+from ..environment import ActionSpace
 
 
 class SAC(Algo):
     def __init__(
         self,
         model: model.SAC,
+        action_space: ActionSpace,
         gamma: float = 0.99,
         tau: float = 0.005,
         reward_scaling: float = 1,
@@ -21,6 +24,7 @@ class SAC(Algo):
     ):
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
+        self.action_space = action_space
         self.gamma = gamma
         self.tau = tau
         self.exploration_action_noise = exploration_action_noise
@@ -34,8 +38,12 @@ class SAC(Algo):
         self.update_step = 0
 
         # ENTROPY TEMPERATURE
-        self.alpha = 0.0
-        self.target_entropy = -self._model.policy_net.n_actions
+        self.alpha = torch.zeros(1)
+        n_actions = 1
+        for dim in action_space.shape:
+            n_actions *= dim
+
+        self.target_entropy = -torch.ones(1) * n_actions
 
     @property
     def model(self) -> model.SAC:
@@ -45,131 +53,66 @@ class SAC(Algo):
     def device(self) -> torch.device:
         return self._device
 
-    def get_initial_hidden_state(self):
-        return self._model.initial_hidden_state
+    def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
 
-    def get_exploration_action(
-        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
-    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
-
-        action, hidden_state_out = self.get_eval_action(flat_state, hidden_state)
+        action = self.get_eval_action(flat_state)
         action += np.random.normal(0, self.exploration_action_noise)
-        return action, hidden_state_out
+        return action
 
-    def get_eval_action(
-        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
-    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
-        action = self._model.get_action(flat_state, hidden_state)
+    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
+        action = self.model.get_play_action(flat_state)
         return action * self.action_scaling
-
-    # epsilon makes sure that log(0) does not occur
-    def _get_update_action(
-        self, state_batch: torch.Tensor, hidden_state: torch.Tensor, epsilon: float = 1e-6
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.logger.debug(f"State Batch:\n{state_batch}")
-        mean_batch, log_std, _ = self._model.policy_net(state_batch, hidden_state)
-        std_batch = log_std.exp()
-        # self.logger.debug(f"Mean Batch:\n{mean_batch}")
-        self.logger.debug(f"std Batch:\n{std_batch}")
-        normal = Normal(mean_batch, std_batch)
-        z = normal.rsample()
-        action_batch = torch.tanh(z)
-
-        log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
-        log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
-        return action_batch, log_pi_batch
 
     def update(self, batch: Batch) -> List[float]:
 
-        (
-            states,
-            actions,
-            rewards,
-            next_states,
-            dones,
-            hidden_states,
-            hidden_next_states,
-        ) = batch
+        (states, actions, rewards, next_states, dones) = batch
         # actions /= self.action_scaling
+        if isinstance(rewards, PackedSequence):
+            rewards = rewards.data
+        if isinstance(dones, PackedSequence):
+            dones = dones.data
 
-        states = torch.as_tensor(states, dtype=torch.float32, device=self._device)
-        actions = torch.as_tensor(actions, dtype=torch.float32, device=self._device)
-        rewards = torch.as_tensor(rewards, dtype=torch.float32, device=self._device)
-        rewards = rewards.unsqueeze(-1)
-        next_states = torch.as_tensor(next_states, dtype=torch.float32, device=self._device)
-        dones = torch.as_tensor(dones, dtype=torch.float32, device=self._device)
-        dones = dones.unsqueeze(-1)
-        if np.any(hidden_states) is not None:
-            if isinstance(hidden_states, tuple):
-                hidden_states = [
-                    torch.as_tensor(state, dtype=torch.float32, device=self._device)
-                    for state in hidden_states
-                ]
-                hidden_next_states = [
-                    torch.as_tensor(state, dtype=torch.float32, device=self._device)
-                    for state in hidden_next_states
-                ]
-            else:
-                hidden_states = torch.as_tensor(
-                    hidden_states, dtype=torch.float32, device=self._device
-                )
-                hidden_next_states = torch.as_tensor(
-                    hidden_next_states, dtype=torch.float32, device=self._device
-                )
+        states = states.to(dtype=torch.float32, device=self._device)
+        actions = actions.to(dtype=torch.float32, device=self._device)
+        rewards = rewards.to(dtype=torch.float32, device=self._device)
+        next_states = next_states.to(dtype=torch.float32, device=self._device)
+        dones = dones.to(dtype=torch.float32, device=self._device)
 
-        next_actions, next_log_pi = self._get_update_action(next_states, hidden_next_states)
-        next_q1, _ = self._model.target_q_net_1(next_states, next_actions, hidden_next_states)
-        next_q2, _ = self._model.target_q_net_2(next_states, next_actions, hidden_next_states)
+        next_actions, next_log_pi = self.model.get_update_action(next_states)
+        next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
         expected_q = (
             rewards + (1 - dones) * self.gamma * next_q_target
         )  # self.reward_scaling * rewards
 
         # Q LOSS
-        curr_q1, _ = self._model.q_net_1(states, actions, hidden_states)
-        curr_q2, _ = self._model.q_net_2(states, actions, hidden_states)
+        curr_q1, curr_q2 = self.model.get_q_values(states, actions)
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
 
-        # UPDATE Q NETWORKS
-        self._model.q1_optimizer.zero_grad()
-        q1_loss.backward()
-        self._model.q1_optimizer.step()
+        self.model.update_target_q(self.tau)
 
-        self._model.q2_optimizer.zero_grad()
-        q2_loss.backward()
-        self._model.q2_optimizer.step()
-
-        # UPDATE POLICY NETWORK
-        new_actions, log_pi = self._get_update_action(states, hidden_states)
-        min_q = torch.min(
-            self._model.q_net_1(states, new_actions, hidden_states)[0],
-            self._model.q_net_2(states, new_actions, hidden_states)[0],
-        )
+        # Policy loss
+        new_actions, log_pi = self.model.get_update_action(states)
+        q1, q2 = self.model.get_q_values(states, new_actions)
+        min_q = torch.min(q1, q2)
         policy_loss = (self.alpha * log_pi - min_q).mean()
 
-        self._model.policy_optimizer.zero_grad()
-        policy_loss.backward()
-        self._model.policy_optimizer.step()
-
-        # UPDATE TARGET NETWORKS
-        for target_param, param in zip(
-            self._model.target_q_net_1.parameters(), self._model.q_net_1.parameters()
-        ):
-            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
-
-        for target_param, param in zip(
-            self._model.target_q_net_2.parameters(), self._model.q_net_2.parameters()
-        ):
-            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
-
-        # UPDATE TEMPERATURE
-        alpha_loss = (self._model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
-
-        self._model.alpha_optim.zero_grad()
+        alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
+        self.model.q1_update_zero_grad()
+        self.model.q2_update_zero_grad()
+        self.model.policy_update_zero_grad()
+        self.model.alpha_update_zero_grad()
+        q1_loss.backward(retain_graph=True)
+        q2_loss.backward(retain_graph=True)
+        policy_loss.backward(retain_graph=True)
         alpha_loss.backward()
-        self._model.alpha_optim.step()
-        self.alpha = self._model.log_alpha.exp()
+        self.model.q1_update_step()
+        self.model.q2_update_step()
+        self.model.policy_update_step()
+        self.model.alpha_update_step()
+
+        self.alpha = self.model.log_alpha.exp()
 
         self.update_step += 1
         return [
@@ -178,39 +121,40 @@ class SAC(Algo):
             policy_loss.detach().cpu().numpy(),
         ]
 
-    def save_model(self, path: str):
-        print("... saving model ...")
-        torch.save(self._model.q_net_1.state_dict(), path + "_q_net1")
-        torch.save(self._model.q_net_2.state_dict(), path + "_q_net2")
+    # def save_model(self, path: str):
+    #     print("... saving model ...")
+    #     torch.save(self.model.q_net_1.state_dict(), path + "_q_net1")
+    #     torch.save(self.model.q_net_2.state_dict(), path + "_q_net2")
 
-        torch.save(self._model.target_q_net_1.state_dict(), path + "_target_q_net1")
-        torch.save(self._model.target_q_net_2.state_dict(), path + "_target_q_net2")
+    #     torch.save(self.model.target_q_net_1.state_dict(), path + "_target_q_net1")
+    #     torch.save(self.model.target_q_net_2.state_dict(), path + "_target_q_net2")
 
-        torch.save(self._model.policy_net.state_dict(), path + "_policy_net")
+    #     torch.save(self.model.policy_net.state_dict(), path + "_policy_net")
 
-        torch.save(self.alpha, path + "_alpha.pt")
+    #     torch.save(self.alpha, path + "_alpha.pt")
 
-    def load_model(self, path: str):
-        print("... loading model ...")
-        self._model.q_net_1.load_state_dict(torch.load(path + "_q_net1"))
-        self._model.q_net_2.load_state_dict(torch.load(path + "_q_net2"))
+    # def load_model(self, path: str):
+    #     print("... loading model ...")
+    #     self.model.q_net_1.load_state_dict(torch.load(path + "_q_net1"))
+    #     self.model.q_net_2.load_state_dict(torch.load(path + "_q_net2"))
 
-        self._model.target_q_net_1.load_state_dict(torch.load(path + "_target_q_net1"))
-        self._model.target_q_net_2.load_state_dict(torch.load(path + "_target_q_net2"))
+    #     self.model.target_q_net_1.load_state_dict(torch.load(path + "_target_q_net1"))
+    #     self.model.target_q_net_2.load_state_dict(torch.load(path + "_target_q_net2"))
 
-        self._model.policy_net.load_state_dict(torch.load(path + "_policy_net"))
+    #     self.model.policy_net.load_state_dict(torch.load(path + "_policy_net"))
 
-        self.alpha = torch.load(path + "_alpha.pt")
+    #     self.alpha = torch.load(path + "_alpha.pt")
 
-        self._model.q_net_1.eval()
-        self._model.q_net_2.eval()
-        self._model.target_q_net_1.eval()
-        self._model.target_q_net_2.eval()
-        self._model.policy_net.eval()
+    #     self.model.q_net_1.eval()
+    #     self.model.q_net_2.eval()
+    #     self.model.target_q_net_1.eval()
+    #     self.model.target_q_net_2.eval()
+    #     self.model.policy_net.eval()
 
     def copy(self):
         copy = self.__class__(
-            self._model.copy(),
+            self.model.copy(),
+            self.action_space,
             self.gamma,
             self.tau,
             self.reward_scaling,
@@ -221,7 +165,8 @@ class SAC(Algo):
 
     def copy_shared_memory(self):
         copy = self.__class__(
-            self._model.copy_shared_memory(),
+            self.model.copy_shared_memory(),
+            self.action_space,
             self.gamma,
             self.tau,
             self.reward_scaling,
@@ -232,4 +177,16 @@ class SAC(Algo):
 
     def to(self, device: torch.device):
         self._device = device
-        self._model.to(device)
+        self.alpha = self.alpha.to(device)
+        self.target_entropy = self.target_entropy.to(device)
+        self.model.to(device)
+
+    @property
+    def state_dicts(self) -> ModelStateDicts:
+        return self.model.state_dicts
+
+    def load_state_dicts(self, state_dicts: ModelStateDicts) -> None:
+        self.model.load_state_dicts(state_dicts)
+
+    def reset(self) -> None:
+        self.model.reset()

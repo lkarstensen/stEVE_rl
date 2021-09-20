@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from collections import namedtuple
+from typing import List, NamedTuple, Optional, Tuple
 import numpy as np
 import torch
 from dataclasses import dataclass
+
+from ..network import Network
 
 
 @dataclass
@@ -102,40 +105,14 @@ class ModelStateDicts(ABC):
         return self
 
 
-@dataclass
-class ModelNetworks(ABC):
-    @abstractmethod
-    def to(self, device: torch.device) -> None:
-        ...
-
-    @abstractmethod
-    def soft_tau_update(self, model_parameters, tau: float):
-        ...
-
-    @abstractmethod
-    def load_state_dicts(self, model_state_dicts):
-        ...
-
+class Model(ABC):
     @property
     @abstractmethod
-    def state_dicts(self):
+    def state_dicts(self) -> ModelStateDicts:
         ...
 
     @abstractmethod
-    def __iter__(self):
-        ...
-
-    def to(self, device: torch.device) -> None:
-        self.device = device
-        for net in self:
-            net.to(device)
-
-
-class Model(ABC):
-    @abstractmethod
-    def get_action(
-        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
-    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
+    def get_play_action(self, flat_state: np.ndarray) -> np.ndarray:
         ...
 
     @abstractmethod
@@ -150,12 +127,10 @@ class Model(ABC):
     def copy_shared_memory(self):
         ...
 
-    @property
     @abstractmethod
-    def initial_hidden_state(self) -> Optional[torch.Tensor]:
+    def load_state_dicts(self, state_dicts: ModelStateDicts) -> None:
         ...
 
-    @property
     @abstractmethod
-    def nets(self) -> ModelNetworks:
+    def reset(self) -> None:
         ...

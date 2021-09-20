@@ -59,11 +59,11 @@ class Parallel(Agent):
         results = self._get_results()
         return tuple(results)
 
-    def update(self, steps, batch_size):
+    def update(self, steps):
 
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
-            agent.update(steps_per_agent, batch_size)
+            agent.update(steps_per_agent)
         results = self._get_results()
         if not self.shared_model:
             for agent in self.agents:

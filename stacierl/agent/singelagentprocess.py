@@ -109,21 +109,21 @@ def run(
             step_counter_eval.value = agent.step_counter.eval
         elif task_name == "update":
             try:
-                result = agent.update(task[1], task[2])
+                result = agent.update(task[1])
                 step_counter_update.value = agent.step_counter.update
             except ValueError as error:
                 logger.warning(f"Update Error: {error}")
                 shutdown_event.set()
                 result = error
         elif task_name == "put_state_dict":
-            state_dicts = agent.algo.model.nets.state_dicts
+            state_dicts = agent.algo.state_dicts
             state_dicts.to(torch.device("cpu"))
             model_queue.put(state_dicts)
             continue
         elif task_name == "set_state_dict":
             state_dicts = task[1]
             state_dicts.to(device)
-            agent.algo.model.nets.load_state_dicts(state_dicts)
+            agent.algo.load_state_dicts(state_dicts)
             continue
         elif task_name == "shutdown":
             agent.close()
@@ -208,8 +208,8 @@ class SingleAgentProcess(Agent):
     def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         self._task_queue.put(["evaluate", steps, episodes])
 
-    def update(self, steps, batch_size):
-        self._task_queue.put(["update", steps, batch_size])
+    def update(self, steps):
+        self._task_queue.put(["update", steps])
 
     def set_state_dict(self, all_state_dicts):
         self._task_queue.put(["set_state_dict", all_state_dicts])

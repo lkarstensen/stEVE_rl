@@ -1,6 +1,6 @@
 import logging
 from typing import List, Tuple
-from .agent import Agent, dict_state_to_flat_np_state, StepCounter, EpisodeCounter
+from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
 from ..environment import Environment
@@ -49,8 +49,8 @@ class Single(Agent):
             episode_counter += 1
             self.replay_buffer.push(episode_transitions)
 
-        average_reward = sum(rewards) / len(rewards)
-        average_success = sum(successes) / len(successes)
+        average_reward = (sum(rewards) / len(rewards)) if rewards else None
+        average_success = (sum(successes) / len(successes)) if successes else None
 
         return average_reward, average_success
 
@@ -84,12 +84,12 @@ class Single(Agent):
 
         return average_reward, average_success
 
-    def update(self, steps, batch_size) -> List[float]:
-        if len(self.replay_buffer) < batch_size:
+    def update(self, steps) -> List[float]:
+        if len(self.replay_buffer) < self.replay_buffer.batch_size:
             return
 
         for _ in range(steps):
-            batch = self.replay_buffer.sample(batch_size)
+            batch = self.replay_buffer.sample()
             result = self.algo.update(batch)
             self.step_counter.update += 1
 
@@ -118,28 +118,25 @@ class Single(Agent):
     def _play_episode(self, consecutive_actions: int, mode: str):
         assert mode in ["exploration", "eval"]
         episode_transitions = Episode()
+        self.algo.reset()
         state = self.env.reset()
         self.logger.debug(f"Reset state:\n{state}")
-        state = dict_state_to_flat_np_state(state)
+        state = self.env.observation_space.to_flat_array(state)
         episode_reward = 0
         step_counter = 0
-        hidden_state = self.algo.get_initial_hidden_state()
         while True:
             if mode == "exploration":
-                action, next_hidden_state = self.algo.get_exploration_action(state, hidden_state)
+                action = self.algo.get_exploration_action(state)
             else:
-                action, next_hidden_state = self.algo.get_eval_action(state, hidden_state)
+                action = self.algo.get_eval_action(state)
             self.logger.debug(f"Action: {action}")
             for _ in range(consecutive_actions):
                 next_state, reward, done, info, success = self.env.step(action)
                 self.logger.debug(f"Next state:\n{next_state}")
-                next_state = dict_state_to_flat_np_state(next_state)
+                next_state = self.env.observation_space.to_flat_array(next_state)
                 self.env.render()
-                episode_transitions.add_transition(
-                    state, action, reward, next_state, done, hidden_state, next_hidden_state
-                )
+                episode_transitions.add_transition(state, action, reward, next_state, done)
                 state = next_state
-                hidden_state = next_hidden_state
                 episode_reward += reward
                 step_counter += 1
                 if done:
@@ -167,6 +164,6 @@ class Single(Agent):
     def _check_steps_and_episodes(steps: int = None, episodes: int = None) -> Tuple[int, int]:
         if steps is None and episodes is None:
             raise ValueError("One of the two (steps or episodes) needs to be given")
-        steps = steps or inf
-        episodes = episodes or inf
+        steps = inf if steps is None else steps
+        episodes = inf if episodes is None else episodes
         return steps, episodes

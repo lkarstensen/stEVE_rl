@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Tuple
 import numpy as np
 from ..replaybuffer import Batch
-from .. import model
+from ..model import Model, ModelStateDicts
 import torch
 
 
@@ -13,7 +13,7 @@ class Algo(ABC):
 
     @property
     @abstractmethod
-    def model(self) -> model.Model:
+    def model(self) -> Model:
         ...
 
     @property
@@ -21,33 +21,38 @@ class Algo(ABC):
     def device(self) -> torch.device:
         ...
 
+    @property
+    @abstractmethod
+    def state_dicts(self) -> ModelStateDicts:
+        ...
+
     @abstractmethod
     def update(self, batch: Batch) -> List[float]:
         ...
 
     @abstractmethod
-    def get_exploration_action(
-        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
-    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
+    def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
         ...
 
     @abstractmethod
-    def get_eval_action(
-        self, flat_state: np.ndarray, hidden_state: Optional[torch.tensor] = None
-    ) -> Tuple[np.ndarray, Optional[torch.tensor]]:
+    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
         ...
 
     @abstractmethod
-    def get_initial_hidden_state(self):
+    def load_state_dicts(self, state_dicts: ModelStateDicts) -> None:
         ...
 
     @abstractmethod
-    def save_model(self, path):
+    def reset(self) -> None:
         ...
 
-    @abstractmethod
-    def load_model(self, path):
-        ...
+    # @abstractmethod
+    # def save_model(self, path):
+    #     ...
+
+    # @abstractmethod
+    # def load_model(self, path):
+    #     ...
 
     @abstractmethod
     def copy(self):

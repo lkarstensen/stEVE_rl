@@ -4,18 +4,6 @@ import numpy as np
 from dataclasses import dataclass
 
 
-def dict_state_to_flat_np_state(state: Dict[str, np.ndarray]) -> np.ndarray:
-    keys = sorted(state.keys())
-
-    flat_state = np.array([], dtype=np.float32)
-    for key in keys:
-        new_state = state[key]
-        while len(new_state.shape) > 1:
-            new_state = new_state.flatten()
-        flat_state = np.append(flat_state, new_state)
-    return flat_state
-
-
 @dataclass
 class EpisodeCounter:
     exploration: int = 0

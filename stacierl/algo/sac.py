@@ -110,7 +110,7 @@ class SAC(Algo):
         self.model.alpha_update_zero_grad()
         q1_loss.backward(retain_graph=True)
         q2_loss.backward(retain_graph=True)
-        policy_loss.backward(retain_graph=True)
+        policy_loss.backward()
         alpha_loss.backward()
         self.model.q1_update_step()
         self.model.q2_update_step()

@@ -41,7 +41,7 @@ class LSTM(Network):
 
     def copy(self):
 
-        copy = self.__class__(self.hidden_layers)
+        copy = self.__class__(self.n_layer, self.n_nodes)
         return copy
 
     def reset(self):

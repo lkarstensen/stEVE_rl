@@ -94,10 +94,10 @@ class SAC(Algo):
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         self.model.q1_update_zero_grad()
-        q1_loss.backward()
-        self.model.q1_update_step()
         self.model.q2_update_zero_grad()
+        q1_loss.backward()
         q2_loss.backward()
+        self.model.q1_update_step()
         self.model.q2_update_step()
 
         self.model.update_target_q(self.tau)

@@ -47,13 +47,11 @@ class GaussianPolicy(Network):
         #     self.layers[i].weight.data.uniform_(-init_w, init_w)
         #     self.layers[i].bias.data.uniform_(-init_w, init_w)
 
-        self.mean.weight.data.uniform_(-init_w, init_w)
-        self.mean.bias.data.uniform_(-init_w, init_w)
+        # self.mean.weight.data.uniform_(-init_w, init_w)
+        # self.mean.bias.data.uniform_(-init_w, init_w)
 
-        self.log_std.weight.data.uniform_(-init_w, init_w)
-        self.log_std.bias.data.uniform_(-init_w, init_w)
-
-        self._initial_hidden_state = None
+        # self.log_std.weight.data.uniform_(-init_w, init_w)
+        # self.log_std.bias.data.uniform_(-init_w, init_w)
 
     @property
     def input_is_set(self) -> bool:

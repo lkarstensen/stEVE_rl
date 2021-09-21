@@ -93,6 +93,14 @@ class SAC(Algo):
         curr_q2 = curr_q2.data
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
+        self.model.q1_update_zero_grad()
+        q1_loss.backward()
+        self.model.q1_update_step()
+        self.model.q2_update_zero_grad()
+        q2_loss.backward()
+        self.model.q2_update_step()
+
+        self.model.update_target_q(self.tau)
 
         # Policy loss
         new_actions, log_pi = self.model.get_update_action(states)
@@ -103,21 +111,15 @@ class SAC(Algo):
         min_q = torch.min(q1, q2)
         policy_loss = (self.alpha * log_pi - min_q).mean()
 
-        alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
-        self.model.q1_update_zero_grad()
-        self.model.q2_update_zero_grad()
         self.model.policy_update_zero_grad()
-        self.model.alpha_update_zero_grad()
-        q1_loss.backward(retain_graph=True)
-        q2_loss.backward(retain_graph=True)
         policy_loss.backward()
-        alpha_loss.backward()
-        self.model.q1_update_step()
-        self.model.q2_update_step()
         self.model.policy_update_step()
+
+        alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
+        self.model.alpha_update_zero_grad()
+        alpha_loss.backward()
         self.model.alpha_update_step()
 
-        self.model.update_target_q(self.tau)
         self.alpha = self.model.log_alpha.exp()
 
         self.update_step += 1

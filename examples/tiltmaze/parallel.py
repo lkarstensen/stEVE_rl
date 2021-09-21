@@ -14,10 +14,10 @@ def sac_training(
     lr=0.000766667,
     hidden_layers=[256, 256],
     gamma=0.99,
-    replay_buffer=1e5,
+    replay_buffer=1e6,
     training_steps=2e5,
     consecutive_explore_episodes=1,
-    steps_between_eval=5e3,
+    steps_between_eval=2e4,
     eval_episodes=100,
     batch_size=64,
     heatup=5000,
@@ -47,7 +47,13 @@ def sac_training(
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
     agent = stacierl.agent.Parallel(
-        n_agents, algo, env_factory, replay_buffer, device=device, consecutive_action_steps=1
+        n_agents,
+        algo,
+        env_factory,
+        replay_buffer,
+        device=device,
+        consecutive_action_steps=1,
+        shared_model=False,
     )
 
     logfile = log_folder + f"/{name}_{id}.csv"
@@ -82,14 +88,17 @@ def sac_training(
 
 
 if __name__ == "__main__":
-    mp.set_start_method("spawn")
+    mp.set_start_method("spawn", force=True)
     cwd = os.getcwd()
     log_folder = cwd + "/parallel_example_results/"
     result = sac_training(
-        lr=0.0025,
-        gamma=0.990019014056533,
-        hidden_layers=[128, 128],
+        lr=0.002717137468421826,
+        gamma=0.9867414187511384,
+        hidden_layers=[61, 61],
         log_folder=log_folder,
         n_agents=3,
-        device=torch.device("cpu"),
+        batch_size=243,
+        device=torch.device("cuda"),
+        training_steps=3e5,
+        heatup=1e4,
     )

@@ -6,6 +6,7 @@ import torch
 from datetime import datetime
 import csv
 import os
+import torch.multiprocessing as mp
 
 
 def sac_training(
@@ -21,6 +22,7 @@ def sac_training(
     batch_size=8,
     heatup=1000,
     log_folder: str = "",
+    n_agents=2,
 ):
 
     if not os.path.isdir(log_folder):
@@ -34,7 +36,6 @@ def sac_training(
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
 
     common_net = stacierl.network.LSTM(n_layer=1, n_nodes=128)
-    # common_net = stacierl.network.MLP([128, 128])
     common_embedder = stacierl.model.InputEmbedder("common", requires_grad=True)
     common_embedder_no_grad = stacierl.model.InputEmbedder("common", requires_grad=False)
 
@@ -47,13 +48,19 @@ def sac_training(
         action_space=env.action_space,
         embedding_networks={"common": common_net},
         q1_common_input_embedder=common_embedder,
-        q2_common_input_embedder=common_embedder,
+        q2_common_input_embedder=common_embedder_no_grad,
         policy_common_input_embedder=common_embedder_no_grad,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisode(replay_buffer, batch_size)
-    agent = stacierl.agent.Single(
-        algo, env, replay_buffer, consecutive_action_steps=1, device=device
+    agent = stacierl.agent.Parallel(
+        n_agents,
+        algo,
+        env_factory,
+        replay_buffer,
+        consecutive_action_steps=1,
+        device=device,
+        shared_model=True,
     )
 
     logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
@@ -92,11 +99,17 @@ def sac_training(
 
 
 if __name__ == "__main__":
+    mp.set_start_method("spawn", force=True)
     cwd = os.getcwd()
     log_folder = cwd + "/fast_learner_example_results/"
     result = sac_training(
-        lr=0.0007,
-        gamma=0.99,
-        hidden_layers=[256, 256],
+        lr=0.002717137468421826,
+        gamma=0.9867414187511384,
+        hidden_layers=[61, 61],
         log_folder=log_folder,
+        n_agents=3,
+        batch_size=5,
+        device=torch.device("cuda"),
+        training_steps=3e5,
+        heatup=1e4,
     )

@@ -79,8 +79,10 @@ class Parallel(Agent):
 
             for agent in self.agents:
                 agent.set_state_dict(new_state_dict)
-
-        return list(results)
+        if results is None:
+            return None
+        else:
+            return list(results)
 
     def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
@@ -107,6 +109,8 @@ class Parallel(Agent):
         for agent in self.agents:
             result = agent.get_result()
             results.append(result)
+        if None in results:
+            return None
         results = np.array(results)
         return np.mean(results, axis=0)
 

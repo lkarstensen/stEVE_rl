@@ -57,13 +57,8 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisode(replay_buffer, batch_size)
-    agent = stacierl.agent.Parallel(
-        n_agents,
-        algo,
-        env_factory,
-        replay_buffer,
-        consecutive_action_steps=1,
-        device=device,
+    agent = stacierl.agent.Single(
+        algo, env, replay_buffer, consecutive_action_steps=1, device=device
     )
 
     while True:
@@ -87,7 +82,7 @@ def sac_training(
         update_steps = step_counter.exploration - step_counter.update
         agent.update(update_steps)
 
-        if step_counter.exploration > next_eval_step_limt:
+        if step_counter.exploration >= next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
             next_eval_step_limt += steps_between_eval
 

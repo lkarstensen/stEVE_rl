@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch.distributions import Normal
-from torch.nn.utils.rnn import PackedSequence
+from torch.nn.utils.rnn import PackedSequence, pad_packed_sequence
 from .algo import Algo, ModelStateDicts
 from .. import model
 import numpy as np
@@ -68,8 +68,8 @@ class SAC(Algo):
         (states, actions, rewards, next_states, dones) = batch
         # actions /= self.action_scaling
 
-        rewards = rewards.data
-        dones = dones.data
+        rewards, _ = pad_packed_sequence(rewards, batch_first=True)
+        dones, _ = pad_packed_sequence(dones, batch_first=True)
 
         states = states.to(dtype=torch.float32, device=self._device)
         actions = actions.to(dtype=torch.float32, device=self._device)
@@ -79,9 +79,9 @@ class SAC(Algo):
 
         next_actions, next_log_pi = self.model.get_update_action(next_states)
         next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
-        next_q1 = next_q1.data
-        next_q2 = next_q2.data
-        next_log_pi = next_log_pi.data
+        next_q1, _ = pad_packed_sequence(next_q1, batch_first=True)
+        next_q2, _ = pad_packed_sequence(next_q2, batch_first=True)
+        next_log_pi, _ = pad_packed_sequence(next_log_pi, batch_first=True)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
         expected_q = (
             rewards + (1 - dones) * self.gamma * next_q_target
@@ -89,15 +89,15 @@ class SAC(Algo):
 
         # Q LOSS
         curr_q1, curr_q2 = self.model.get_q_values(states, actions)
-        curr_q1 = curr_q1.data
-        curr_q2 = curr_q2.data
+        curr_q1, _ = pad_packed_sequence(curr_q1, batch_first=True)
+        curr_q2, _ = pad_packed_sequence(curr_q2, batch_first=True)
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         self.model.q1_update_zero_grad()
-        self.model.q2_update_zero_grad()
         q1_loss.backward()
-        q2_loss.backward()
         self.model.q1_update_step()
+        self.model.q2_update_zero_grad()
+        q2_loss.backward()
         self.model.q2_update_step()
 
         self.model.update_target_q(self.tau)
@@ -105,9 +105,9 @@ class SAC(Algo):
         # Policy loss
         new_actions, log_pi = self.model.get_update_action(states)
         q1, q2 = self.model.get_q_values(states, new_actions)
-        q1 = q1.data
-        q2 = q2.data
-        log_pi = log_pi.data
+        q1, _ = pad_packed_sequence(q1, batch_first=True)
+        q2, _ = pad_packed_sequence(q2, batch_first=True)
+        log_pi, _ = pad_packed_sequence(log_pi, batch_first=True)
         min_q = torch.min(q1, q2)
         policy_loss = (self.alpha * log_pi - min_q).mean()
 

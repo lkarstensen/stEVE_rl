@@ -8,6 +8,7 @@ import csv
 import os
 import torch.multiprocessing as mp
 from time import perf_counter
+from stacierl.model import InputEmbedder
 
 
 def sac_training(
@@ -40,8 +41,6 @@ def sac_training(
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
 
     common_net = stacierl.network.LSTM(n_layer=1, n_nodes=128)
-    common_embedder = stacierl.model.InputEmbedder("common", requires_grad=True)
-    common_embedder_no_grad = stacierl.model.InputEmbedder("common", requires_grad=False)
 
     sac_model = stacierl.model.SACembedder(
         q1=q_net_1,
@@ -50,10 +49,9 @@ def sac_training(
         learning_rate=lr,
         obs_space=env.observation_space,
         action_space=env.action_space,
-        embedding_networks={"common": common_net},
-        q1_common_input_embedder=common_embedder,
-        q2_common_input_embedder=common_embedder_no_grad,
-        policy_common_input_embedder=common_embedder_no_grad,
+        q1_common_input_embedder=InputEmbedder(common_net, True),
+        q2_common_input_embedder=InputEmbedder(common_net, False),
+        policy_common_input_embedder=InputEmbedder(common_net, False),
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisode(replay_buffer, batch_size)

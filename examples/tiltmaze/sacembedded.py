@@ -7,6 +7,7 @@ from datetime import datetime
 import csv
 import os
 import torch.multiprocessing as mp
+from time import perf_counter
 
 
 def sac_training(
@@ -16,19 +17,22 @@ def sac_training(
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=2e5,
-    consecutive_explore_episodes=1,
+    consecutive_explore_steps=1,
     steps_between_eval=1e4,
     eval_episodes=100,
     batch_size=8,
     heatup=1000,
     log_folder: str = "",
     n_agents=2,
+    id=0,
+    name="",
 ):
 
+    start = perf_counter()
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_factory = tiltmaze.LNK1(dt_step=2 / 3)
+    env_factory = tiltmaze.LNK2()
     env = env_factory.create_env()
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
@@ -60,10 +64,14 @@ def sac_training(
         replay_buffer,
         consecutive_action_steps=1,
         device=device,
-        shared_model=True,
     )
 
-    logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
+    while True:
+        logfile = log_folder + f"/{name}_{id}.csv"
+        if os.path.isfile(logfile):
+            id += 1
+        else:
+            break
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["lr", "gamma", "hidden_layers"])
@@ -74,7 +82,7 @@ def sac_training(
     agent.heatup(steps=heatup)
     step_counter = agent.step_counter
     while step_counter.exploration < training_steps:
-        agent.explore(episodes=consecutive_explore_episodes)
+        agent.explore(steps=consecutive_explore_steps)
         step_counter = agent.step_counter
         update_steps = step_counter.exploration - step_counter.update
         agent.update(update_steps)
@@ -94,6 +102,12 @@ def sac_training(
                         success,
                     ]
                 )
+    duration = perf_counter() - start
+    with open(logfile, "a+", newline="") as csvfile:
+        writer = csv.writer(csvfile, delimiter=";")
+        writer.writerow(["Elapsed Time:"])
+        writer.writerow([duration])
+    agent.close()
 
     return success, agent.step_counter.exploration
 
@@ -101,15 +115,16 @@ def sac_training(
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     cwd = os.getcwd()
-    log_folder = cwd + "/fast_learner_example_results/"
+    log_folder = cwd + "/sacembedded_example_results/"
     result = sac_training(
-        lr=0.002717137468421826,
-        gamma=0.9867414187511384,
-        hidden_layers=[61, 61],
+        lr=0.0007,
+        gamma=0.99,
+        hidden_layers=[256, 256],
         log_folder=log_folder,
-        n_agents=3,
-        batch_size=5,
+        n_agents=2,
+        batch_size=8,
         device=torch.device("cuda"),
-        training_steps=3e5,
+        training_steps=1e5,
         heatup=1e4,
+        name="trial",
     )

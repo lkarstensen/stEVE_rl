@@ -225,9 +225,8 @@ class SACembedder(SAC):
 
     def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
         with torch.no_grad():
-            flat_state = torch.from_numpy(flat_state).unsqueeze(0)
+            flat_state = torch.from_numpy(flat_state).unsqueeze(0).unsqueeze(0)
             flat_state = flat_state.to(self.device)
-            flat_state = pack_sequence([flat_state])
             embedded_state = self._get_embedded_state(
                 flat_state,
                 self._policy_hydra_networks,
@@ -238,9 +237,6 @@ class SACembedder(SAC):
             )
 
             mean, log_std = self.policy.forward(embedded_state, use_hidden_state=True)
-
-            mean, _ = pad_packed_sequence(mean, batch_first=True)
-            log_std, _ = pad_packed_sequence(log_std, batch_first=True)
             std = log_std.exp()
 
             normal = Normal(mean, std)
@@ -251,9 +247,9 @@ class SACembedder(SAC):
 
     def get_q_values(
         self,
-        state_batch: PackedSequence,
-        action_batch: PackedSequence,
-    ) -> Tuple[PackedSequence, PackedSequence]:
+        state_batch: torch.Tensor,
+        action_batch: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
@@ -278,9 +274,9 @@ class SACembedder(SAC):
 
     def get_target_q_values(
         self,
-        state_batch: PackedSequence,
-        action_batch: PackedSequence,
-    ) -> Tuple[PackedSequence, PackedSequence]:
+        state_batch: torch.Tensor,
+        action_batch: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # with torch.no_grad():
         self.reset()
         embedded_state = self._get_embedded_state(
@@ -306,7 +302,7 @@ class SACembedder(SAC):
 
     # epsilon makes sure that log(0) does not occur
     def get_update_action(
-        self, state_batch: PackedSequence, epsilon: float = 1e-6
+        self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         self.reset()
         embedded_state = self._get_embedded_state(
@@ -318,8 +314,6 @@ class SACembedder(SAC):
             use_hidden_state=False,
         )
         mean_batch, log_std = self.policy.forward(embedded_state, use_hidden_state=False)
-        mean_batch, seq_length = pad_packed_sequence(mean_batch, batch_first=True)
-        log_std, _ = pad_packed_sequence(log_std, batch_first=True)
 
         std_batch = log_std.exp()
         normal = Normal(mean_batch, std_batch)
@@ -328,18 +322,11 @@ class SACembedder(SAC):
 
         log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
         log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
-
-        action_batch = pack_padded_sequence(
-            action_batch, seq_length, batch_first=True, enforce_sorted=False
-        )
-        log_pi_batch = pack_padded_sequence(
-            log_pi_batch, seq_length, batch_first=True, enforce_sorted=False
-        )
         return action_batch, log_pi_batch
 
     def _get_embedded_state(
         self,
-        state_batch: PackedSequence,
+        state_batch: torch.Tensor,
         hydra_nets: Dict[str, Network],
         hydra_embedder: Dict[str, InputEmbedder],
         common_net: Network,
@@ -348,34 +335,25 @@ class SACembedder(SAC):
     ):
 
         if hydra_embedder:
-            unpacked_state, seq_lengths = pad_packed_sequence(state_batch, batch_first=True)
             slices = [[ids, obs] for obs, ids in self.obs_space.dict_to_flat_np_map.items()]
             slices = sorted(slices)
             slice_names = [obs[1] for obs in slices]
             dsplit_sections = [obs[0][0] for obs in slices]
-            sliced_state = list(unpacked_state.dsplit(dsplit_sections))
+            sliced_state = list(state_batch.dsplit(dsplit_sections))
             for state_key, network in hydra_nets.items():
                 split_index = slice_names.index(state_key)
-                reduced_packed_state = pack_padded_sequence(
-                    sliced_state[split_index], seq_lengths, batch_first=True, enforce_sorted=False
-                )
                 if hydra_embedder[state_key].requires_grad:
                     reduced_output = network.forward(
-                        reduced_packed_state, use_hidden_state=use_hidden_state
+                        sliced_state[split_index], use_hidden_state=use_hidden_state
                     )
                 else:
                     with torch.no_grad():
                         reduced_output = network.forward(
-                            reduced_packed_state, use_hidden_state=use_hidden_state
+                            sliced_state[split_index], use_hidden_state=use_hidden_state
                         )
-                reduced_output, _ = pad_packed_sequence(reduced_output, batch_first=True)
                 sliced_state[split_index] = reduced_output
 
             hydra_state = torch.dstack(sliced_state)
-
-            hydra_state = pack_padded_sequence(
-                hydra_state, seq_lengths, batch_first=True, enforce_sorted=False
-            )
         else:
             hydra_state = state_batch
         if common_embedder is not None and common_embedder.requires_grad:

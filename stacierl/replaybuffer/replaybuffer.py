@@ -57,11 +57,12 @@ class Episode:
 
 
 class Batch(NamedTuple):
-    states: PackedSequence
-    actions: PackedSequence
-    rewards: PackedSequence
-    next_states: PackedSequence
-    dones: PackedSequence
+    states: torch.Tensor
+    actions: torch.Tensor
+    rewards: torch.Tensor
+    next_states: torch.Tensor
+    dones: torch.Tensor
+    padding_mask: torch.Tensor = None
 
 
 class ReplayBuffer(ABC):

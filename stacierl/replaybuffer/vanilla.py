@@ -47,14 +47,9 @@ class Vanilla(ReplayBuffer):
         np.stack((1,2)) => array([1, 2])
         """
 
-        batch = [list(torch.from_numpy(batch_entry).unsqueeze(1)) for batch_entry in batch]
-        lengths = [state.shape[0] for state in batch[0]]
-        padded_batch = [pad_sequence(batch_entry, batch_first=True) for batch_entry in batch]
-        packed_batch = [
-            pack_padded_sequence(batch_entry, lengths, batch_first=True, enforce_sorted=False)
-            for batch_entry in padded_batch
-        ]
-        return Batch(*packed_batch)
+        batch = [torch.from_numpy(batch_entry).unsqueeze(1) for batch_entry in batch]
+
+        return Batch(*batch)
 
     def __len__(
         self,

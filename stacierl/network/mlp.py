@@ -39,8 +39,7 @@ class MLP(Network):
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_input, n_output))
 
-    def forward(self, input_batch: PackedSequence, *args, **kwargs) -> PackedSequence:
-        input, seq_length = pad_packed_sequence(input_batch, batch_first=True)[0]
+    def forward(self, input_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         for layer in self.layers[:-1]:
             output = layer(input)
             output = F.relu(output)
@@ -49,10 +48,7 @@ class MLP(Network):
         # output without relu
         output = self.layers[-1](input)
 
-        output_batch = pack_padded_sequence(
-            output, seq_length, batch_first=True, enforce_sorted=False
-        )
-        return output_batch
+        return output
 
     def copy(self):
 

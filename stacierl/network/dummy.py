@@ -1,4 +1,4 @@
-from torch.nn.utils.rnn import PackedSequence
+import torch
 from .network import Network
 
 
@@ -22,7 +22,7 @@ class Dummy(Network):
     def set_input(self, n_inputs):
         self._n_inputs = n_inputs
 
-    def forward(self, input_batch: PackedSequence, *args, **kwargs) -> PackedSequence:
+    def forward(self, input_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
 
         return input_batch
 

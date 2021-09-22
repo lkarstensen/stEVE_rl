@@ -6,24 +6,26 @@ from dataclasses import dataclass
 
 @dataclass
 class EpisodeCounter:
+    heatup: int = 0
     exploration: int = 0
-    eval: int = 0
+    evaluation: int = 0
 
     def __iadd__(self, other):
         self.exploration += other.exploration
-        self.eval += other.eval
+        self.evaluation += other.eval
         return self
 
 
 @dataclass
 class StepCounter:
+    heatup: int = 0
     exploration: int = 0
-    eval: int = 0
+    evaluation: int = 0
     update: int = 0
 
     def __iadd__(self, other):
         self.exploration += other.exploration
-        self.eval += other.eval
+        self.evaluation += other.eval
         self.update += other.update
         return self
 

@@ -105,8 +105,8 @@ def run(
             step_counter_exploration.value = agent.step_counter.exploration
         elif task_name == "evaluate":
             result = agent.evaluate(task[1], task[2])
-            episode_counter_eval.value = agent.episode_counter.eval
-            step_counter_eval.value = agent.step_counter.eval
+            episode_counter_eval.value = agent.episode_counter.evaluation
+            step_counter_eval.value = agent.step_counter.evaluation
         elif task_name == "update":
             try:
                 result = agent.update(task[1])

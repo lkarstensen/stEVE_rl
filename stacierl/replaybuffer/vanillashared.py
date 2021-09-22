@@ -1,4 +1,5 @@
 import random
+from stacierl.replaybuffer.vanillaepisode import VanillaEpisode
 import numpy as np
 from .replaybuffer import ReplayBuffer
 from .vanilla import Episode, Batch, Vanilla
@@ -94,3 +95,19 @@ class VanillaShared(VanillaSharedBase):
         super().close()
         self._process.join()
         self._process.close()
+
+
+class VanillaEpisodeShared(VanillaShared):
+    def run(self):
+        self._internal_replay_buffer = VanillaEpisode(self.capacity, self._batch_size)
+        while not self._shutdown_event.is_set():
+            task = self._task_queue.get()
+            if task[0] == "push":
+                self._internal_replay_buffer.push(task[1])
+            elif task[0] == "sample":
+                batch = self._internal_replay_buffer.sample()
+                self._result_queue.put(batch)
+            elif task[0] == "length":
+                self._result_queue.put(len(self._internal_replay_buffer))
+            elif task[0] == "shutdown":
+                break

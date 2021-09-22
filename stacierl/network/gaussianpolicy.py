@@ -70,9 +70,9 @@ class GaussianPolicy(Network):
         self.layers.insert(0, nn.Linear(n_observations, n_output))
 
     def forward(
-        self, state_batch: PackedSequence, *args, **kwargs
-    ) -> Tuple[PackedSequence, PackedSequence]:
-        input, seq_length = pad_packed_sequence(state_batch, batch_first=True)
+        self, state_batch: torch.Tensor, *args, **kwargs
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        input = state_batch
         for layer in self.layers:
             output = layer(input)
             output = F.relu(output)
@@ -82,8 +82,6 @@ class GaussianPolicy(Network):
         log_std = self.log_std(output)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
 
-        mean = pack_padded_sequence(mean, seq_length, batch_first=True, enforce_sorted=False)
-        log_std = pack_padded_sequence(log_std, seq_length, batch_first=True, enforce_sorted=False)
         return mean, log_std
 
     def copy(self):

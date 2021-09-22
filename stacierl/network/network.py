@@ -1,7 +1,8 @@
 import torch.nn as nn
 from abc import ABC, abstractmethod
 
-from torch.nn.utils.rnn import PackedSequence
+
+import torch
 
 
 class Network(ABC, nn.Module):
@@ -21,7 +22,7 @@ class Network(ABC, nn.Module):
         ...
 
     @abstractmethod
-    def forward(self, input: PackedSequence, *args, **kwargs) -> PackedSequence:
+    def forward(self, input: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         ...
 
     @abstractmethod

@@ -45,9 +45,7 @@ class LSTM(Network):
             # elif "weight" in name:
             # nn.init.orthogonal_(param)
 
-    def forward(
-        self, input_batch: PackedSequence, use_hidden_state, *args, **kwargs
-    ) -> PackedSequence:
+    def forward(self, input_batch: torch.Tensor, use_hidden_state, *args, **kwargs) -> torch.Tensor:
         if use_hidden_state:
             output, self.hidden_state = self.lstm.forward(input_batch, self.hidden_state)
         else:

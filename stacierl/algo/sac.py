@@ -65,32 +65,31 @@ class SAC(Algo):
 
     def update(self, batch: Batch) -> List[float]:
 
-        (states, actions, rewards, next_states, dones) = batch
+        (states, actions, rewards, next_states, dones, padding_mask) = batch
         # actions /= self.action_scaling
-
-        rewards, _ = pad_packed_sequence(rewards, batch_first=True)
-        dones, _ = pad_packed_sequence(dones, batch_first=True)
 
         states = states.to(dtype=torch.float32, device=self._device)
         actions = actions.to(dtype=torch.float32, device=self._device)
         rewards = rewards.to(dtype=torch.float32, device=self._device)
         next_states = next_states.to(dtype=torch.float32, device=self._device)
         dones = dones.to(dtype=torch.float32, device=self._device)
+        if padding_mask is not None:
+            padding_mask = padding_mask.to(dtype=torch.float32, device=self._device)
 
         next_actions, next_log_pi = self.model.get_update_action(next_states)
         next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
-        next_q1, _ = pad_packed_sequence(next_q1, batch_first=True)
-        next_q2, _ = pad_packed_sequence(next_q2, batch_first=True)
-        next_log_pi, _ = pad_packed_sequence(next_log_pi, batch_first=True)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
-        expected_q = (
-            rewards + (1 - dones) * self.gamma * next_q_target
-        )  # self.reward_scaling * rewards
+        expected_q = rewards + (1 - dones) * self.gamma * next_q_target
+
+        # self.reward_scaling * rewards
 
         # Q LOSS
         curr_q1, curr_q2 = self.model.get_q_values(states, actions)
-        curr_q1, _ = pad_packed_sequence(curr_q1, batch_first=True)
-        curr_q2, _ = pad_packed_sequence(curr_q2, batch_first=True)
+
+        if padding_mask is not None:
+            expected_q *= padding_mask
+            curr_q1 *= padding_mask
+            curr_q2 *= padding_mask
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         self.model.q1_update_zero_grad()
@@ -105,10 +104,11 @@ class SAC(Algo):
         # Policy loss
         new_actions, log_pi = self.model.get_update_action(states)
         q1, q2 = self.model.get_q_values(states, new_actions)
-        q1, _ = pad_packed_sequence(q1, batch_first=True)
-        q2, _ = pad_packed_sequence(q2, batch_first=True)
-        log_pi, _ = pad_packed_sequence(log_pi, batch_first=True)
         min_q = torch.min(q1, q2)
+
+        if padding_mask is not None:
+            min_q *= padding_mask
+            log_pi *= padding_mask
         policy_loss = (self.alpha * log_pi - min_q).mean()
 
         self.model.policy_update_zero_grad()

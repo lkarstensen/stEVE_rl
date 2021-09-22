@@ -47,11 +47,11 @@ class GaussianPolicy(Network):
         #     self.layers[i].weight.data.uniform_(-init_w, init_w)
         #     self.layers[i].bias.data.uniform_(-init_w, init_w)
 
-        # self.mean.weight.data.uniform_(-init_w, init_w)
-        # self.mean.bias.data.uniform_(-init_w, init_w)
+        self.mean.weight.data.uniform_(-init_w, init_w)
+        self.mean.bias.data.uniform_(-init_w, init_w)
 
-        # self.log_std.weight.data.uniform_(-init_w, init_w)
-        # self.log_std.bias.data.uniform_(-init_w, init_w)
+        self.log_std.weight.data.uniform_(-init_w, init_w)
+        self.log_std.bias.data.uniform_(-init_w, init_w)
 
     @property
     def input_is_set(self) -> bool:
@@ -69,7 +69,9 @@ class GaussianPolicy(Network):
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_observations, n_output))
 
-    def forward(self, state_batch: PackedSequence) -> Tuple[PackedSequence, PackedSequence]:
+    def forward(
+        self, state_batch: PackedSequence, *args, **kwargs
+    ) -> Tuple[PackedSequence, PackedSequence]:
         input, seq_length = pad_packed_sequence(state_batch, batch_first=True)
         for layer in self.layers:
             output = layer(input)

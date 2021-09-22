@@ -29,14 +29,29 @@ class LSTM(Network):
         return self.lstm is not None
 
     def set_input(self, n_input):
-        self.lstm = nn.LSTM(input_size=n_input, hidden_size=self.n_nodes, num_layers=self.n_layer)
+        self.lstm = nn.LSTM(
+            input_size=n_input,
+            hidden_size=self.n_nodes,
+            num_layers=self.n_layer,
+            batch_first=True,
+            bias=True,
+        )
+        for name, param in self.named_parameters():
+            if "bias" in name:
+                l = len(param)
+                start = int(0.25 * l)
+                end = int(0.5 * l)
+                nn.init.constant_(param[start:end], 1.0)
+            # elif "weight" in name:
+            # nn.init.orthogonal_(param)
 
     def forward(
-        self,
-        input_batch: PackedSequence,
+        self, input_batch: PackedSequence, use_hidden_state, *args, **kwargs
     ) -> PackedSequence:
-
-        output, self.hidden_state = self.lstm.forward(input_batch, self.hidden_state)
+        if use_hidden_state:
+            output, self.hidden_state = self.lstm.forward(input_batch, self.hidden_state)
+        else:
+            output, _ = self.lstm.forward(input_batch)
         return output
 
     def copy(self):

@@ -25,10 +25,10 @@ class QNetwork(Network):
 
         self.layers.append(nn.Linear(hidden_layers[-1], 1))
 
-        # # init weights and bias
-        # # for i in range(len(self.layers)):
-        # self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
-        # self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
+        # init weights and bias
+        # for i in range(len(self.layers)):
+        self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
+        self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
 
     @property
     def input_is_set(self) -> bool:
@@ -53,6 +53,8 @@ class QNetwork(Network):
         self,
         state_batch: PackedSequence,
         action_batch: PackedSequence,
+        *args,
+        **kwargs
     ) -> PackedSequence:
         state, seq_length = pad_packed_sequence(state_batch, batch_first=True)
         action, _ = pad_packed_sequence(action_batch, batch_first=True)

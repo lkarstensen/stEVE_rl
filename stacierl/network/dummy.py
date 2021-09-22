@@ -22,10 +22,7 @@ class Dummy(Network):
     def set_input(self, n_inputs):
         self._n_inputs = n_inputs
 
-    def forward(
-        self,
-        input_batch: PackedSequence,
-    ) -> PackedSequence:
+    def forward(self, input_batch: PackedSequence, *args, **kwargs) -> PackedSequence:
 
         return input_batch
 

@@ -21,7 +21,7 @@ class Network(ABC, nn.Module):
         ...
 
     @abstractmethod
-    def forward(self, input: PackedSequence) -> PackedSequence:
+    def forward(self, input: PackedSequence, *args, **kwargs) -> PackedSequence:
         ...
 
     @abstractmethod

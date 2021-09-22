@@ -1,4 +1,3 @@
-from torch.nn.functional import poisson_nll_loss
 import stacierl
 import stacierl.environment.tiltmaze as tiltmaze
 import numpy as np
@@ -10,15 +9,15 @@ import os
 
 def sac_training(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    lr=0.000766667,
-    hidden_layers=[256, 256],
+    lr=0.005857455980764544,
+    hidden_layers=[128, 128],
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=2e5,
-    consecutive_explore_episodes=1,
+    consecutive_explore_steps=1,
     steps_between_eval=1e4,
     eval_episodes=100,
-    batch_size=8,
+    batch_size=64,
     heatup=100,
     log_folder: str = "",
 ):
@@ -57,7 +56,7 @@ def sac_training(
     agent.heatup(steps=heatup)
     step_counter = agent.step_counter
     while step_counter.exploration < training_steps:
-        agent.explore(episodes=consecutive_explore_episodes)
+        agent.explore(steps=consecutive_explore_steps)
         step_counter = agent.step_counter
         update_steps = step_counter.exploration - step_counter.update
         agent.update(update_steps)
@@ -85,8 +84,8 @@ if __name__ == "__main__":
     cwd = os.getcwd()
     log_folder = cwd + "/fast_learner_example_results/"
     result = sac_training(
-        lr=0.005857455980764544,
-        gamma=0.990019014056533,
+        lr=0.006,
+        gamma=0.99,
         hidden_layers=[128, 128],
         log_folder=log_folder,
     )

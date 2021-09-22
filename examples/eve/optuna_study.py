@@ -34,7 +34,7 @@ def optuna_run(trial):
             log_folder=log_folder,
             n_worker=n_worker,
             n_trainer=n_trainer,
-            env=env,
+            env_str=env,
             image_frequency=image_frequency,
             path_reward_factor=path_reward_factor,
         )

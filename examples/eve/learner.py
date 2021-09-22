@@ -21,7 +21,7 @@ def sac_training(
     update_steps_per_exploration_step=1,
     steps_between_eval=2e5,
     eval_episodes=100,
-    batch_size=128,
+    batch_size=8,
     heatup=10000,
     n_worker=20,
     n_trainer=4,
@@ -47,16 +47,25 @@ def sac_training(
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
-    sac_model = stacierl.model.SAC(
+
+    common_net = stacierl.network.LSTM(n_layer=1, n_nodes=128)
+    common_embedder = stacierl.model.InputEmbedder("common", requires_grad=True)
+    common_embedder_no_grad = stacierl.model.InputEmbedder("common", requires_grad=False)
+
+    sac_model = stacierl.model.SACembedder(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
         learning_rate=lr,
         obs_space=env.observation_space,
         action_space=env.action_space,
+        embedding_networks={"common": common_net},
+        q1_common_input_embedder=common_embedder,
+        q2_common_input_embedder=common_embedder_no_grad,
+        policy_common_input_embedder=common_embedder_no_grad,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaShared(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.VanillaEpisodeShared(replay_buffer, batch_size)
     agent = stacierl.agent.Synchron(
         n_worker=n_worker,
         n_trainer=n_trainer,

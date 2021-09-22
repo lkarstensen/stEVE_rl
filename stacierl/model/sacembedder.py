@@ -170,7 +170,7 @@ class SACembedder(SAC):
             network = NetworkDummy()
             network.set_input(hydra_out)
         else:
-            network_name = self.q1_common_input_embedder.embedding_network_name
+            network_name = common_input_embedder.embedding_network_name
             network = self.all_embed_networks[network_name]
             if network.input_is_set:
                 if network.n_inputs != hydra_out:
@@ -218,7 +218,7 @@ class SACembedder(SAC):
             optimizers.append(optimizer)
 
         if not isinstance(common_net, NetworkDummy) and common_embedder.requires_grad:
-            optimizer = optim.Adam(self._q1_common_network.parameters(), lr=self.learning_rate)
+            optimizer = optim.Adam(common_net.parameters(), lr=self.learning_rate)
             optimizers.append(optimizer)
         return optimizers
 
@@ -233,9 +233,10 @@ class SACembedder(SAC):
                 self.policy_hydra_input_embedders,
                 self._policy_common_network,
                 self.policy_common_input_embedder,
+                use_hidden_state=True,
             )
 
-            mean, log_std = self.policy.forward(embedded_state)
+            mean, log_std = self.policy.forward(embedded_state, use_hidden_state=True)
 
             mean, _ = pad_packed_sequence(mean, batch_first=True)
             log_std, _ = pad_packed_sequence(log_std, batch_first=True)
@@ -259,8 +260,9 @@ class SACembedder(SAC):
             self.q1_hydra_input_embedders,
             self._q1_common_network,
             self.q1_common_input_embedder,
+            use_hidden_state=False,
         )
-        q1 = self.q1(embedded_state, action_batch)
+        q1 = self.q1(embedded_state, action_batch, use_hidden_state=False)
         self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
@@ -268,8 +270,9 @@ class SACembedder(SAC):
             self.q2_hydra_input_embedders,
             self._q2_common_network,
             self.q2_common_input_embedder,
+            use_hidden_state=False,
         )
-        q2 = self.q2(embedded_state, action_batch)
+        q2 = self.q2(embedded_state, action_batch, use_hidden_state=False)
         return q1, q2
 
     def get_target_q_values(
@@ -277,26 +280,28 @@ class SACembedder(SAC):
         state_batch: PackedSequence,
         action_batch: PackedSequence,
     ) -> Tuple[PackedSequence, PackedSequence]:
-        with torch.no_grad():
-            self.reset()
-            embedded_state = self._get_embedded_state(
-                state_batch,
-                self._q1_hydra_networks,
-                self.q1_hydra_input_embedders,
-                self._q1_common_network,
-                self.q1_common_input_embedder,
-            )
-            q1 = self.target_q1(embedded_state, action_batch)
-            self.reset()
-            embedded_state = self._get_embedded_state(
-                state_batch,
-                self._q2_hydra_networks,
-                self.q2_hydra_input_embedders,
-                self._q2_common_network,
-                self.q2_common_input_embedder,
-            )
-            q2 = self.target_q2(embedded_state, action_batch)
-            return q1, q2
+        # with torch.no_grad():
+        self.reset()
+        embedded_state = self._get_embedded_state(
+            state_batch,
+            self._q1_hydra_networks,
+            self.q1_hydra_input_embedders,
+            self._q1_common_network,
+            self.q1_common_input_embedder,
+            use_hidden_state=False,
+        )
+        q1 = self.target_q1(embedded_state, action_batch, use_hidden_state=False)
+        self.reset()
+        embedded_state = self._get_embedded_state(
+            state_batch,
+            self._q2_hydra_networks,
+            self.q2_hydra_input_embedders,
+            self._q2_common_network,
+            self.q2_common_input_embedder,
+            use_hidden_state=False,
+        )
+        q2 = self.target_q2(embedded_state, action_batch, use_hidden_state=False)
+        return q1, q2
 
     # epsilon makes sure that log(0) does not occur
     def get_update_action(
@@ -309,8 +314,9 @@ class SACembedder(SAC):
             self.policy_hydra_input_embedders,
             self._policy_common_network,
             self.policy_common_input_embedder,
+            use_hidden_state=False,
         )
-        mean_batch, log_std = self.policy.forward(embedded_state)
+        mean_batch, log_std = self.policy.forward(embedded_state, use_hidden_state=False)
         mean_batch, seq_length = pad_packed_sequence(mean_batch, batch_first=True)
         log_std, _ = pad_packed_sequence(log_std, batch_first=True)
 
@@ -337,6 +343,7 @@ class SACembedder(SAC):
         hydra_embedder: Dict[str, InputEmbedder],
         common_net: Network,
         common_embedder: InputEmbedder,
+        use_hidden_state: bool,
     ):
         unpacked_state, seq_lengths = pad_packed_sequence(state_batch, batch_first=True)
         embedded_state = None
@@ -347,10 +354,12 @@ class SACembedder(SAC):
                 reduced_state, seq_lengths, batch_first=True, enforce_sorted=False
             )
             if state_key in hydra_embedder.keys() and hydra_embedder[state_key].requires_grad:
-                reduced_output = network.forward(reduced_state)
+                reduced_output = network.forward(reduced_state, use_hidden_state=use_hidden_state)
             else:
                 with torch.no_grad():
-                    reduced_output = network.forward(reduced_state)
+                    reduced_output = network.forward(
+                        reduced_state, use_hidden_state=use_hidden_state
+                    )
             reduced_output, _ = pad_packed_sequence(reduced_output, batch_first=True)
             if embedded_state is None:
                 embedded_state = reduced_output
@@ -361,10 +370,12 @@ class SACembedder(SAC):
             embedded_state, seq_lengths, batch_first=True, enforce_sorted=False
         )
         if common_embedder is not None and common_embedder.requires_grad:
-            embedded_state = common_net.forward(embedded_state)
+            embedded_state = common_net.forward(embedded_state, use_hidden_state=use_hidden_state)
         else:
             with torch.no_grad():
-                embedded_state = common_net.forward(embedded_state)
+                embedded_state = common_net.forward(
+                    embedded_state, use_hidden_state=use_hidden_state
+                )
         return embedded_state
 
     def q1_update_zero_grad(self):

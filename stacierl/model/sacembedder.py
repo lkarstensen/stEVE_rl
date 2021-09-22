@@ -152,20 +152,21 @@ class SACembedder(SAC):
                 network.set_input(n_observations)
             hydra_embed_networks.update({state_key: network})
 
-        for state_key in self.dict_to_flat_np_map.keys():
-            if not state_key in hydra_embed_networks.keys():
-                dummy = NetworkDummy()
-                hydra_embed_networks.update({state_key: dummy})
-                ids = self.dict_to_flat_np_map[state_key]
-                n_observations = ids[1] - ids[0]
-                dummy.set_input(n_observations)
-
     def _init_common_embedder(
         self, common_input_embedder: InputEmbedder, hydra_embed_networks: Dict[str, Network]
     ):
-        hydra_out = 0
-        for network in hydra_embed_networks.values():
-            hydra_out += network.n_outputs
+        if hydra_embed_networks:
+            hydra_out = 0
+            for network in hydra_embed_networks.values():
+                hydra_out += network.n_outputs
+        else:
+            obs_shape = self.obs_space.shape
+            hydra_out = 0
+            for observation in obs_shape.values():
+                obs_out = 1
+                for dim in observation:
+                    obs_out *= dim
+                hydra_out += obs_out
         if common_input_embedder is None:
             network = NetworkDummy()
             network.set_input(hydra_out)
@@ -345,37 +346,43 @@ class SACembedder(SAC):
         common_embedder: InputEmbedder,
         use_hidden_state: bool,
     ):
-        unpacked_state, seq_lengths = pad_packed_sequence(state_batch, batch_first=True)
-        embedded_state = None
-        for state_key, network in hydra_nets.items():
-            ids = self.dict_to_flat_np_map[state_key]
-            reduced_state = unpacked_state[:, :, ids[0] : ids[1]]
-            reduced_state = pack_padded_sequence(
-                reduced_state, seq_lengths, batch_first=True, enforce_sorted=False
-            )
-            if state_key in hydra_embedder.keys() and hydra_embedder[state_key].requires_grad:
-                reduced_output = network.forward(reduced_state, use_hidden_state=use_hidden_state)
-            else:
-                with torch.no_grad():
-                    reduced_output = network.forward(
-                        reduced_state, use_hidden_state=use_hidden_state
-                    )
-            reduced_output, _ = pad_packed_sequence(reduced_output, batch_first=True)
-            if embedded_state is None:
-                embedded_state = reduced_output
-            else:
-                embedded_state = torch.cat([embedded_state, reduced_output], dim=-1)
 
-        embedded_state = pack_padded_sequence(
-            embedded_state, seq_lengths, batch_first=True, enforce_sorted=False
-        )
+        if hydra_embedder:
+            unpacked_state, seq_lengths = pad_packed_sequence(state_batch, batch_first=True)
+            slices = [[ids, obs] for obs, ids in self.obs_space.dict_to_flat_np_map.items()]
+            slices = sorted(slices)
+            slice_names = [obs[1] for obs in slices]
+            dsplit_sections = [obs[0][0] for obs in slices]
+            sliced_state = list(unpacked_state.dsplit(dsplit_sections))
+            for state_key, network in hydra_nets.items():
+                split_index = slice_names.index(state_key)
+                reduced_packed_state = pack_padded_sequence(
+                    sliced_state[split_index], seq_lengths, batch_first=True, enforce_sorted=False
+                )
+                if hydra_embedder[state_key].requires_grad:
+                    reduced_output = network.forward(
+                        reduced_packed_state, use_hidden_state=use_hidden_state
+                    )
+                else:
+                    with torch.no_grad():
+                        reduced_output = network.forward(
+                            reduced_packed_state, use_hidden_state=use_hidden_state
+                        )
+                reduced_output, _ = pad_packed_sequence(reduced_output, batch_first=True)
+                sliced_state[split_index] = reduced_output
+
+            hydra_state = torch.dstack(sliced_state)
+
+            hydra_state = pack_padded_sequence(
+                hydra_state, seq_lengths, batch_first=True, enforce_sorted=False
+            )
+        else:
+            hydra_state = state_batch
         if common_embedder is not None and common_embedder.requires_grad:
-            embedded_state = common_net.forward(embedded_state, use_hidden_state=use_hidden_state)
+            embedded_state = common_net.forward(hydra_state, use_hidden_state=use_hidden_state)
         else:
             with torch.no_grad():
-                embedded_state = common_net.forward(
-                    embedded_state, use_hidden_state=use_hidden_state
-                )
+                embedded_state = common_net.forward(hydra_state, use_hidden_state=use_hidden_state)
         return embedded_state
 
     def q1_update_zero_grad(self):

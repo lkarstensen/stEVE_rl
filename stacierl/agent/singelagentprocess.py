@@ -70,9 +70,11 @@ def run(
     task_queue,
     result_queue,
     model_queue,
+    step_counter_heatup,
     step_counter_exploration,
     step_counter_eval,
     step_counter_update,
+    episode_counter_heatup,
     episode_counter_exploration,
     episode_counter_eval,
     shutdown_event,
@@ -100,6 +102,8 @@ def run(
         task_name = task[0]
         if task_name == "heatup":
             result = agent.heatup(task[1], task[2])
+            step_counter_heatup.value += agent.step_counter.heatup
+            episode_counter_heatup.value += agent.episode_counter.heatup
         elif task_name == "explore":
             result = agent.explore(task[1], task[2])
             episode_counter_exploration.value = agent.episode_counter.exploration
@@ -169,9 +173,11 @@ class SingleAgentProcess(Agent):
         self.device = device
         self.parent_agent = parent_agent
 
+        self._step_counter_heatup: mp.Value = mp.Value("i", 0)
         self._step_counter_exploration: mp.Value = mp.Value("i", 0)
         self._step_counter_eval: mp.Value = mp.Value("i", 0)
         self._step_counter_update: mp.Value = mp.Value("i", 0)
+        self._episode_counter_heatup: mp.Value = mp.Value("i", 0)
         self._episode_counter_exploration: mp.Value = mp.Value("i", 0)
         self._episode_counter_eval: mp.Value = mp.Value("i", 0)
         logging_config = get_logging_config_dict()
@@ -188,9 +194,11 @@ class SingleAgentProcess(Agent):
                 self._task_queue,
                 self._result_queue,
                 self._model_queue,
+                self._step_counter_heatup,
                 self._step_counter_exploration,
                 self._step_counter_eval,
                 self._step_counter_update,
+                self._episode_counter_heatup,
                 self._episode_counter_exploration,
                 self._episode_counter_eval,
                 self._shutdown_event,
@@ -248,6 +256,7 @@ class SingleAgentProcess(Agent):
     @property
     def step_counter(self) -> StepCounter:
         return StepCounter(
+            self._step_counter_heatup.value,
             self._step_counter_exploration.value,
             self._step_counter_eval.value,
             self._step_counter_update.value,
@@ -256,5 +265,7 @@ class SingleAgentProcess(Agent):
     @property
     def episode_counter(self) -> EpisodeCounter:
         return EpisodeCounter(
-            self._episode_counter_exploration.value, self._episode_counter_eval.value
+            self._episode_counter_heatup.value,
+            self._episode_counter_exploration.value,
+            self._episode_counter_eval.value,
         )

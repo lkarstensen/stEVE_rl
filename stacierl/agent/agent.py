@@ -11,6 +11,7 @@ class EpisodeCounter:
     evaluation: int = 0
 
     def __iadd__(self, other):
+        self.heatup += other.heatup
         self.exploration += other.exploration
         self.evaluation += other.evaluation
         return self
@@ -24,6 +25,7 @@ class StepCounter:
     update: int = 0
 
     def __iadd__(self, other):
+        self.heatup += other.heatup
         self.exploration += other.exploration
         self.evaluation += other.evaluation
         self.update += other.update

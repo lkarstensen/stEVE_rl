@@ -80,7 +80,7 @@ class Parallel(Agent):
             for agent in self.agents:
                 agent.set_state_dict(new_state_dict)
 
-        result = list(result) if result else result
+        result = list(result) if np.any(result) else result
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:

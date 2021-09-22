@@ -5,7 +5,7 @@ from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
 from ..environment import EnvFactory
 from torch import multiprocessing as mp
-from math import ceil
+from math import ceil, inf
 import numpy as np
 import torch
 
@@ -45,26 +45,26 @@ class Parallel(Agent):
                 )
             )
 
-    def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.heatup(steps_per_agent, episodes_per_agent)
-        results = self._get_results()
-        return tuple(results)
+        result = self._get_results()
+        return tuple(result)
 
-    def explore(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.explore(steps_per_agent, episodes_per_agent)
-        results = self._get_results()
-        return tuple(results)
+        result = self._get_results()
+        return tuple(result)
 
     def update(self, steps):
 
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
             agent.update(steps_per_agent)
-        results = self._get_results()
+        result = self._get_results()
         if not self.shared_model:
             for agent in self.agents:
                 agent.put_state_dict()
@@ -79,17 +79,16 @@ class Parallel(Agent):
 
             for agent in self.agents:
                 agent.set_state_dict(new_state_dict)
-        if results is None:
-            return None
-        else:
-            return list(results)
 
-    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+        result = list(result) if result else result
+        return result
+
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.evaluate(steps_per_agent, episodes_per_agent)
-        results = self._get_results()
-        return tuple(results)
+        result = self._get_results()
+        return tuple(result)
 
     def close(self):
         for agent in self.agents:
@@ -98,9 +97,9 @@ class Parallel(Agent):
 
     def _divide_steps_and_episodes(self, steps, episodes) -> Tuple[int, int]:
 
-        steps = ceil(steps / self.n_agents) if steps is not None else None
+        steps = ceil(steps / self.n_agents) if steps != inf else inf
 
-        episodes = ceil(episodes / self.n_agents) if episodes is not None else None
+        episodes = ceil(episodes / self.n_agents) if episodes != inf else inf
 
         return steps, episodes
 
@@ -108,11 +107,10 @@ class Parallel(Agent):
         results = []
         for agent in self.agents:
             result = agent.get_result()
-            results.append(result)
-        if None in results:
-            return None
-        results = np.array(results)
-        return np.mean(results, axis=0)
+            if result and not None in result:
+                results.append(result)
+        results = np.mean(np.array(results), axis=0) if results else result
+        return results
 
     @property
     def step_counter(self) -> StepCounter:

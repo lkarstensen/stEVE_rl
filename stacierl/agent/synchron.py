@@ -5,7 +5,7 @@ from .agent import Agent
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
 from ..environment import EnvFactory, DummyEnvFactory
-from math import ceil
+from math import ceil, inf
 import numpy as np
 import torch
 
@@ -63,25 +63,25 @@ class Synchron(Agent):
                 )
             )
 
-    def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self.logger.debug(f"heatup: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
             steps, episodes, self.n_worker
         )
         for agent in self.worker:
             agent.heatup(steps_per_agent, episodes_per_agent)
-        results = self._get_worker_results()
-        return tuple(results)
+        result = self._get_worker_results()
+        return tuple(result)
 
-    def explore(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self.logger.debug(f"explore: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
             steps, episodes, self.n_worker
         )
         for agent in self.worker:
             agent.explore(steps_per_agent, episodes_per_agent)
-        results = self._get_worker_results()
-        return tuple(results)
+        result = self._get_worker_results()
+        return tuple(result)
 
     def update(self, steps):
 
@@ -90,7 +90,7 @@ class Synchron(Agent):
         for agent in self.trainer:
             agent.update(steps_per_agent)
 
-        results = self._get_trainer_results()
+        result = self._get_trainer_results()
 
         if self.share_trainer_model:
             self.trainer[0].put_state_dict()
@@ -111,11 +111,10 @@ class Synchron(Agent):
         if not self.share_trainer_model:
             for agent in self.trainer:
                 agent.set_state_dict(new_state_dict)
-        if np.any(results):
-            results = list(results)
-        return results
+        result = list(result) if result else result
+        return result
 
-    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
 
         self.logger.debug(f"evaluate: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
@@ -124,9 +123,8 @@ class Synchron(Agent):
         for agent in self.worker:
             agent.evaluate(steps_per_agent, episodes_per_agent)
 
-        results = self._get_worker_results()
-
-        return tuple(results)
+        result = self._get_worker_results()
+        return tuple(result)
 
     def close(self):
         for agent in self.worker + self.trainer:
@@ -134,20 +132,18 @@ class Synchron(Agent):
         self.replay_buffer.close()
 
     def _divide_steps_and_episodes(self, steps, episodes, n_agents) -> Tuple[int, int]:
-
-        steps = ceil(steps / n_agents) if steps is not None else None
-
-        episodes = ceil(episodes / n_agents) if episodes is not None else None
-
+        steps = ceil(steps / n_agents) if steps != inf else inf
+        episodes = ceil(episodes / n_agents) if episodes != inf else inf
         return steps, episodes
 
     def _get_worker_results(self):
         results = []
         for agent in self.worker:
             result = agent.get_result()
-            results.append(result)
-        results = np.array(results)
-        return np.mean(results, axis=0)
+            if result:
+                results.append(result)
+        results = np.mean(np.array(results), axis=0) if results else result
+        return results
 
     def _get_trainer_results(self):
         results = []
@@ -155,11 +151,8 @@ class Synchron(Agent):
             result = agent.get_result()
             if result:
                 results.append(result)
-        if results:
-            results = np.array(results)
-            return np.mean(results, axis=0)
-        else:
-            return None
+        results = np.mean(np.array(results), axis=0) if results else result
+        return results
 
     @property
     def step_counter(self) -> StepCounter:

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 import numpy as np
 from dataclasses import dataclass
 
@@ -12,7 +12,7 @@ class EpisodeCounter:
 
     def __iadd__(self, other):
         self.exploration += other.exploration
-        self.evaluation += other.eval
+        self.evaluation += other.evaluation
         return self
 
 
@@ -25,7 +25,7 @@ class StepCounter:
 
     def __iadd__(self, other):
         self.exploration += other.exploration
-        self.evaluation += other.eval
+        self.evaluation += other.evaluation
         self.update += other.update
         return self
 
@@ -40,7 +40,7 @@ class Agent(ABC):
         ...
 
     @abstractmethod
-    def update(self, steps) -> None:
+    def update(self, steps) -> List[float]:
         ...
 
     @abstractmethod

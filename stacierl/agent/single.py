@@ -27,8 +27,9 @@ class Single(Agent):
         self._step_counter = StepCounter()
         self._episode_counter = EpisodeCounter()
         self.to(device)
-        self._episode_transitions = None
-        self._episode_reward = None
+
+        self._episode_transitions = Episode()
+        self._episode_reward = 0.0
         self._last_play_mode = None
         self._state = None
 
@@ -56,9 +57,10 @@ class Single(Agent):
 
         return average_reward, average_success
 
-    def update(self, steps) -> List[float]:
+    def update(self, steps) -> Tuple[float]:
+        result = None
         if len(self.replay_buffer) < self.replay_buffer.batch_size:
-            return
+            return result
 
         for _ in range(steps):
             batch = self.replay_buffer.sample()
@@ -89,12 +91,15 @@ class Single(Agent):
         episode_counter = 0
         episode_rewards = []
         successes = []
-
-        if mode != self._last_play_mode or self._state is None:
-            self._episode_transitions = Episode()
-            self._episode_reward = 0.0
+        if self._state is None:
             state = self.env.reset()
             self._state = self.env.observation_space.to_flat_array(state)
+
+        if mode != self._last_play_mode:
+            if self._last_play_mode == "exploration":
+                self.replay_buffer.push(self._episode_transitions)
+            self._episode_transitions = Episode()
+            self._episode_reward = 0.0
             self.algo.reset()
             self._last_play_mode = mode
 

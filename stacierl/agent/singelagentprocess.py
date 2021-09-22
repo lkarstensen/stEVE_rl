@@ -1,4 +1,5 @@
 import logging
+from math import inf
 
 from typing import Dict, Tuple
 
@@ -199,13 +200,13 @@ class SingleAgentProcess(Agent):
         )
         self._process.start()
 
-    def heatup(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self._task_queue.put(["heatup", steps, episodes])
 
-    def explore(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self._task_queue.put(["explore", steps, episodes])
 
-    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[float, float]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self._task_queue.put(["evaluate", steps, episodes])
 
     def update(self, steps):

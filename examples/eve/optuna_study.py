@@ -39,7 +39,7 @@ def optuna_run(trial):
             image_frequency=image_frequency,
             path_reward_factor=path_reward_factor,
             batch_size=batch_size,
-            consecutive_explore_steps=100 * n_worker,
+            consecutive_explore_episodes=1,
         )
     except ValueError:
         success = -1

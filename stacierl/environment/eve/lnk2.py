@@ -20,6 +20,7 @@ class LNK2(EnvFactory):
             vessel_tree=vessel_tree,
             sofa_native_gui=False,
             image_frequency=self.image_frequency,
+            normalize_action=True,
         )
         start = eve.start.InsertionPoint()
         target = eve.target.CenterlineRandom(vessel_tree, simulation, target_threshold=10)

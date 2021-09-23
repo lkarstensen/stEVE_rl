@@ -20,6 +20,7 @@ class LNK3(EnvFactory):
             vessel_tree=vessel_tree,
             sofa_native_gui=False,
             image_frequency=self.image_frequency,
+            normalize_action=True,
         )
         start = eve.start.RandomAdvance(simulation, 15, [-1.0, -3.28], [10.0, 3.28])
         target = eve.target.CenterlineRandom(vessel_tree, simulation, target_threshold=10)

@@ -19,8 +19,9 @@ def sac_training(
     replay_buffer=1e6,
     training_steps=1e6,
     consecutive_explore_steps=150,
+    consecutive_explore_episodes=1,
     update_steps_per_exploration_step=1,
-    steps_between_eval=2e5,
+    steps_between_eval=1e5,
     eval_episodes=100,
     batch_size=8,
     heatup=10000,
@@ -43,6 +44,8 @@ def sac_training(
         env_factory = eve.LNK2(image_frequency, path_reward_factor)
     elif env_str == "lnk3":
         env_factory = eve.LNK3(image_frequency, path_reward_factor)
+    elif env_str == "lnk4":
+        env_factory = eve.LNK4(image_frequency, path_reward_factor)
     env = env_factory.create_env()
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
@@ -105,7 +108,7 @@ def sac_training(
     step_counter = agent.step_counter
     last_exporation_steps = step_counter.exploration
     while step_counter.exploration < training_steps and not shutdown.is_set():
-        agent.explore(steps=consecutive_explore_steps)
+        agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
         update_steps = int(
             (step_counter.exploration - last_exporation_steps) * update_steps_per_exploration_step

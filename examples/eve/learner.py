@@ -85,9 +85,19 @@ def sac_training(
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(
-            ["lr", "gamma", "hidden_layers", "image_frequency", "path_reward_factor", "environment"]
+            [
+                "lr",
+                "gamma",
+                "hidden_layers",
+                "image_frequency",
+                "path_reward_factor",
+                "environment",
+                "batch_size",
+            ]
         )
-        writer.writerow([lr, gamma, hidden_layers, image_frequency, path_reward_factor, env_str])
+        writer.writerow(
+            [lr, gamma, hidden_layers, image_frequency, path_reward_factor, env_str, batch_size]
+        )
         writer.writerow(["Episodes", "Steps", "Reward", "Success"])
 
     next_eval_step_limt = steps_between_eval

@@ -20,9 +20,10 @@ def optuna_run(trial):
     if shutdown.is_set():
         return None
     lr = trial.suggest_loguniform("lr", 1e-4, 1e-2)
-    gamma = trial.suggest_float("gamma", 0.99, 0.999)
+    gamma = trial.suggest_loguniform("gamma", 0.99, 0.999)
     n_layers = trial.suggest_int("n_layers", 2, 3)
     n_nodes = trial.suggest_int("n_nodes", 64, 256)
+    batch_size = trial.suggest_int("batch_size", 2, 12)
     hidden_layers = [n_nodes for _ in range(n_layers)]
     try:
         success, steps = sac_training(
@@ -37,6 +38,8 @@ def optuna_run(trial):
             env_str=env,
             image_frequency=image_frequency,
             path_reward_factor=path_reward_factor,
+            batch_size=batch_size,
+            consecutive_explore_steps=100 * n_worker,
         )
     except ValueError:
         success = -1

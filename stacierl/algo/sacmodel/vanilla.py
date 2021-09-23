@@ -1,22 +1,15 @@
-from stacierl.network.network import Network
-from typing import Dict, Generator, Iterator, List, Optional, Tuple, Union
+from typing import Dict, Iterator, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
-from torch.nn.utils.rnn import (
-    PackedSequence,
-    pack_padded_sequence,
-    pack_sequence,
-    pad_packed_sequence,
-)
-from .model import Model, ModelStateDicts
-from .. import network
+
+from .sacmodel import SACModel, ModelStateDicts
+from ... import network
 import torch.optim as optim
 import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from ..environment import ObservationSpace, ActionSpace
-import stacierl
+from ...environment import ObservationSpace, ActionSpace
 
 
 @dataclass
@@ -40,7 +33,7 @@ class SACStateDicts(ModelStateDicts):
         )
 
 
-class SAC(Model):
+class Vanilla(SACModel):
     def __init__(
         self,
         q1: network.QNetwork,
@@ -86,12 +79,11 @@ class SAC(Model):
     def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
         with torch.no_grad():
             flat_state = [
-                torch.as_tensor(flat_state, dtype=torch.float32, device=self.device).unsqueeze(0)
+                torch.as_tensor(flat_state, dtype=torch.float32, device=self.device)
+                .unsqueeze(0)
+                .unsqueeze(0)
             ]
-            flat_state = pack_sequence(flat_state)
             mean, log_std = self.policy.forward(flat_state)
-            mean, _ = pad_packed_sequence(mean, batch_first=True)
-            log_std, _ = pad_packed_sequence(log_std, batch_first=True)
             std = log_std.exp()
 
             normal = Normal(mean, std)
@@ -102,9 +94,9 @@ class SAC(Model):
 
     def get_q_values(
         self,
-        states: PackedSequence,
-        actions: PackedSequence,
-    ) -> Tuple[PackedSequence, PackedSequence]:
+        states: torch.Tensor,
+        actions: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         self.reset()
         q1 = self.q1.forward(states, actions)
         self.reset()
@@ -113,9 +105,9 @@ class SAC(Model):
 
     def get_target_q_values(
         self,
-        states: PackedSequence,
-        actions: PackedSequence,
-    ) -> Tuple[PackedSequence, PackedSequence]:
+        states: torch.Tensor,
+        actions: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             self.reset()
             q1 = self.target_q1.forward(states, actions)
@@ -125,12 +117,10 @@ class SAC(Model):
 
     # epsilon makes sure that log(0) does not occur
     def get_update_action(
-        self, state_batch: PackedSequence, epsilon: float = 1e-6
-    ) -> Tuple[PackedSequence, PackedSequence]:
+        self, state_batch: torch.Tensor, epsilon: float = 1e-6
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         self.reset()
         mean_batch, log_std = self.policy.forward(state_batch)
-        mean_batch, seq_length = pad_packed_sequence(mean_batch, batch_first=True)
-        log_std, _ = pad_packed_sequence(log_std, batch_first=True)
 
         std_batch = log_std.exp()
         normal = Normal(mean_batch, std_batch)
@@ -139,13 +129,6 @@ class SAC(Model):
 
         log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
         log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
-
-        action_batch = pack_padded_sequence(
-            action_batch, seq_length, batch_first=True, enforce_sorted=False
-        )
-        log_pi_batch = pack_padded_sequence(
-            log_pi_batch, seq_length, batch_first=True, enforce_sorted=False
-        )
 
         return action_batch, log_pi_batch
 
@@ -248,5 +231,5 @@ class SAC(Model):
         for net in self:
             net.reset()
 
-    def __iter__(self) -> Iterator[Network]:
+    def __iter__(self) -> Iterator[network.Network]:
         return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy])

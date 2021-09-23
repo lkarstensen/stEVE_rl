@@ -1,25 +1,19 @@
-from typing import Dict, Generator, Iterator, List, NamedTuple, Optional, Tuple
+from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
-from torch.nn.utils.rnn import (
-    PackedSequence,
-    pack_padded_sequence,
-    pack_sequence,
-    pad_packed_sequence,
-)
-from .sac import SAC, SACStateDicts
-from .. import network
-from ..network import NetworkDummy, Network
+from .vanilla import Vanilla, SACStateDicts
+from ... import network
+from ...network import NetworkDummy, Network
 import torch.optim as optim
 import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from ..environment import ObservationSpace, ActionSpace
+from ...environment import ObservationSpace, ActionSpace
 
 
 @dataclass
-class InputEmbedder:
+class Embedder:
     network: Network
     update: bool
 
@@ -77,7 +71,7 @@ class SACEmbeddedStateDicts(SACStateDicts):
         )
 
 
-class SACembedder(SAC):
+class InputEmbedding(Vanilla):
     def __init__(
         self,
         q1: network.QNetwork,
@@ -86,12 +80,12 @@ class SACembedder(SAC):
         learning_rate: float,
         obs_space: ObservationSpace,
         action_space: ActionSpace,
-        q1_common_input_embedder: Optional[InputEmbedder] = None,
-        q2_common_input_embedder: Optional[InputEmbedder] = None,
-        policy_common_input_embedder: Optional[InputEmbedder] = None,
-        q1_hydra_input_embedder: Optional[Dict[str, InputEmbedder]] = None,
-        q2_hydra_input_embedder: Optional[Dict[str, InputEmbedder]] = None,
-        policy_hydra_input_embedder: Optional[Dict[str, InputEmbedder]] = None,
+        q1_common_input_embedder: Optional[Embedder] = None,
+        q2_common_input_embedder: Optional[Embedder] = None,
+        policy_common_input_embedder: Optional[Embedder] = None,
+        q1_hydra_input_embedder: Optional[Dict[str, Embedder]] = None,
+        q2_hydra_input_embedder: Optional[Dict[str, Embedder]] = None,
+        policy_hydra_input_embedder: Optional[Dict[str, Embedder]] = None,
     ) -> None:
         self.learning_rate = learning_rate
         self.obs_space = obs_space
@@ -137,7 +131,7 @@ class SACembedder(SAC):
 
     def _init_hydra_network(
         self,
-        hydra_input_embedder: Dict[str, InputEmbedder],
+        hydra_input_embedder: Dict[str, Embedder],
     ) -> Dict[str, HydraNetwork]:
         hydra_networks = {}
         for state_key, input_embedder in hydra_input_embedder.items():
@@ -173,7 +167,7 @@ class SACembedder(SAC):
         return hydra_networks
 
     def _init_common_embedder(
-        self, common_input_embedder: InputEmbedder, hydra_networks: Dict[str, HydraNetwork]
+        self, common_input_embedder: Embedder, hydra_networks: Dict[str, HydraNetwork]
     ):
         to_delete = []
         hydra_out = 0
@@ -218,8 +212,8 @@ class SACembedder(SAC):
 
     def _init_leg_optimizer(
         self,
-        hydra_embedder: Dict[str, InputEmbedder],
-        common_embedder: InputEmbedder,
+        hydra_embedder: Dict[str, Embedder],
+        common_embedder: Embedder,
         main_net: Network,
     ):
         optimizers = [optim.Adam(main_net.parameters(), lr=self.learning_rate)]
@@ -331,7 +325,7 @@ class SACembedder(SAC):
         self,
         state_batch: torch.Tensor,
         hydra_nets: Dict[str, HydraNetwork],
-        common_embedder: InputEmbedder,
+        common_embedder: Embedder,
         use_hidden_state: bool,
     ):
 
@@ -433,14 +427,14 @@ class SACembedder(SAC):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
-        q1_common = InputEmbedder(
+        q1_common = Embedder(
             self.q1_common_input_embedder.network.copy(), self.q1_common_input_embedder.update
         )
         if self.q2_common_input_embedder.network == self.q1_common_input_embedder.network:
             q2_common_net = q1_common.network
         else:
             q2_common_net = self.q2_common_input_embedder.network.copy()
-        q2_common = InputEmbedder(q2_common_net, self.q2_common_input_embedder.update)
+        q2_common = Embedder(q2_common_net, self.q2_common_input_embedder.update)
 
         if self.policy_common_input_embedder.network == self.q1_common_input_embedder.network:
             policy_common_net = q1_common.network
@@ -448,13 +442,13 @@ class SACembedder(SAC):
             policy_common_net = q2_common.network
         else:
             policy_common_net = self.policy_common_input_embedder.network.copy()
-        policy_common = InputEmbedder(policy_common_net, self.policy_common_input_embedder.update)
+        policy_common = Embedder(policy_common_net, self.policy_common_input_embedder.update)
         q1_hydra = {}
         q2_hydra = {}
         policy_hydra = {}
         for key in self.dict_to_flat_np_map.keys():
             if key in self.q1_hydra_input_embedders.keys():
-                q1 = InputEmbedder(
+                q1 = Embedder(
                     self.q1_hydra_input_embedders[key].network.copy(),
                     self.q1_hydra_input_embedders[key].update,
                 )
@@ -467,7 +461,7 @@ class SACembedder(SAC):
                     q2_net = q1.network
                 else:
                     q2_net = self.q2_hydra_input_embedders[key].network.copy()
-                q2 = InputEmbedder(q2_net, self.q2_hydra_input_embedders[key].update)
+                q2 = Embedder(q2_net, self.q2_hydra_input_embedders[key].update)
                 q2_hydra.update({key: q2})
             if key in self.policy_hydra_input_embedders.keys():
                 if (
@@ -482,7 +476,7 @@ class SACembedder(SAC):
                     policy_net = q2.network
                 else:
                     policy_net = self.policy_hydra_input_embedders[key].network.copy()
-                policy = InputEmbedder(policy_net, self.policy_hydra_input_embedders[key].update)
+                policy = Embedder(policy_net, self.policy_hydra_input_embedders[key].update)
                 policy_hydra.update({key: policy})
 
         copy = self.__class__(

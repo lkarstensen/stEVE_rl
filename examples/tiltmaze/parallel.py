@@ -36,7 +36,7 @@ def sac_training(
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, action_space=env.action_space)
-    sac_model = stacierl.model.SAC(
+    sac_model = stacierl.algo.sacmodel.Vanilla(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,

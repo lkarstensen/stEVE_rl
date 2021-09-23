@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import List
 import numpy as np
 from ..replaybuffer import Batch
-from ..model import Model, ModelStateDicts
+from .model import Model, ModelStateDicts
 import torch
 
 

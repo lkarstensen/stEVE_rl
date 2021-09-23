@@ -1,4 +1,3 @@
-from torch.nn.functional import poisson_nll_loss
 import stacierl
 import stacierl.environment.eve as eve
 import numpy as np
@@ -6,6 +5,8 @@ import torch
 from datetime import datetime
 import csv
 import os
+
+from stacierl.algo.sacmodel import Embedder
 
 
 def sac_training(
@@ -17,7 +18,7 @@ def sac_training(
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=1e6,
-    consecutive_explore_episodes=1,
+    consecutive_explore_steps=150,
     update_steps_per_exploration_step=1,
     steps_between_eval=2e5,
     eval_episodes=100,
@@ -49,20 +50,17 @@ def sac_training(
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
 
     common_net = stacierl.network.LSTM(n_layer=1, n_nodes=128)
-    common_embedder = stacierl.model.InputEmbedder("common", requires_grad=True)
-    common_embedder_no_grad = stacierl.model.InputEmbedder("common", requires_grad=False)
 
-    sac_model = stacierl.model.SACembedder(
+    sac_model = stacierl.algo.sacmodel.InputEmbedding(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
         learning_rate=lr,
         obs_space=env.observation_space,
         action_space=env.action_space,
-        embedding_networks={"common": common_net},
-        q1_common_input_embedder=common_embedder,
-        q2_common_input_embedder=common_embedder_no_grad,
-        policy_common_input_embedder=common_embedder_no_grad,
+        q1_common_input_embedder=Embedder(common_net, True),
+        q2_common_input_embedder=Embedder(common_net, False),
+        policy_common_input_embedder=Embedder(common_net, False),
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisodeShared(replay_buffer, batch_size)
@@ -77,6 +75,12 @@ def sac_training(
         share_trainer_model=True,
     )
 
+    while True:
+        logfile = f"{log_folder}/run_{id}.csv"
+        if os.path.isfile(logfile):
+            id += 1
+        else:
+            break
     logfile = log_folder + "/run_" + str(id) + ".csv"
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
@@ -91,7 +95,7 @@ def sac_training(
     step_counter = agent.step_counter
     last_exporation_steps = step_counter.exploration
     while step_counter.exploration < training_steps and not shutdown.is_set():
-        agent.explore(episodes=consecutive_explore_episodes)
+        agent.explore(steps=consecutive_explore_steps)
         step_counter = agent.step_counter
         update_steps = int(
             (step_counter.exploration - last_exporation_steps) * update_steps_per_exploration_step

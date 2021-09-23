@@ -1,4 +1,3 @@
-from torch.nn.functional import poisson_nll_loss
 import stacierl
 import stacierl.environment.tiltmaze as tiltmaze
 import numpy as np
@@ -8,7 +7,7 @@ import csv
 import os
 import torch.multiprocessing as mp
 from time import perf_counter
-from stacierl.model import InputEmbedder
+from stacierl.algo.sacmodel import Embedder
 
 
 def sac_training(
@@ -42,21 +41,25 @@ def sac_training(
 
     common_net = stacierl.network.LSTM(n_layer=1, n_nodes=128)
 
-    sac_model = stacierl.model.SACembedder(
+    sac_model = stacierl.algo.sacmodel.InputEmbedding(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
         learning_rate=lr,
         obs_space=env.observation_space,
         action_space=env.action_space,
-        q1_common_input_embedder=InputEmbedder(common_net, True),
-        q2_common_input_embedder=InputEmbedder(common_net, False),
-        policy_common_input_embedder=InputEmbedder(common_net, False),
+        q1_common_input_embedder=Embedder(common_net, True),
+        q2_common_input_embedder=Embedder(common_net, False),
+        policy_common_input_embedder=Embedder(common_net, False),
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisode(replay_buffer, batch_size)
     agent = stacierl.agent.Single(
-        algo, env, replay_buffer, consecutive_action_steps=1, device=device
+        algo,
+        env,
+        replay_buffer,
+        consecutive_action_steps=1,
+        device=device,
     )
 
     while True:
@@ -114,7 +117,7 @@ if __name__ == "__main__":
         gamma=0.99,
         hidden_layers=[256, 256],
         log_folder=log_folder,
-        n_agents=2,
+        n_agents=3,
         batch_size=8,
         device=torch.device("cuda"),
         training_steps=1e5,

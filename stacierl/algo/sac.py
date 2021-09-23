@@ -1,11 +1,9 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import List
 import torch
 import torch.nn.functional as F
-from torch.distributions import Normal
-from torch.nn.utils.rnn import PackedSequence, pad_packed_sequence
 from .algo import Algo, ModelStateDicts
-from .. import model
+from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
 from ..environment import ActionSpace
@@ -14,7 +12,7 @@ from ..environment import ActionSpace
 class SAC(Algo):
     def __init__(
         self,
-        model: model.SAC,
+        model: SACModel,
         action_space: ActionSpace,
         gamma: float = 0.99,
         tau: float = 0.005,
@@ -46,7 +44,7 @@ class SAC(Algo):
         self.target_entropy = -torch.ones(1) * n_actions
 
     @property
-    def model(self) -> model.SAC:
+    def model(self) -> SACModel:
         return self._model
 
     @property

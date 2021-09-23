@@ -39,7 +39,17 @@ class MLP(Network):
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_input, n_output))
 
+        # weight init
+        for layer in self.layers[:-1]:
+            # torch.nn.init.xavier_uniform_(layer.weight, gain=torch.nn.init.calculate_gain("relu"))
+            nn.init.kaiming_uniform_(layer.weight, mode="fan_in", nonlinearity="relu")
+            nn.init.constant_(layer.bias, 0.0)
+
+        nn.init.xavier_uniform_(self.layers[-1].weight, gain=nn.init.calculate_gain("linear"))
+        nn.init.constant_(self.layers[-1].bias, 0.0)
+
     def forward(self, input_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+        input = input_batch
         for layer in self.layers[:-1]:
             output = layer(input)
             output = F.relu(output)

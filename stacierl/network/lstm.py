@@ -36,14 +36,15 @@ class LSTM(Network):
             batch_first=True,
             bias=True,
         )
+        # weight init
         for name, param in self.named_parameters():
             if "bias" in name:
-                l = len(param)
-                start = int(0.25 * l)
-                end = int(0.5 * l)
-                nn.init.constant_(param[start:end], 1.0)
-            # elif "weight" in name:
-            # nn.init.orthogonal_(param)
+                nn.init.constant_(param, 0.0)
+            elif "weight" in name:
+                w_xi, w_xf, w_xc, w_xo = param.chunk(4, 0)
+                for weights in [w_xi, w_xf, w_xo]:
+                    nn.init.xavier_uniform_(weights, gain=nn.init.calculate_gain("sigmoid"))
+                nn.init.xavier_uniform_(w_xc, gain=nn.init.calculate_gain("tanh"))
 
     def forward(self, input_batch: torch.Tensor, use_hidden_state, *args, **kwargs) -> torch.Tensor:
         if use_hidden_state:

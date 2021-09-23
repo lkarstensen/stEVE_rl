@@ -107,7 +107,7 @@ class Parallel(Agent):
         results = []
         for agent in self.agents:
             result = agent.get_result()
-            if result and not None in result:
+            if result is not None and not None in result:
                 results.append(result)
         results = np.mean(np.array(results), axis=0) if results else result
         return results

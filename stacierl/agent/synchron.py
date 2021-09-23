@@ -111,7 +111,7 @@ class Synchron(Agent):
         if not self.share_trainer_model:
             for agent in self.trainer:
                 agent.set_state_dict(new_state_dict)
-        result = list(result) if result else result
+        result = list(result) if result is not None else result
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
@@ -140,7 +140,7 @@ class Synchron(Agent):
         results = []
         for agent in self.worker:
             result = agent.get_result()
-            if result:
+            if result is not None and not None in result:
                 results.append(result)
         results = np.mean(np.array(results), axis=0) if results else result
         return results
@@ -149,7 +149,7 @@ class Synchron(Agent):
         results = []
         for agent in self.trainer:
             result = agent.get_result()
-            if result:
+            if result is not None and not None in result:
                 results.append(result)
         results = np.mean(np.array(results), axis=0) if results else result
         return results

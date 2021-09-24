@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 import numpy as np
 
 
@@ -38,7 +38,7 @@ class ObservationSpace(ABC):
 
     @property
     @abstractmethod
-    def keys(self) -> Tuple[str]:
+    def keys(self) -> List[str]:
         ...
 
     @property

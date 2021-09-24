@@ -1,5 +1,5 @@
 from . import Environment, ActionSpace, ObservationSpace
-from typing import Any, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 import numpy as np
 
 
@@ -56,3 +56,7 @@ class DummyObservationSpace(ObservationSpace):
     @property
     def high(self) -> Dict[str, np.ndarray]:
         return {}
+
+    @property
+    def keys(self) -> List[str]:
+        return []

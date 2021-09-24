@@ -78,11 +78,12 @@ class Vanilla(SACModel):
 
     def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
         with torch.no_grad():
-            flat_state = [
+            flat_state = (
                 torch.as_tensor(flat_state, dtype=torch.float32, device=self.device)
                 .unsqueeze(0)
                 .unsqueeze(0)
-            ]
+            )
+
             mean, log_std = self.policy.forward(flat_state)
             std = log_std.exp()
 

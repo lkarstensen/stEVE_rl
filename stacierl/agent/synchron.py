@@ -166,11 +166,9 @@ class Synchron(Agent):
         results = []
         for agent in self.trainer:
             results.append(agent.get_result())
-            n_max = len(max(results, key=len))
-            results = [result + [None] * (n_max - len(result)) for result in results]
-            results = [
-                val for result_tuple in zip(*results) for val in result_tuple if val is not None
-            ]
+        n_max = len(max(results, key=len))
+        results = [result + [None] * (n_max - len(result)) for result in results]
+        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
         return results
 
     @property

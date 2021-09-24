@@ -49,22 +49,22 @@ class Parallel(Agent):
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.heatup(steps_per_agent, episodes_per_agent)
-        result = self._get_results()
-        return tuple(result)
+        result = self._get_play_results()
+        return result
 
     def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.explore(steps_per_agent, episodes_per_agent)
-        result = self._get_results()
-        return tuple(result)
+        result = self._get_play_results()
+        return result
 
     def update(self, steps):
 
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
             agent.update(steps_per_agent)
-        result = self._get_results()
+        result = self._get_update_results()
         if not self.shared_model:
             for agent in self.agents:
                 agent.put_state_dict()
@@ -87,7 +87,7 @@ class Parallel(Agent):
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.evaluate(steps_per_agent, episodes_per_agent)
-        result = self._get_results()
+        result = self._get_play_results()
         return tuple(result)
 
     def close(self):
@@ -103,13 +103,22 @@ class Parallel(Agent):
 
         return steps, episodes
 
-    def _get_results(self):
+    def _get_play_results(self):
+        successes = []
+        rewards = []
+        for agent in self.agents:
+            reward, success = agent.get_result()
+            rewards += reward
+            successes += success
+        return rewards, successes
+
+    def _get_update_results(self):
         results = []
         for agent in self.agents:
-            result = agent.get_result()
-            if result is not None and not None in result:
-                results.append(result)
-        results = np.mean(np.array(results), axis=0) if results else result
+            results.append(agent.get_result())
+        n_max = len(max(results, key=len))
+        results = [result + [None] * (n_max - len(result)) for result in results]
+        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
         return results
 
     @property

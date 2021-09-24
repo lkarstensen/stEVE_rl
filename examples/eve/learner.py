@@ -86,10 +86,12 @@ def sac_training(
     #     shared_model=True,
     # )
 
+    logfile = f"{log_folder}/run_{id}.csv"
+    id_2 = 0
     while True:
-        logfile = f"{log_folder}/run_{id}.csv"
         if os.path.isfile(logfile):
-            id += 1
+            logfile = f"{log_folder}/run_{id}-{id_2}.csv"
+            id_2 += 1
         else:
             break
     logfile = log_folder + "/run_" + str(id) + ".csv"

@@ -85,6 +85,8 @@ def sac_training(
 
         if step_counter.exploration >= next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
+            reward = sum(reward) / len(reward)
+            success = sum(success) / len(success)
             next_eval_step_limt += steps_between_eval
 
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")

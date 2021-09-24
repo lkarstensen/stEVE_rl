@@ -15,9 +15,9 @@ def sac_training(
     hidden_layers=[256, 256],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=2e5,
+    training_steps=5e4,
     consecutive_explore_episodes=1,
-    steps_between_eval=2e4,
+    steps_between_eval=1e4,
     eval_episodes=100,
     batch_size=64,
     heatup=5000,
@@ -74,6 +74,8 @@ def sac_training(
 
         if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
+            reward = sum(reward) / len(reward)
+            success = sum(success) / len(success)
             next_eval_step_limt += steps_between_eval
 
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")

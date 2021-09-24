@@ -1,9 +1,9 @@
 import logging
 from math import inf
 
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
-from .agent import Agent
+from .agent import Agent, EpisodeCounterShared, StepCounterShared
 from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from ..environment import EnvFactory
 from torch import multiprocessing as mp
@@ -70,13 +70,8 @@ def run(
     task_queue,
     result_queue,
     model_queue,
-    step_counter_heatup,
-    step_counter_exploration,
-    step_counter_eval,
-    step_counter_update,
-    episode_counter_heatup,
-    episode_counter_exploration,
-    episode_counter_eval,
+    step_counter,
+    episode_counter,
     shutdown_event,
     name,
 ):
@@ -93,6 +88,8 @@ def run(
     logger.info("logger initialized")
     env = env_factory.create_env()
     agent = Single(algo, env, replay_buffer, device, consecutive_action_steps)
+    agent.step_counter = step_counter
+    agent.episode_counter = episode_counter
     while not shutdown_event.is_set():
         try:
             task = task_queue.get(timeout=1)
@@ -102,20 +99,13 @@ def run(
         task_name = task[0]
         if task_name == "heatup":
             result = agent.heatup(task[1], task[2])
-            step_counter_heatup.value += agent.step_counter.heatup
-            episode_counter_heatup.value += agent.episode_counter.heatup
         elif task_name == "explore":
             result = agent.explore(task[1], task[2])
-            episode_counter_exploration.value = agent.episode_counter.exploration
-            step_counter_exploration.value = agent.step_counter.exploration
         elif task_name == "evaluate":
             result = agent.evaluate(task[1], task[2])
-            episode_counter_eval.value = agent.episode_counter.evaluation
-            step_counter_eval.value = agent.step_counter.evaluation
         elif task_name == "update":
             try:
                 result = agent.update(task[1])
-                step_counter_update.value = agent.step_counter.update
             except ValueError as error:
                 logger.warning(f"Update Error: {error}")
                 shutdown_event.set()
@@ -152,6 +142,8 @@ class SingleAgentProcess(Agent):
         consecutive_action_steps: int,
         name: str,
         parent_agent: Agent,
+        step_counter: Optional[StepCounterShared] = None,
+        episode_counter: Optional[EpisodeCounterShared] = None,
     ) -> None:
 
         # log_level = logging.root.level
@@ -173,13 +165,8 @@ class SingleAgentProcess(Agent):
         self.device = device
         self.parent_agent = parent_agent
 
-        self._step_counter_heatup: mp.Value = mp.Value("i", 0)
-        self._step_counter_exploration: mp.Value = mp.Value("i", 0)
-        self._step_counter_eval: mp.Value = mp.Value("i", 0)
-        self._step_counter_update: mp.Value = mp.Value("i", 0)
-        self._episode_counter_heatup: mp.Value = mp.Value("i", 0)
-        self._episode_counter_exploration: mp.Value = mp.Value("i", 0)
-        self._episode_counter_eval: mp.Value = mp.Value("i", 0)
+        self._step_counter = step_counter or StepCounterShared()
+        self._episode_counter = episode_counter or EpisodeCounterShared()
         logging_config = get_logging_config_dict()
         self._process = mp.Process(
             target=run,
@@ -194,13 +181,8 @@ class SingleAgentProcess(Agent):
                 self._task_queue,
                 self._result_queue,
                 self._model_queue,
-                self._step_counter_heatup,
-                self._step_counter_exploration,
-                self._step_counter_eval,
-                self._step_counter_update,
-                self._episode_counter_heatup,
-                self._episode_counter_exploration,
-                self._episode_counter_eval,
+                self._step_counter,
+                self._episode_counter,
                 self._shutdown_event,
                 name,
             ],
@@ -254,18 +236,9 @@ class SingleAgentProcess(Agent):
                     break
 
     @property
-    def step_counter(self) -> StepCounter:
-        return StepCounter(
-            self._step_counter_heatup.value,
-            self._step_counter_exploration.value,
-            self._step_counter_eval.value,
-            self._step_counter_update.value,
-        )
+    def step_counter(self) -> StepCounterShared:
+        return self._step_counter
 
     @property
-    def episode_counter(self) -> EpisodeCounter:
-        return EpisodeCounter(
-            self._episode_counter_heatup.value,
-            self._episode_counter_exploration.value,
-            self._episode_counter_eval.value,
-        )
+    def episode_counter(self) -> EpisodeCounterShared:
+        return self._episode_counter

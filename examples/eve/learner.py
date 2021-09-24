@@ -77,6 +77,14 @@ def sac_training(
         trainer_device=trainer_device,
         share_trainer_model=True,
     )
+    # agent = stacierl.agent.Parallel(
+    #     n_agents=n_worker,
+    #     algo=algo,
+    #     env_factory=env_factory,
+    #     replay_buffer=replay_buffer,
+    #     device=worker_device,
+    #     shared_model=True,
+    # )
 
     while True:
         logfile = f"{log_folder}/run_{id}.csv"
@@ -108,7 +116,7 @@ def sac_training(
     step_counter = agent.step_counter
     last_exporation_steps = step_counter.exploration
     while step_counter.exploration < training_steps and not shutdown.is_set():
-        agent.explore(episodes=consecutive_explore_episodes)
+        agent.explore(steps=consecutive_explore_steps)
         step_counter = agent.step_counter
         update_steps = int(
             (step_counter.exploration - last_exporation_steps) * update_steps_per_exploration_step
@@ -118,6 +126,8 @@ def sac_training(
 
         if step_counter.exploration > next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
+            reward = sum(reward) / len(reward)
+            success = sum(success) / len(success)
             next_eval_step_limt += steps_between_eval
 
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")

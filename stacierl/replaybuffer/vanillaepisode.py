@@ -1,3 +1,4 @@
+from math import inf
 import random
 from typing import List
 import torch
@@ -35,13 +36,16 @@ class VanillaEpisode(ReplayBuffer):
 
         state_batch = pad_sequence(state_batch, batch_first=True)
         action_batch = pad_sequence(action_batch, batch_first=True)
-        reward_batch = pad_sequence(reward_batch, batch_first=True)
+        reward_batch = pad_sequence(reward_batch, batch_first=True, padding_value=inf)
         next_state_batch = pad_sequence(next_state_batch, batch_first=True)
-        done_batch = pad_sequence(done_batch, batch_first=True, padding_value=-1)
+        done_batch = pad_sequence(done_batch, batch_first=True)
 
-        padding_mask = torch.ones_like(done_batch)
-        padding_mask[done_batch == -1] = 0
+        reward_batch_np = reward_batch.numpy()
 
+        padding_mask = torch.ones_like(reward_batch)
+        padding_mask[reward_batch == inf] = 0
+        reward_batch[reward_batch == inf] = 0
+        reward_batch_np = reward_batch.numpy()
         return Batch(
             state_batch, action_batch, reward_batch, next_state_batch, done_batch, padding_mask
         )

@@ -17,6 +17,8 @@ class VanillaEpisode(ReplayBuffer):
         return self._batch_size
 
     def push(self, episode: Episode):
+        if len(episode.states) == 0:
+            return
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
         self.buffer[self.position] = episode.to_numpy()
@@ -30,7 +32,6 @@ class VanillaEpisode(ReplayBuffer):
         reward_batch = [torch.from_numpy(episode.rewards) for episode in episodes]
         next_state_batch = [torch.from_numpy(episode.next_states) for episode in episodes]
         done_batch = [torch.from_numpy(episode.dones) for episode in episodes]
-        lengths = [state.shape[0] for state in state_batch]
 
         state_batch = pad_sequence(state_batch, batch_first=True)
         action_batch = pad_sequence(action_batch, batch_first=True)

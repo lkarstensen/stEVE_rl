@@ -101,7 +101,7 @@ RUN python3 -m pip install optuna
 
 ADD "https://www.random.org/cgi-bin/randbyte?nbytes=10&format=h" skipcache
 
-RUN git clone -b refactoring_to_tiltmaze_style https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/eve.git /opt/eve
+RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/eve.git /opt/eve
 RUN python3 -m pip install /opt/eve[meshing]
 
 RUN git clone https://${USER}:${PW}@gitlab.cc-asp.fraunhofer.de/stacie/toy-problems/tiltmaze.git /opt/tiltmaze 

@@ -59,8 +59,7 @@ class ObservationSpace(ABC):
         flat_state = np.array([], dtype=np.float32)
         for key in self.keys:
             new_state = state[key]
-            while len(new_state.shape) > 1:
-                new_state = new_state.flatten()
+            new_state = new_state.reshape((-1,))
             flat_state = np.append(flat_state, new_state)
         return flat_state
 

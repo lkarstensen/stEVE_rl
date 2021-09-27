@@ -1,12 +1,10 @@
-from torch.nn.functional import poisson_nll_loss
 import stacierl
-import stacierl.environment.tiltmaze as tiltmaze
-import numpy as np
+import tiltmaze
 import torch
-from datetime import datetime
 import csv
 import os
 import torch.multiprocessing as mp
+import math
 
 
 def sac_training(
@@ -30,8 +28,49 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_factory = tiltmaze.LNK1(dt_step=2 / 3)
-    env = env_factory.create_env()
+    maze = tiltmaze.maze.RSS0(episodes_btw_geometry_change=math.inf, seed=1234)
+    velocity_limits = (100, 0.5)
+    physic = tiltmaze.physics.BallVelocity(
+        velocity_limits=velocity_limits,
+        action_scaling=velocity_limits,
+        dt_step=1 / 7.5,
+    )
+    target = tiltmaze.target.CenterlineRandom(10)
+    pathfinder = tiltmaze.pathfinder.NodesBFS()
+    start = tiltmaze.start.CenterlineRandom()
+    imaging = tiltmaze.imaging.ImagingDummy((500, 500))
+
+    pos = tiltmaze.state.Position()
+    pos = tiltmaze.state.wrapper.Normalize(pos)
+    target_state = tiltmaze.state.Target()
+    target_state = tiltmaze.state.wrapper.Normalize(target_state)
+    state = tiltmaze.state.Combination([pos, target_state])
+
+    target_reward = tiltmaze.reward.TargetReached(1.0)
+    step_reward = tiltmaze.reward.Step(-0.005)
+    path_length_reward = tiltmaze.reward.PathLengthDelta(0.001)
+    reward = tiltmaze.reward.Combination([target_reward, step_reward, path_length_reward])
+
+    done_target = tiltmaze.done.TargetReached()
+    done_steps = tiltmaze.done.MaxSteps(100)
+    done = tiltmaze.done.Combination([done_target, done_steps])
+
+    success = tiltmaze.success.TargetReached()
+    visu = tiltmaze.visualisation.VisualisationDummy()
+
+    env = tiltmaze.Env(
+        maze=maze,
+        state=state,
+        reward=reward,
+        done=done,
+        physic=physic,
+        start=start,
+        target=target,
+        imaging=imaging,
+        pathfinder=pathfinder,
+        visualisation=visu,
+        success=success,
+    )
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
@@ -47,10 +86,10 @@ def sac_training(
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
     agent = stacierl.agent.Parallel(
-        n_agents,
         algo,
-        env_factory,
+        env,
         replay_buffer,
+        n_agents,
         device=device,
         consecutive_action_steps=1,
         shared_model=False,

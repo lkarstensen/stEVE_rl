@@ -1,8 +1,6 @@
 import stacierl
-import stacierl.environment.eve as eve
-import numpy as np
+import eve
 import torch
-from datetime import datetime
 import csv
 import os
 
@@ -37,16 +35,55 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    env_str = env_str
-    if env_str == "lnk1":
-        env_factory = eve.LNK1(image_frequency, path_reward_factor)
-    elif env_str == "lnk2":
-        env_factory = eve.LNK2(image_frequency, path_reward_factor)
-    elif env_str == "lnk3":
-        env_factory = eve.LNK3(image_frequency, path_reward_factor)
-    elif env_str == "lnk4":
-        env_factory = eve.LNK4(image_frequency, path_reward_factor)
-    env = env_factory.create_env()
+    tree_name = eve.vesseltree.CAD_VesselTrees.ORGANIC_V2
+    vessel_tree = eve.vesseltree.CAD(vessel_tree_name=tree_name)
+    device = eve.devices.Guidewire()
+    simulation = eve.simulation.SofaPy3(
+        sofa_native_gui=False,
+        image_frequency=7.5,
+        normalize_action=True,
+    )
+    start = eve.start.RandomAdvance(15, [-1.0, -3.28], [10.0, 3.28])
+    target = eve.target.CenterlineRandom(target_threshold=10)
+    success = eve.success.TargetReached()
+    pathfinder = eve.pathfinder.Centerline()
+
+    dim_to_delete = eve.state.wrapper.Dimension.Y
+    position = eve.state.Tracking(n_points=1)
+    position = eve.state.wrapper.CoordinatesTo2D(position, dimension_to_delete=dim_to_delete)
+    position = eve.state.wrapper.Normalize(position)
+    target_state = eve.state.Target()
+    target_state = eve.state.wrapper.CoordinatesTo2D(
+        target_state, dimension_to_delete=dim_to_delete
+    )
+    target_state = eve.state.wrapper.Normalize(target_state)
+    rotation = eve.state.Rotation()
+    state = eve.state.Combination([position, target_state, rotation])
+
+    target_reward = eve.reward.TargetReached(factor=1.0)
+    step_reward = eve.reward.Step(factor=-0.01)
+    path_delta = eve.reward.PathLengthDelta(0.1)
+    reward = eve.reward.Combination([target_reward, path_delta, step_reward])
+
+    max_steps = eve.done.MaxSteps(40 * 7.5)
+    target_reached = eve.done.TargetReached()
+    done = eve.done.Combination([max_steps, target_reached])
+
+    visualisation = eve.visualisation.VisualisationDummy()
+
+    env = eve.Env(
+        vessel_tree=vessel_tree,
+        devices=device,
+        simulation=simulation,
+        start=start,
+        target=target,
+        success=success,
+        state=state,
+        reward=reward,
+        done=done,
+        visualisation=visualisation,
+        pathfinder=pathfinder,
+    )
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
@@ -71,7 +108,7 @@ def sac_training(
         n_worker=n_worker,
         n_trainer=n_trainer,
         algo=algo,
-        env_factory=env_factory,
+        env=env,
         replay_buffer=replay_buffer,
         worker_device=worker_device,
         trainer_device=trainer_device,

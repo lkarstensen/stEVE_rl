@@ -91,7 +91,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         filename=f"{log_folder}/logging/optuna_study.log",
         level=logging.INFO,
-        format="%(asctime)s-%(name)s-%(levelname)s-%(message)s",
+        format="%(asctime)s-%(name)s-%(levelname)s: %(message)s",
     )
     logging.info("logging initialized")
     mp.set_start_method("spawn", force=True)

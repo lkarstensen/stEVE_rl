@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Tuple, Dict, Optional
 import numpy as np
-from ..util import StacieRLUserObject
+from . import StacieRLUserObject
 
 
 class ActionSpace(ABC):

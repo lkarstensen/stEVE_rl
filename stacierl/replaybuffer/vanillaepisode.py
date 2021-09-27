@@ -40,12 +40,9 @@ class VanillaEpisode(ReplayBuffer):
         next_state_batch = pad_sequence(next_state_batch, batch_first=True)
         done_batch = pad_sequence(done_batch, batch_first=True)
 
-        reward_batch_np = reward_batch.numpy()
-
         padding_mask = torch.ones_like(reward_batch)
         padding_mask[reward_batch == inf] = 0
         reward_batch[reward_batch == inf] = 0
-        reward_batch_np = reward_batch.numpy()
         return Batch(
             state_batch, action_batch, reward_batch, next_state_batch, done_batch, padding_mask
         )

@@ -5,7 +5,7 @@ from typing import Dict, Optional, Tuple
 
 from .agent import Agent, EpisodeCounterShared, StepCounterShared
 from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
-from ..environment import EnvFactory
+from ..util import Environment
 from torch import multiprocessing as mp
 import torch
 
@@ -62,7 +62,7 @@ def get_logging_config_dict():
 def run(
     id: int,
     algo: Algo,
-    env_factory: EnvFactory,
+    env: Environment,
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
@@ -86,7 +86,6 @@ def run(
     logging.config.dictConfig(log_config_dict)
     logger = logging.getLogger(__name__)
     logger.info("logger initialized")
-    env = env_factory.create_env()
     agent = Single(algo, env, replay_buffer, device, consecutive_action_steps)
     agent.step_counter = step_counter
     agent.episode_counter = episode_counter
@@ -136,7 +135,7 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env_factory: EnvFactory,
+        env: Environment,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -146,16 +145,6 @@ class SingleAgentProcess(Agent):
         episode_counter: Optional[EpisodeCounterShared] = None,
     ) -> None:
 
-        # log_level = logging.root.level
-        # for handler in logging.root.handlers:
-        #     # check the handler is a file handler
-        #     # (rotating handler etc. inherit from this, so it will still work)
-        #     # stream handlers write to stderr, so their filename is not useful to us
-        #     if isinstance(handler, logging.FileHandler):
-        #         # h.stream should be an open file handle, it's name is the path
-        #         log_file = f"{handler.baseFilename}-{name}"
-        #         log_format = handler.formatter._fmt
-        #         break
         self.id = id
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
@@ -173,7 +162,7 @@ class SingleAgentProcess(Agent):
             args=[
                 id,
                 algo,
-                env_factory,
+                env,
                 replay_buffer,
                 device,
                 consecutive_action_steps,

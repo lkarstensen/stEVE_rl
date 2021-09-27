@@ -4,20 +4,19 @@ from typing import List, Tuple
 from .agent import Agent, StepCounterShared, EpisodeCounterShared
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
-from ..environment import EnvFactory, DummyEnvFactory
-from math import ceil, inf
-import numpy as np
+from ..util import Environment, DummyEnvironment
+from math import inf
 import torch
 
 
 class Synchron(Agent):
     def __init__(
         self,
+        algo: Algo,
+        env: Environment,
+        replay_buffer: ReplayBuffer,
         n_worker: int,
         n_trainer: int,
-        algo: Algo,
-        env_factory: EnvFactory,
-        replay_buffer: ReplayBuffer,
         worker_device: torch.device = torch.device("cpu"),
         trainer_device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
@@ -40,7 +39,7 @@ class Synchron(Agent):
                 SingleAgentProcess(
                     i,
                     algo.copy(),
-                    env_factory,
+                    env.copy(),
                     replay_buffer.copy(),
                     worker_device,
                     consecutive_action_steps,
@@ -60,7 +59,7 @@ class Synchron(Agent):
                 SingleAgentProcess(
                     i,
                     new_algo,
-                    DummyEnvFactory(),
+                    DummyEnvironment(),
                     replay_buffer.copy(),
                     trainer_device,
                     0,

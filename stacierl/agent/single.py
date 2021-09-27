@@ -3,7 +3,7 @@ from typing import List, Tuple
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
-from ..environment import Environment
+from ..util import Environment
 import torch
 from math import inf
 

@@ -9,7 +9,7 @@ import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from ...environment import ObservationSpace, ActionSpace
+from ...util import ObservationSpace, ActionSpace
 
 
 @dataclass

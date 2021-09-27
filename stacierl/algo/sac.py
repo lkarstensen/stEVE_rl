@@ -6,7 +6,7 @@ from .algo import Algo, ModelStateDicts
 from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
-from ..environment import ActionSpace
+from ..util import ActionSpace
 
 
 class SAC(Algo):

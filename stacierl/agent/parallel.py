@@ -3,7 +3,7 @@ from typing import List, Tuple
 from .agent import Agent
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
-from ..environment import EnvFactory
+from ..util import Environment
 from torch import multiprocessing as mp
 from math import ceil, inf
 import numpy as np
@@ -13,10 +13,10 @@ import torch
 class Parallel(Agent):
     def __init__(
         self,
-        n_agents: int,
         algo: Algo,
-        env_factory: EnvFactory,
+        env: Environment,
         replay_buffer: ReplayBuffer,
+        n_agents: int,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
         shared_model=False,
@@ -36,7 +36,7 @@ class Parallel(Agent):
                 SingleAgentProcess(
                     i,
                     new_algo,
-                    env_factory,
+                    env.copy(),
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,

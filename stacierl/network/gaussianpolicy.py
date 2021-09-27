@@ -7,7 +7,7 @@ from typing import List, Tuple
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 
 from .network import Network
-from ..environment import ActionSpace
+from ..util import ActionSpace
 
 
 class GaussianPolicy(Network):

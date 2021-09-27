@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Tuple, Dict, Optional
 import numpy as np
+from ..util import StacieRLUserObject
 
 
 class ActionSpace(ABC):
@@ -64,7 +65,7 @@ class ObservationSpace(ABC):
         return flat_state
 
 
-class Environment(ABC):
+class Environment(StacieRLUserObject, ABC):
     @abstractmethod
     def step(
         self, action: np.ndarray

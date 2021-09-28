@@ -66,6 +66,8 @@ class SAC(Algo):
         (states, actions, rewards, next_states, dones, padding_mask) = batch
         # actions /= self.action_scaling
 
+        next_states = torch.hstack([states[:, 0:1, :], next_states])
+
         states = states.to(dtype=torch.float32, device=self._device)
         actions = actions.to(dtype=torch.float32, device=self._device)
         rewards = rewards.to(dtype=torch.float32, device=self._device)
@@ -77,6 +79,7 @@ class SAC(Algo):
         next_actions, next_log_pi = self.model.get_update_action(next_states)
         next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
+        next_q_target = next_q_target[:, 1:, :]
         expected_q = rewards + (1 - dones) * self.gamma * next_q_target
 
         # self.reward_scaling * rewards

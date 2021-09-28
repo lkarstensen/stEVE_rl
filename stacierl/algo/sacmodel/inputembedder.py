@@ -89,7 +89,6 @@ class InputEmbedding(Vanilla):
     ) -> None:
         self.learning_rate = learning_rate
         self.obs_space = obs_space
-        self.dict_to_flat_np_map = self.obs_space.dict_to_flat_np_map
         self.action_space = action_space
         self.q1_hydra_input_embedders = q1_hydra_input_embedder or {}
         self.q2_hydra_input_embedders = q2_hydra_input_embedder or {}
@@ -105,6 +104,12 @@ class InputEmbedding(Vanilla):
         self.target_q2 = q2.copy()
         self.policy = policy
         self.log_alpha = torch.zeros(1, requires_grad=True)
+
+        self.dict_to_flat_np_map = self.obs_space.dict_to_flat_np_map
+        slices = [[ids, obs] for obs, ids in self.dict_to_flat_np_map.items()]
+        slices = sorted(slices)
+        self._dsplit_sections = [obs[0][0] for obs in slices if obs[0][0] != 0]
+        self._state_key_to_split_state_index = {slices[i][1]: i for i in range(len(slices))}
 
         self._q1_hydra_networks = self._init_hydra_network(self.q1_hydra_input_embedders)
         self._q2_hydra_networks = self._init_hydra_network(self.q2_hydra_input_embedders)
@@ -122,12 +127,6 @@ class InputEmbedding(Vanilla):
         self.target_q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
         self.policy.set_input(self.policy_common_input_embedder.network.n_outputs)
         self._init_optimizer()
-
-        slices = [[ids, obs] for obs, ids in self.dict_to_flat_np_map.items()]
-        slices = sorted(slices)
-        self._dsplit_sections = [obs[0][0] for obs in slices]
-
-        self._state_key_to_split_state_index = {slices[i][1]: i for i in range(len(slices))}
 
     def _init_hydra_network(
         self,

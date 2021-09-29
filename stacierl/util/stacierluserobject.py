@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class StacieRLUserObject:
+class StacieRLUserObject(ABC):
     @abstractmethod
     def copy(self):
         ...

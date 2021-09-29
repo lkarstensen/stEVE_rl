@@ -110,6 +110,9 @@ class DummyEnvironment(Environment):
     def close(self) -> None:
         ...
 
+    def copy(self) -> None:
+        return self.__class__()
+
     @property
     def action_space(self) -> ActionSpace:
         return DummyActionSpace()

@@ -31,21 +31,17 @@ class VanillaEpisode(ReplayBuffer):
         state_batch = [torch.from_numpy(episode.states) for episode in episodes]
         action_batch = [torch.from_numpy(episode.actions) for episode in episodes]
         reward_batch = [torch.from_numpy(episode.rewards) for episode in episodes]
-        next_state_batch = [torch.from_numpy(episode.next_states) for episode in episodes]
         done_batch = [torch.from_numpy(episode.dones) for episode in episodes]
 
         state_batch = pad_sequence(state_batch, batch_first=True)
         action_batch = pad_sequence(action_batch, batch_first=True)
         reward_batch = pad_sequence(reward_batch, batch_first=True, padding_value=inf)
-        next_state_batch = pad_sequence(next_state_batch, batch_first=True)
         done_batch = pad_sequence(done_batch, batch_first=True)
 
         padding_mask = torch.ones_like(reward_batch)
         padding_mask[reward_batch == inf] = 0
         reward_batch[reward_batch == inf] = 0
-        return Batch(
-            state_batch, action_batch, reward_batch, next_state_batch, done_batch, padding_mask
-        )
+        return Batch(state_batch, action_batch, reward_batch, done_batch, padding_mask)
 
     def __len__(
         self,

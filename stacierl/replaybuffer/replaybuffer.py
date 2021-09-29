@@ -14,7 +14,6 @@ class EpisodeNumpy:
     states: np.ndarray
     actions: np.ndarray
     rewards: np.ndarray
-    next_states: np.ndarray
     dones: np.ndarray
 
     def __len__(self):
@@ -26,7 +25,6 @@ class Episode:
         self.states: List[np.ndarray] = []
         self.actions: List[np.ndarray] = []
         self.rewards: List[np.ndarray] = []
-        self.next_states: List[np.ndarray] = []
         self.dones: List[np.ndarray] = []
 
     def add_transition(
@@ -34,14 +32,18 @@ class Episode:
         state: np.ndarray,
         action: np.ndarray,
         reward: float,
-        next_state: np.ndarray,
         done: bool,
     ):
         self.states.append(state)
         self.actions.append(action)
         self.rewards.append(np.array([reward]))
-        self.next_states.append(next_state)
         self.dones.append(np.array([done]))
+
+    def add_reset_state(
+        self,
+        state: np.ndarray,
+    ):
+        self.states.append(state)
 
     def __len__(self):
         return len(self.states)
@@ -51,7 +53,6 @@ class Episode:
             states=np.array(self.states),
             actions=np.array(self.actions),
             rewards=np.array(self.rewards),
-            next_states=np.array(self.next_states),
             dones=np.array(self.dones),
         )
 
@@ -60,7 +61,6 @@ class Batch(NamedTuple):
     states: torch.Tensor
     actions: torch.Tensor
     rewards: torch.Tensor
-    next_states: torch.Tensor
     dones: torch.Tensor
     padding_mask: torch.Tensor = None
 

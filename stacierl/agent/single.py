@@ -132,12 +132,10 @@ class Single(Agent):
 
         self.logger.debug(f"Action: {action}")
         for _ in range(consecutive_actions):
-            next_state, reward, done, _, success = self.env.step(action)
-            self.logger.debug(f"Next state:\n{next_state}")
-            next_state = self.env.observation_space.to_flat_array(next_state)
+            state, reward, done, _, success = self.env.step(action)
+            self._state = self.env.observation_space.to_flat_array(state)
             self.env.render()
-            self._episode_transitions.add_transition(self._state, action, reward, next_state, done)
-            self._state = next_state
+            self._episode_transitions.add_transition(self._state, action, reward, done)
             self._episode_reward += reward
             if done:
                 break
@@ -151,6 +149,7 @@ class Single(Agent):
         self.algo.reset()
         state = self.env.reset()
         self._state = self.env.observation_space.to_flat_array(state)
+        self._episode_transitions.add_reset_state(self._state)
 
     def to(self, device: torch.device):
         self.device = device

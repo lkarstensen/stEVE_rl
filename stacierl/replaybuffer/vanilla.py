@@ -23,16 +23,15 @@ class Vanilla(ReplayBuffer):
 
     def push(self, episode: Episode):
 
-        for i in range(len(episode)):
+        for i in range(len(episode) - 1):
 
             if len(self.buffer) < self.capacity:
                 self.buffer.append(None)
             self.buffer[self.position] = (
-                episode.states[i],
-                episode.actions[i],
-                episode.rewards[i],
-                episode.next_states[i],
-                episode.dones[i],
+                np.array(episode.states[i : i + 2]),
+                episode.actions[i + 1],
+                episode.rewards[i + 1],
+                episode.dones[i + 1],
             )
             self.position = int((self.position + 1) % self.capacity)  # as a ring buffer
 

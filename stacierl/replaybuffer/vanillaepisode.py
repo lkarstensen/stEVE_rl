@@ -18,7 +18,7 @@ class VanillaEpisode(ReplayBuffer):
         return self._batch_size
 
     def push(self, episode: Episode):
-        if len(episode.states) == 0:
+        if len(episode.states) < 2:
             return
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)

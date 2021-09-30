@@ -29,9 +29,9 @@ class Vanilla(ReplayBuffer):
                 self.buffer.append(None)
             self.buffer[self.position] = (
                 np.array(episode.states[i : i + 2]),
-                episode.actions[i + 1],
-                episode.rewards[i + 1],
-                episode.dones[i + 1],
+                episode.actions[i],
+                episode.rewards[i],
+                episode.dones[i],
             )
             self.position = int((self.position + 1) % self.capacity)  # as a ring buffer
 
@@ -46,7 +46,10 @@ class Vanilla(ReplayBuffer):
         np.stack((1,2)) => array([1, 2])
         """
 
-        batch = [torch.from_numpy(batch_entry).unsqueeze(1) for batch_entry in batch]
+        batch = [torch.from_numpy(batch_entry) for batch_entry in batch]
+        batch[1] = batch[1].unsqueeze(1)
+        batch[2] = batch[2].unsqueeze(1)
+        batch[3] = batch[3].unsqueeze(1)
 
         return Batch(*batch)
 

@@ -29,7 +29,7 @@ def sac_training(
     name="",
 ):
 
-    start = perf_counter()
+    start_time = perf_counter()
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
@@ -39,7 +39,7 @@ def sac_training(
     physic = tiltmaze.physics.BallVelocity(
         velocity_limits=velocity_limits,
         action_scaling=velocity_limits,
-        dt_step=1 / 7.5,
+        dt_step=2 / 3,
     )
     target = tiltmaze.target.CenterlineRandom(10)
     pathfinder = tiltmaze.pathfinder.NodesBFS()
@@ -50,7 +50,8 @@ def sac_training(
     pos = tiltmaze.state.wrapper.Normalize(pos)
     target_state = tiltmaze.state.Target()
     target_state = tiltmaze.state.wrapper.Normalize(target_state)
-    state = tiltmaze.state.Combination([pos, target_state])
+    rot = tiltmaze.state.Rotation()
+    state = tiltmaze.state.Combination([pos, target_state, rot])
 
     target_reward = tiltmaze.reward.TargetReached(1.0)
     step_reward = tiltmaze.reward.Step(-0.005)
@@ -97,11 +98,10 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaEpisode(replay_buffer, batch_size)
-    agent = stacierl.agent.Parallel(
+    agent = stacierl.agent.Single(
         algo,
         env,
         replay_buffer,
-        n_agents=2,
         consecutive_action_steps=1,
         device=device,
     )
@@ -144,7 +144,7 @@ def sac_training(
                         success,
                     ]
                 )
-    duration = perf_counter() - start
+    duration = perf_counter() - start_time
     with open(logfile, "a+", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["Elapsed Time:"])
@@ -159,14 +159,14 @@ if __name__ == "__main__":
     cwd = os.getcwd()
     log_folder = cwd + "/sacembedded_example_results/"
     result = sac_training(
-        lr=0.0007,
-        gamma=0.99,
-        hidden_layers=[256, 256],
+        lr=0.001991743536437494,
+        gamma=0.9800243887646142,
+        hidden_layers=[255, 255, 255],
         log_folder=log_folder,
         # n_agents=3,
         batch_size=6,
         device=torch.device("cuda"),
-        training_steps=3e5,
+        training_steps=1e5,
         heatup=1e4,
-        name="lnk3",
+        name="ballvelocity",
     )

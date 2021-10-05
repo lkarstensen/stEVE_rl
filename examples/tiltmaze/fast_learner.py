@@ -13,13 +13,17 @@ def sac_training(
     hidden_layers=[128, 128],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=2e5,
+    training_steps=1.5e5,
     consecutive_explore_steps=1,
     steps_between_eval=1e4,
     eval_episodes=100,
     batch_size=64,
-    heatup=100,
+    heatup=1e4,
     log_folder: str = "",
+    id=0,
+    name="",
+    *args,
+    **kwargs,
 ):
 
     if not os.path.isdir(log_folder):
@@ -30,7 +34,7 @@ def sac_training(
     physic = tiltmaze.physics.BallVelocity(
         velocity_limits=velocity_limits,
         action_scaling=velocity_limits,
-        dt_step=1 / 7.5,
+        dt_step=2 / 3,
     )
     target = tiltmaze.target.CenterlineRandom(10)
     pathfinder = tiltmaze.pathfinder.NodesBFS()
@@ -41,7 +45,8 @@ def sac_training(
     pos = tiltmaze.state.wrapper.Normalize(pos)
     target_state = tiltmaze.state.Target()
     target_state = tiltmaze.state.wrapper.Normalize(target_state)
-    state = tiltmaze.state.Combination([pos, target_state])
+    rot = tiltmaze.state.Rotation()
+    state = tiltmaze.state.Combination([pos, target_state, rot])
 
     target_reward = tiltmaze.reward.TargetReached(1.0)
     step_reward = tiltmaze.reward.Step(-0.005)
@@ -86,7 +91,12 @@ def sac_training(
         algo, env, replay_buffer, consecutive_action_steps=1, device=device
     )
 
-    logfile = log_folder + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".csv"
+    while True:
+        logfile = log_folder + f"/{name}_{id}.csv"
+        if os.path.isfile(logfile):
+            id += 1
+        else:
+            break
     with open(logfile, "w", newline="") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow(["lr", "gamma", "hidden_layers"])
@@ -102,7 +112,7 @@ def sac_training(
         update_steps = step_counter.exploration - step_counter.update
         agent.update(update_steps)
 
-        if step_counter.exploration > next_eval_step_limt:
+        if step_counter.exploration >= next_eval_step_limt:
             reward, success = agent.evaluate(episodes=eval_episodes)
             reward = sum(reward) / len(reward)
             success = sum(success) / len(success)
@@ -127,8 +137,9 @@ if __name__ == "__main__":
     cwd = os.getcwd()
     log_folder = cwd + "/fast_learner_example_results/"
     result = sac_training(
-        lr=0.006,
-        gamma=0.99,
-        hidden_layers=[128, 128],
+        lr=0.001991743536437494,
+        gamma=0.9800243887646142,
+        hidden_layers=[255, 255, 255],
         log_folder=log_folder,
+        batch_size=164,
     )

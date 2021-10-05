@@ -14,20 +14,24 @@ def optuna_run(trial):
     gamma = trial.suggest_loguniform("gamma", 0.98, 0.9999)
     n_layers = trial.suggest_int("n_layers", 1, 3)
     n_nodes = trial.suggest_int("n_nodes", 32, 256)
-    batch_size = trial.suggest_int("batch_size", 2, 10)
+    batch_size = trial.suggest_int("batch_size", 32, 256)
     hidden_layers = [n_nodes for _ in range(n_layers)]
-    success, steps = sac_training(
-        lr=lr,
-        gamma=gamma,
-        hidden_layers=hidden_layers,
-        id=trial.number,
-        name=name,
-        log_folder=f"{cwd}/optuna_results/{name}",
-        training_steps=3e5,
-        heatup=1e4,
-        batch_size=batch_size,
-        n_agents=3,
-    )
+    try:
+        success, steps = sac_training(
+            lr=lr,
+            gamma=gamma,
+            hidden_layers=hidden_layers,
+            id=trial.number,
+            name=name,
+            log_folder=f"{cwd}/optuna_results/{name}",
+            training_steps=1e5,
+            heatup=1e4,
+            batch_size=batch_size,
+            n_agents=3,
+        )
+    except ValueError:
+        success = -1
+        steps = -1
     with open(f"{cwd}/optuna_results/{name}/results.csv", "a+") as csvfile:
         writer = csv.writer(csvfile, delimiter=";")
         writer.writerow([trial.number, success, trial.params, steps])
@@ -45,6 +49,6 @@ if __name__ == "__main__":
     study = optuna.create_study(
         study_name=name,
         direction="maximize",
-        sampler=optuna.samplers.RandomSampler(),
+        sampler=optuna.samplers.TPESampler(),
     )
     study.optimize(optuna_run, n_trials=n_trials)

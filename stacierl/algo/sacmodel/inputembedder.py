@@ -115,9 +115,15 @@ class InputEmbedding(Vanilla):
         self._q2_hydra_networks = self._init_hydra_network(self.q2_hydra_input_embedders)
         self._policy_hydra_networks = self._init_hydra_network(self.policy_hydra_input_embedders)
 
-        self._init_common_embedder(self.q1_common_input_embedder, self._q1_hydra_networks)
-        self._init_common_embedder(self.q2_common_input_embedder, self._q2_hydra_networks)
-        self._init_common_embedder(self.policy_common_input_embedder, self._policy_hydra_networks)
+        self.q1_common_input_embedder = self._init_common_embedder(
+            self.q1_common_input_embedder, self._q1_hydra_networks
+        )
+        self.q2_common_input_embedder = self._init_common_embedder(
+            self.q2_common_input_embedder, self._q2_hydra_networks
+        )
+        self.policy_common_input_embedder = self._init_common_embedder(
+            self.policy_common_input_embedder, self._policy_hydra_networks
+        )
         n_actions = 1
         for dim in self.action_space.shape:
             n_actions *= dim
@@ -181,8 +187,10 @@ class InputEmbedding(Vanilla):
         if common_input_embedder is None:
             network = NetworkDummy()
             network.set_input(hydra_out)
+            update = False
         else:
             network = common_input_embedder.network
+            update = common_input_embedder.update
             if network.input_is_set:
                 if network.n_inputs != hydra_out:
                     raise RuntimeError(
@@ -190,6 +198,8 @@ class InputEmbedding(Vanilla):
                     )
             else:
                 network.set_input(hydra_out)
+
+        return Embedder(network, update)
 
     def _init_optimizer(self):
         self.q1_optimizers = self._init_leg_optimizer(

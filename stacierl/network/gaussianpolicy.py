@@ -26,10 +26,8 @@ class GaussianPolicy(Network):
         self.init_w = init_w
         self.log_std_min = log_std_min
         self.log_std_max = log_std_max
-
-        n_actions = 1
-        for dim in action_space.shape:
-            n_actions *= dim
+        self.mean = None
+        self.log_std = None
 
         layers_input = hidden_layers[:-1]
         layers_output = hidden_layers[1:]
@@ -38,13 +36,13 @@ class GaussianPolicy(Network):
         for input, output in zip(layers_input, layers_output):
             self.layers.append(nn.Linear(input, output))
 
-        self.mean = nn.Linear(hidden_layers[-1], n_actions)
-
-        self.log_std = nn.Linear(hidden_layers[-1], n_actions)
-
     @property
     def input_is_set(self) -> bool:
         return len(self.layers) == len(self.hidden_layers)
+
+    @property
+    def output_is_set(self) -> bool:
+        return (self.mean is not None) and (self.log_std is not None)
 
     @property
     def n_inputs(self) -> Tuple[int, int]:
@@ -62,6 +60,11 @@ class GaussianPolicy(Network):
             # torch.nn.init.xavier_uniform_(layer.weight, gain=torch.nn.init.calculate_gain("relu"))
             nn.init.kaiming_uniform_(layer.weight, mode="fan_in", nonlinearity="relu")
             nn.init.constant_(layer.bias, 0.0)
+
+    def set_output(self, n_actions):
+        last_output = self.hidden_layers[-1]        
+        self.mean = nn.Linear(last_output, n_actions)
+        self.log_std = nn.Linear(last_output, n_actions)
 
         nn.init.xavier_uniform_(self.mean.weight, gain=nn.init.calculate_gain("linear"))
         nn.init.constant_(self.mean.bias, 0.0)

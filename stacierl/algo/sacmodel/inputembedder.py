@@ -132,6 +132,7 @@ class InputEmbedding(Vanilla):
         self.target_q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
         self.target_q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
         self.policy.set_input(self.policy_common_input_embedder.network.n_outputs)
+        self.policy.set_output(n_actions)
         self._init_optimizer()
 
     def _init_hydra_network(

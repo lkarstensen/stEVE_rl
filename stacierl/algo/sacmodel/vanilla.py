@@ -68,6 +68,7 @@ class Vanilla(SACModel):
         self.target_q1.set_input(n_observations, n_actions)
         self.target_q2.set_input(n_observations, n_actions)
         self.policy.set_input(n_observations)
+        self.policy.set_output(n_actions)
         self._init_optimizer()
 
     def _init_optimizer(self):

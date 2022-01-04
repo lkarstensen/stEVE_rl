@@ -25,9 +25,8 @@ class QNetwork(Network):
 
         self.layers.append(nn.Linear(hidden_layers[-1], 1))
 
-        # # for i in range(len(self.layers)):
-        # self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
-        # self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
+        self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
+        self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
 
     @property
     def input_is_set(self) -> bool:

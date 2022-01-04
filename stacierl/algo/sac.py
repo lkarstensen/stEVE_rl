@@ -18,7 +18,7 @@ class SAC(Algo):
         tau: float = 0.005,
         reward_scaling: float = 1,
         action_scaling: float = 1,
-        exploration_action_noise: float = 0.2,
+        exploration_action_noise: float = 0.25,
     ):
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS

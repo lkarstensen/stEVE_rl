@@ -7,6 +7,10 @@ from ..util import Environment
 import torch
 from math import inf
 
+# added because of heatup
+from torch.distributions import Normal
+import numpy as np
+
 
 class Single(Agent):
     def __init__(
@@ -34,6 +38,9 @@ class Single(Agent):
         self._state = None
 
     def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:
+        # random action selection
+        action_dim = 2
+        
         step_limit = self._step_counter.heatup + steps
         episode_limit = self._episode_counter.heatup + episodes
         episode_rewards = []
@@ -47,11 +54,18 @@ class Single(Agent):
             self._step_counter.heatup < step_limit and self._episode_counter.heatup < episode_limit
         ):
             self._step_counter.heatup += self.consecutive_action_steps
-            action = self.algo.get_exploration_action(self._state)
+            #action = self.algo.get_exploration_action(self._state)
+            
+            # random action selection
+            with torch.no_grad():
+                normal = Normal(0,1)
+                action = (normal.sample((action_dim,))).numpy()
+                #action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                action = action + np.random.normal(0, 0.25)
+        
             done, success = self._play_step(
                 action, consecutive_actions=self.consecutive_action_steps
             )
-
             if done:
                 self.episode_counter.heatup += 1
                 successes.append(success)

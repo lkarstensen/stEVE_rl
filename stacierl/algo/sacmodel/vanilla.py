@@ -129,8 +129,11 @@ class Vanilla(SACModel):
         z = normal.rsample()
         action_batch = torch.tanh(z)
 
-        log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
-        log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
+        #log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
+        #log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
+
+        log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
+                torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
 
         return action_batch, log_pi_batch
 

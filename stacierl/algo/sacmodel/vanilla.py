@@ -110,7 +110,7 @@ class Vanilla(SACModel):
         states: torch.Tensor,
         actions: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        with torch.no_grad():
+        #with torch.no_grad():
             self.reset()
             q1 = self.target_q1.forward(states, actions)
             self.reset()

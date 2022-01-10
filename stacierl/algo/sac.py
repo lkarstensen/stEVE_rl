@@ -75,11 +75,11 @@ class SAC(Algo):
 
         seq_length = actions.shape[1]
         states = torch.narrow(all_states, dim=1, start=0, length=seq_length)
+        next_states = torch.narrow(all_states, dim=1, start=1, length=seq_length)
 
-        next_actions, next_log_pi = self.model.get_update_action(all_states)
-        next_q1, next_q2 = self.model.get_target_q_values(all_states, next_actions)
+        next_actions, next_log_pi = self.model.get_update_action(next_states)
+        next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
-        next_q_target = torch.narrow(next_q_target, dim=1, start=1, length=seq_length)
         expected_q = self.reward_scaling * rewards + (1 - dones) * self.gamma * next_q_target
 
         # Q LOSS

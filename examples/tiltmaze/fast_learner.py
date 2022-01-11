@@ -86,7 +86,7 @@ def sac_training(
         action_space=env.action_space,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.SingleTuple(replay_buffer, batch_size)
     agent = stacierl.agent.Single(
         algo, env, replay_buffer, consecutive_action_steps=1, device=device
     )

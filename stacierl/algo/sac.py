@@ -84,7 +84,6 @@ class SAC(Algo):
         expected_q = self.reward_scaling * rewards + (1 - dones) * self.gamma * next_q_target
 
         # Q LOSS
-        #curr_q1, curr_q2 = self.model.get_q_values(states, actions)
         curr_q1 = self.model.q1(states, actions)
         curr_q2 = self.model.q2(states, actions)
 
@@ -101,7 +100,10 @@ class SAC(Algo):
 
         # Policy loss
         new_actions, log_pi = self.model.get_update_action(states)
-        q1, q2 = self.model.get_q_values(states, new_actions)
+
+        q1 = self.model.q1(states, new_actions)
+        q2 = self.model.q2(states, new_actions)
+
         min_q = torch.min(q1, q2)
 
         policy_loss = (self.alpha * log_pi - min_q).mean()

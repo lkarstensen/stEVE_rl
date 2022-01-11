@@ -127,10 +127,10 @@ class Vanilla(SACModel):
     def get_update_action(
         self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.reset()
+        #self.reset()
         mean_batch, log_std = self.policy.forward(state_batch)
-
         std_batch = log_std.exp()
+        
         normal = Normal(mean_batch, std_batch)
         z = normal.rsample()
         action_batch = torch.tanh(z)

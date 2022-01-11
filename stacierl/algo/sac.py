@@ -90,15 +90,16 @@ class SAC(Algo):
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         
-        self.model.q1_update_zero_grad()
+        # UPDATE Q NETWORKS
+        self.model.q1_optimizer.zero_grad()
         q1_loss.backward()
-        self.model.q1_update_step()
+        self.model.q1_optimizer.update_step()
         
-        self.model.q2_update_zero_grad()
+        self.model.q2_optimizer.zero_grad()
         q2_loss.backward()
-        self.model.q2_update_step()
+        self.model.q2_optimizer.update_step()
 
-        # Policy loss
+        # DELAYED UPDATE FOR POLICY NETWORK AND TARGET Q NETWORKS
         new_actions, log_pi = self.model.get_update_action(states)
 
         q1 = self.model.q1(states, new_actions)
@@ -108,16 +109,22 @@ class SAC(Algo):
 
         policy_loss = (self.alpha * log_pi - min_q).mean()
 
-        self.model.policy_update_zero_grad()
+        self.model.policy_optimizer.zero_grad()
         policy_loss.backward()
-        self.model.policy_update_step()
+        self.model.policy_optimizer.step()
 
-        self.model.update_target_q(self.tau)
+        # TARGET NETWORKS
+        for target_param, param in zip(self.model.target_q1.parameters(), self.model.q1.parameters()):
+            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
 
+        for target_param, param in zip(self.model.target_q2.parameters(), self.model.q2.parameters()):
+            target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
+
+        # UPDATE TEMPERATURE
         alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
-        self.model.alpha_update_zero_grad()
+        self.model.alpha_optimizer.zero_grad()
         alpha_loss.backward()
-        self.model.alpha_update_step()
+        self.model.alpha_optimizer.step()
 
         self.alpha = self.model.log_alpha.exp()
 

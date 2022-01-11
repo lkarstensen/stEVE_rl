@@ -36,7 +36,7 @@ class SAC(Algo):
         self.update_step = 0
 
         # ENTROPY TEMPERATURE
-        self.alpha = torch.zeros(1)
+        self.alpha = torch.ones(1)
         n_actions = 1
         for dim in action_space.shape:
             n_actions *= dim
@@ -63,7 +63,7 @@ class SAC(Algo):
 
     def update(self, batch: Batch) -> List[float]:
 
-        (all_states, actions, rewards, dones) = batch
+        (all_states, actions, rewards, dones, padding_mask) = batch
         # actions /= self.action_scaling
 
         all_states = all_states.to(dtype=torch.float32, device=self._device)
@@ -93,11 +93,11 @@ class SAC(Algo):
         # UPDATE Q NETWORKS
         self.model.q1_optimizer.zero_grad()
         q1_loss.backward()
-        self.model.q1_optimizer.update_step()
+        self.model.q1_optimizer.step()
         
         self.model.q2_optimizer.zero_grad()
         q2_loss.backward()
-        self.model.q2_optimizer.update_step()
+        self.model.q2_optimizer.step()
 
         # DELAYED UPDATE FOR POLICY NETWORK AND TARGET Q NETWORKS
         new_actions, log_pi = self.model.get_update_action(states)

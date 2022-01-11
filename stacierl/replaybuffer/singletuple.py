@@ -36,8 +36,8 @@ class SingleTuple(ReplayBuffer):
         """
         batch = [torch.from_numpy(batch_entry) for batch_entry in batch]
         batch[1] = batch[1].unsqueeze(1)
-        batch[2] = batch[2].unsqueeze(1)
-        batch[3] = batch[3].unsqueeze(1)
+        batch[2] = batch[2].unsqueeze(1).unsqueeze(1)
+        batch[3] = batch[3].unsqueeze(1).unsqueeze(1)
 
         return Batch(*batch)
 

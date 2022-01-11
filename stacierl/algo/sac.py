@@ -90,11 +90,6 @@ class SAC(Algo):
             expected_q *= padding_mask
             curr_q1 *= padding_mask
             curr_q2 *= padding_mask
-        print(curr_q1.shape)
-        print(expected_q.shape)
-        print(((1-dones) * self.gamma * next_q_target).shape)
-        print((1-dones).shape)
-        k
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         

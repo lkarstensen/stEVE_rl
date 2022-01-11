@@ -63,13 +63,15 @@ class Vanilla(SACModel):
             for dim in state_shape:
                 n_state_observations *= dim
             n_observations += n_state_observations
+        
         self.q1.set_input(n_observations, n_actions)
         self.q2.set_input(n_observations, n_actions)
+        
         self.target_q1.set_input(n_observations, n_actions)
         self.target_q2.set_input(n_observations, n_actions)
+
         self.policy.set_input(n_observations)
         self.policy.set_output(n_actions)
-        self._init_optimizer()
 
         for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
             target_param.data.copy_(param)
@@ -77,13 +79,15 @@ class Vanilla(SACModel):
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
+        self._init_optimizer()
+
     def _init_optimizer(self):
         self.q1_optimizer = optim.Adam(self.q1.parameters(), lr=self.learning_rate)
         self.q2_optimizer = optim.Adam(self.q2.parameters(), lr=self.learning_rate)
         self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
         self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
 
-    def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
+    def get_play_action(self, flat_state: np.ndarray = None, evaluation=False) -> np.ndarray:
         with torch.no_grad():
             flat_state = (
                 torch.as_tensor(flat_state, dtype=torch.float32, device=self.device)
@@ -94,11 +98,16 @@ class Vanilla(SACModel):
             mean, log_std = self.policy.forward(flat_state)
             std = log_std.exp()
 
-            normal = Normal(mean, std)
-            z = normal.sample()
-            action = torch.tanh(z)
-            action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
-            return action
+            if evaluation:
+                action = torch.tanh(mean)
+                rescaled_action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return rescaled_action
+            else:
+                normal = Normal(mean, std)
+                z = normal.sample()
+                action = torch.tanh(z)
+                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return action
 
     def get_q_values(
         self,

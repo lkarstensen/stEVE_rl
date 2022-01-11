@@ -52,13 +52,12 @@ class SAC(Algo):
         return self._device
 
     def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
-
-        action = self.get_eval_action(flat_state)
+        action = self.model.get_play_action(flat_state, evaluation=False)
         action += np.random.normal(0, self.exploration_action_noise)
         return action
 
     def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
-        action = self.model.get_play_action(flat_state)
+        action = self.model.get_play_action(flat_state, evaluation=True)
         return action * self.action_scaling
 
     def update(self, batch: Batch) -> List[float]:

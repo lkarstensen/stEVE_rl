@@ -71,6 +71,12 @@ class Vanilla(SACModel):
         self.policy.set_output(n_actions)
         self._init_optimizer()
 
+        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+            target_param.data.copy_(param)
+        
+        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+            target_param.data.copy_(param)
+
     def _init_optimizer(self):
         self.q1_optimizer = optim.Adam(self.q1.parameters(), lr=self.learning_rate)
         self.q2_optimizer = optim.Adam(self.q2.parameters(), lr=self.learning_rate)

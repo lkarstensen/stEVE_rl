@@ -34,5 +34,17 @@ class SingleTuple(ReplayBuffer):
         return Batch(*batch)
 
 
-    def get_length(self):
+    def __len__(
+        self,
+    ):
         return len(self.buffer)
+
+    def copy(self):
+        copy = self.__class__(self.capacity, self.batch_size)
+        for i in range(len(self.buffer)):
+            copy.buffer.append(self.buffer[i])
+        copy.position = self.position
+        return copy
+
+    def close(self):
+        ...

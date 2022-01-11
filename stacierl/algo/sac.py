@@ -63,7 +63,7 @@ class SAC(Algo):
 
     def update(self, batch: Batch) -> List[float]:
 
-        (all_states, actions, rewards, dones, padding_mask) = batch
+        (all_states, actions, rewards, dones) = batch
         # actions /= self.action_scaling
 
         all_states = all_states.to(dtype=torch.float32, device=self._device)
@@ -71,25 +71,23 @@ class SAC(Algo):
         rewards = rewards.to(dtype=torch.float32, device=self._device)
         dones = dones.to(dtype=torch.float32, device=self._device)
 
-        if padding_mask is not None:
-            padding_mask = padding_mask.to(dtype=torch.float32, device=self._device)
-
         seq_length = actions.shape[1]
         states = torch.narrow(all_states, dim=1, start=0, length=seq_length)
         next_states = torch.narrow(all_states, dim=1, start=1, length=seq_length)
 
         next_actions, next_log_pi = self.model.get_update_action(next_states)
-        next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
+        #next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
+        next_q1 = self.model.target_q1(next_states, next_actions)
+        next_q2 = self.model.target_q2(next_states, next_actions)
+
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
         expected_q = self.reward_scaling * rewards + (1 - dones) * self.gamma * next_q_target
 
         # Q LOSS
-        curr_q1, curr_q2 = self.model.get_q_values(states, actions)
+        #curr_q1, curr_q2 = self.model.get_q_values(states, actions)
+        curr_q1 = self.model.q1(states, actions)
+        curr_q2 = self.model.q2(states, actions)
 
-        if padding_mask is not None:
-            expected_q *= padding_mask
-            curr_q1 *= padding_mask
-            curr_q2 *= padding_mask
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         
@@ -106,9 +104,6 @@ class SAC(Algo):
         q1, q2 = self.model.get_q_values(states, new_actions)
         min_q = torch.min(q1, q2)
 
-        if padding_mask is not None:
-            min_q *= padding_mask
-            log_pi *= padding_mask
         policy_loss = (self.alpha * log_pi - min_q).mean()
 
         self.model.policy_update_zero_grad()

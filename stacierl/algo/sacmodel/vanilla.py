@@ -136,7 +136,7 @@ class Vanilla(SACModel):
     def get_update_action(
         self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        #self.reset()
+        self.reset()
         mean_batch, log_std = self.policy.forward(state_batch)
         std_batch = log_std.exp()
         
@@ -144,11 +144,11 @@ class Vanilla(SACModel):
         z = normal.rsample()
         action_batch = torch.tanh(z)
 
-        #log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
-        #log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
+        log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
+        log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
 
-        log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
-                torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
+        #log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
+        #        torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
 
         return action_batch, log_pi_batch
 

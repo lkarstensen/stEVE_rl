@@ -79,13 +79,11 @@ class SAC(Algo):
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
         expected_q = rewards + (1 - dones) * self.gamma * next_q_target
 
-        # Q LOSS
         curr_q1, curr_q2 = self.model.get_q_values(states, actions)
 
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
         
-        # UPDATE Q NETWORKS
         self.model.q1_update_zero_grad()
         q1_loss.backward()
         self.model.q1_update_step()
@@ -93,7 +91,8 @@ class SAC(Algo):
         q2_loss.backward()
         self.model.q2_update_step()
 
-        # DELAYED UPDATE FOR POLICY NETWORK AND TARGET Q NETWORKS
+        self.model.update_target_q(self.tau)
+
         new_actions, log_pi = self.model.get_update_action(states)
 
         q1, q2 = self.model.get_q_values(states, new_actions)
@@ -105,16 +104,6 @@ class SAC(Algo):
         policy_loss.backward()
         self.model.policy_update_step()
 
-        self.model.update_target_q(self.tau)
-
-        # TARGET NETWORKS
-        #for target_param, param in zip(self.model.target_q1.parameters(), self.model.q1.parameters()):
-        #    target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
-
-        #for target_param, param in zip(self.model.target_q2.parameters(), self.model.q2.parameters()):
-        #    target_param.data.copy_(self.tau * param + (1 - self.tau) * target_param)
-
-        # UPDATE TEMPERATURE
         alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
         self.model.alpha_update_zero_grad()
         alpha_loss.backward()

@@ -148,8 +148,8 @@ class Single(Agent):
         for _ in range(consecutive_actions):
             state, reward, done, _, success = self.env.step(action)
             
-            if self._last_play_mode == "exploration":
-                self.replay_buffer.push(self._state, action, reward, self.env.observation_space.to_flat_array(state), done)
+            #if self._last_play_mode == "exploration":
+            #    self.replay_buffer.push(self._state, action, reward, self.env.observation_space.to_flat_array(state), done)
             
             self._state = self.env.observation_space.to_flat_array(state)
             self.env.render()
@@ -160,8 +160,8 @@ class Single(Agent):
         return done, success
 
     def _reset_env(self):
-        #if self._last_play_mode == "exploration":
-        #    self.replay_buffer.push(self._episode_transitions)
+        if self._last_play_mode == "exploration":
+            self.replay_buffer.push(self._episode_transitions)
         self._episode_transitions = Episode()
         self._episode_reward = 0.0
         self.algo.reset()

@@ -55,13 +55,11 @@ class GaussianPolicy(Network):
     def set_input(self, n_observations):
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_observations, n_output))
-
-        """
+        
         for layer in self.layers:
             # torch.nn.init.xavier_uniform_(layer.weight, gain=torch.nn.init.calculate_gain("relu"))
             nn.init.kaiming_uniform_(layer.weight, mode="fan_in", nonlinearity="relu")
             nn.init.constant_(layer.bias, 0.0)
-        """
 
     def set_output(self, n_actions):
         init_w = 3e-3
@@ -76,12 +74,12 @@ class GaussianPolicy(Network):
         self.log_std.weight.data.uniform_(-init_w, init_w)
         self.log_std.bias.data.uniform_(-init_w, init_w)
 
-        """
+        
         nn.init.xavier_uniform_(self.mean.weight, gain=nn.init.calculate_gain("linear"))
         nn.init.constant_(self.mean.bias, 0.0)
         nn.init.xavier_uniform_(self.log_std.weight, gain=nn.init.calculate_gain("linear"))
         nn.init.constant_(self.log_std.bias, 0.0)
-        """
+        
         
     def forward(
         self, state_batch: torch.Tensor, *args, **kwargs

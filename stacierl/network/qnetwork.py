@@ -25,8 +25,8 @@ class QNetwork(Network):
 
         self.layers.append(nn.Linear(hidden_layers[-1], 1))
 
-        self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
-        self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
+        #self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
+        #self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
 
     @property
     def input_is_set(self) -> bool:
@@ -46,8 +46,7 @@ class QNetwork(Network):
         n_input = n_observations + n_actions
         n_output = self.hidden_layers[0]
         self.layers.insert(0, nn.Linear(n_input, n_output))
-
-        """
+        
         # init weights and bias
         for layer in self.layers[:-1]:
             # torch.nn.init.xavier_uniform_(layer.weight, gain=torch.nn.init.calculate_gain("relu"))
@@ -56,8 +55,7 @@ class QNetwork(Network):
 
         nn.init.xavier_uniform_(self.layers[-1].weight, gain=nn.init.calculate_gain("linear"))
         nn.init.constant_(self.layers[-1].bias, 0.0)
-        """
-
+        
     def forward(
         self, state_batch: torch.Tensor, action_batch: torch.Tensor, *args, **kwargs
     ) -> torch.Tensor:

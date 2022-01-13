@@ -21,7 +21,7 @@ class SingleTuple(ReplayBuffer):
         
         states = np.concatenate((state, next_state), axis=-1)
         # !
-        states = states.reshape((2,6))
+        states = states.reshape((2,8))
         self.buffer[self.position] = (states, action, reward, done)
         self.position = int((self.position + 1) % self.capacity)  
 

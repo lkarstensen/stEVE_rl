@@ -242,7 +242,7 @@ class InputEmbedding(Vanilla):
                 optimizers.append(optimizer)
         return optimizers
 
-    def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
+    def get_play_action(self, flat_state: np.ndarray = None, evaluation=False) -> np.ndarray:
         with torch.no_grad():
             flat_state = torch.from_numpy(flat_state).unsqueeze(0).unsqueeze(0)
             flat_state = flat_state.to(self.device)
@@ -256,11 +256,16 @@ class InputEmbedding(Vanilla):
             mean, log_std = self.policy.forward(embedded_state, use_hidden_state=True)
             std = log_std.exp()
 
-            normal = Normal(mean, std)
-            z = normal.sample()
-            action = torch.tanh(z)
-            action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
-            return action
+            if evaluation:
+                action = torch.tanh(mean)
+                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return action
+            else:
+                normal = Normal(mean, std)
+                z = normal.sample()
+                action = torch.tanh(z)
+                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return action
 
     def get_q_values(
         self,

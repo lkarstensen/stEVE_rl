@@ -135,6 +135,12 @@ class InputEmbedding(Vanilla):
         self.policy.set_output(n_actions)
         self._init_optimizer()
 
+        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+            target_param.data.copy_(param)
+        
+        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+            target_param.data.copy_(param)
+
     def _init_hydra_network(
         self,
         hydra_input_embedder: Dict[str, Embedder],

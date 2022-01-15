@@ -37,9 +37,9 @@ class LSTM(Network):
             bias=True,
         )
         # weight init
-        for name, param in self.named_parameters():
-            if "bias" in name:
-                nn.init.constant_(param, 0.0)
+        #for name, param in self.named_parameters():
+        #    if "bias" in name:
+        #        nn.init.constant_(param, 0.0)
             # elif "weight" in name:
             #     w_xi, w_xf, w_xc, w_xo = param.chunk(4, 0)
             #     for weights in [w_xi, w_xf, w_xo]:

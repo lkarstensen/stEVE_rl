@@ -113,7 +113,7 @@ class InputEmbedding(Vanilla):
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
-        self._init_optimizer()
+        #self._init_optimizer()
 
     def _init_common_embedder(
         self, common_input_embedder: Embedder
@@ -176,7 +176,6 @@ class InputEmbedding(Vanilla):
                 self.policy_common_input_embedder,
                 use_hidden_state=True,
             )
-
             mean, log_std = self.policy.forward(embedded_state, use_hidden_state=True)
             std = log_std.exp()
 
@@ -335,82 +334,17 @@ class InputEmbedding(Vanilla):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
-        q1_common = Embedder(
-            self.q1_common_input_embedder.network.copy(), self.q1_common_input_embedder.update
-        )
-        if self.q2_common_input_embedder.network == self.q1_common_input_embedder.network:
-            q2_common_net = q1_common.network
-        else:
-            q2_common_net = self.q2_common_input_embedder.network.copy()
-        q2_common = Embedder(q2_common_net, self.q2_common_input_embedder.update)
-
-        if self.policy_common_input_embedder.network == self.q1_common_input_embedder.network:
-            policy_common_net = q1_common.network
-        elif self.policy_common_input_embedder.network == self.q2_common_input_embedder.network:
-            policy_common_net = q2_common.network
-        else:
-            policy_common_net = self.policy_common_input_embedder.network.copy()
-        policy_common = Embedder(policy_common_net, self.policy_common_input_embedder.update)
-
-        copy = self.__class__(
-            self.q1.copy(),
-            self.q2.copy(),
-            self.policy.copy(),
-            self.learning_rate,
-            self.obs_space,
-            self.action_space,
-            q1_common,
-            q2_common,
-            policy_common,
-        )
-
-        return copy
+        ...
 
     def copy_shared_memory(self):
-        copy = self.copy()
-
-        self.q1.share_memory()
-        self.q2.share_memory()
-        self.target_q1.share_memory()
-        self.target_q2.share_memory()
-        self.policy.share_memory()
-        self.q1_common_input_embedder.network.share_memory()
-        self.q2_common_input_embedder.network.share_memory()
-        self.policy_common_input_embedder.network.share_memory()
-
-        copy.q1 = self.q1
-        copy.q2 = self.q2
-        copy.target_q1 = self.target_q1
-        copy.target_q2 = self.target_q2
-        copy.policy = self.policy
-        copy.q1_common_input_embedder.network = self.q1_common_input_embedder.network
-        copy.q2_common_input_embedder.network = self.q2_common_input_embedder.network
-        self.policy_common_input_embedder.network = self.policy_common_input_embedder.network
-
-        return copy
+        ...
 
     def load_state_dicts(self, state_dicts: SACEmbeddedStateDicts):
-        self.q1.load_state_dict(state_dicts.q1)
-        self.q2.load_state_dict(state_dicts.q2)
-        self.target_q1.load_state_dict(state_dicts.target_q1)
-        self.target_q2.load_state_dict(state_dicts.target_q2)
-        self.q1_common_input_embedder.network.load_state_dict(state_dicts.q1_common)
-        self.q2_common_input_embedder.network.load_state_dict(state_dicts.q2_common)
-        self.policy_common_input_embedder.network.load_state_dict(state_dicts.policy_common)
+        ...
 
     @property
     def state_dicts(self) -> SACEmbeddedStateDicts:
-        state_dicts = SACEmbeddedStateDicts(
-            self.q1.state_dict(),
-            self.q2.state_dict(),
-            self.target_q1.state_dict(),
-            self.target_q2.state_dict(),
-            self.policy.state_dict(),
-            self.q1_common_input_embedder.network.state_dict(),
-            self.q2_common_input_embedder.network.state_dict(),
-            self.policy_common_input_embedder.network.state_dict(),
-        )
-        return state_dicts
+        ...
 
     def reset(self) -> None:
         for net in self:

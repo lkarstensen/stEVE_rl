@@ -69,17 +69,24 @@ class SAC(Algo):
         actions = actions.to(dtype=torch.float32, device=self._device)
         rewards = rewards.to(dtype=torch.float32, device=self._device)
         dones = dones.to(dtype=torch.float32, device=self._device)
+        
+        if padding_mask is not None:
+            padding_mask = padding_mask.to(dtype=torch.float32, device=self._device)
 
         seq_length = actions.shape[1]
         states = torch.narrow(all_states, dim=1, start=0, length=seq_length)
-        next_states = torch.narrow(all_states, dim=1, start=1, length=seq_length)
 
-        next_actions, next_log_pi = self.model.get_update_action(next_states)
-        next_q1, next_q2 = self.model.get_target_q_values(next_states, next_actions)
+        next_actions, next_log_pi = self.model.get_update_action(all_states)
+        next_q1, next_q2 = self.model.get_target_q_values(all_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
+        next_q_target = torch.narrow(next_q_target, dim=1, start=1, length=seq_length)
         expected_q = rewards + (1 - dones) * self.gamma * next_q_target
 
         curr_q1, curr_q2 = self.model.get_q_values(states, actions)
+        if padding_mask is not None:
+            expected_q *= padding_mask
+            curr_q1 *= padding_mask
+            curr_q2 *= padding_mask
 
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
@@ -95,6 +102,10 @@ class SAC(Algo):
 
         q1, q2 = self.model.get_q_values(states, new_actions)
         min_q = torch.min(q1, q2)
+
+        if padding_mask is not None:
+            min_q *= padding_mask
+            log_pi *= padding_mask
 
         policy_loss = (self.alpha * log_pi - min_q).mean()
 

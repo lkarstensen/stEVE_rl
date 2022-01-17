@@ -91,30 +91,21 @@ class InputEmbedding(Vanilla):
         self.log_alpha = torch.zeros(1, requires_grad=True)
 
         self.dict_to_flat_np_map = self.obs_space.dict_to_flat_np_map
-        slices = [[ids, obs] for obs, ids in self.dict_to_flat_np_map.items()]
-        slices = sorted(slices)
-        self._dsplit_sections = [obs[0][0] for obs in slices if obs[0][0] != 0]
-        self._state_key_to_split_state_index = {slices[i][1]: i for i in range(len(slices))}
 
-        self.q1_common_input_embedder = self._init_common_embedder(
-            self.q1_common_input_embedder
-        )
-        self.q2_common_input_embedder = self._init_common_embedder(
-            self.q2_common_input_embedder
-        )
-        self.policy_common_input_embedder = self._init_common_embedder(
-            self.policy_common_input_embedder
-        )
+        self.q1_common_input_embedder = self._init_common_embedder(self.q1_common_input_embedder)
+        self.q2_common_input_embedder = self._init_common_embedder(self.q2_common_input_embedder)
+        self.policy_common_input_embedder = self._init_common_embedder(self.policy_common_input_embedder)
+        
         n_actions = 1
         for dim in self.action_space.shape:
             n_actions *= dim
+
         self.q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
         self.q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
         self.target_q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
         self.target_q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
         self.policy.set_input(self.policy_common_input_embedder.network.n_outputs)
         self.policy.set_output(n_actions)
-        self._init_optimizer()
 
         for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
             target_param.data.copy_(param)
@@ -122,10 +113,12 @@ class InputEmbedding(Vanilla):
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
+        self._init_optimizer()
+
     def _init_common_embedder(
         self, common_input_embedder: Embedder
     ):
-        hydra_out = 187
+        hydra_out = 8
 
         if common_input_embedder is None:
             network = NetworkDummy()

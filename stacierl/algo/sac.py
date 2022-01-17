@@ -91,8 +91,6 @@ class SAC(Algo):
         q2_loss.backward()
         self.model.q2_update_step()
 
-        self.model.update_target_q(self.tau)
-
         new_actions, log_pi = self.model.get_update_action(states)
 
         q1, q2 = self.model.get_q_values(states, new_actions)
@@ -103,6 +101,8 @@ class SAC(Algo):
         self.model.policy_update_zero_grad()
         policy_loss.backward()
         self.model.policy_update_step()
+
+        self.model.update_target_q(self.tau)
 
         alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
         self.model.alpha_update_zero_grad()

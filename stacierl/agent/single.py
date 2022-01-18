@@ -54,13 +54,11 @@ class Single(Agent):
             self._step_counter.heatup < step_limit and self._episode_counter.heatup < episode_limit
         ):
             self._step_counter.heatup += self.consecutive_action_steps
-            #action = self.algo.get_exploration_action(self._state)
             
             # random action selection
             with torch.no_grad():
                 normal = Normal(0,1)
                 action = (normal.sample((action_dim,))).numpy()
-                #action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
                 action = action + np.random.normal(0, 0.25)
         
             done, success = self._play_step(
@@ -83,7 +81,6 @@ class Single(Agent):
         if self._last_play_mode != "exploration" or self._state is None:
             self._reset_env()
             self._last_play_mode = "exploration"
-
         while (
             self._step_counter.exploration < step_limit
             and self._episode_counter.exploration < episode_limit
@@ -129,7 +126,7 @@ class Single(Agent):
         while (
             self._step_counter.evaluation < step_limit
             and self._episode_counter.evaluation < episode_limit
-        ):
+        ):            
             self._step_counter.evaluation += 1
             action = self.algo.get_eval_action(self._state)
             done, success = self._play_step(action, consecutive_actions=1)
@@ -147,10 +144,6 @@ class Single(Agent):
         self.logger.debug(f"Action: {action}")
         for _ in range(consecutive_actions):
             state, reward, done, _, success = self.env.step(action)
-            
-            #if self._last_play_mode == "exploration":
-            #    self.replay_buffer.push(self._state, action, reward, self.env.observation_space.to_flat_array(state), done)
-            
             self._state = self.env.observation_space.to_flat_array(state)
             self.env.render()
             self._episode_transitions.add_transition(self._state, action, reward, done)

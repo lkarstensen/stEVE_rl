@@ -94,6 +94,7 @@ class SAC(Algo):
         self.model.q1_update_zero_grad()
         q1_loss.backward()
         self.model.q1_update_step()
+
         self.model.q2_update_zero_grad()
         q2_loss.backward()
         self.model.q2_update_step()
@@ -119,7 +120,6 @@ class SAC(Algo):
         self.model.alpha_update_zero_grad()
         alpha_loss.backward()
         self.model.alpha_update_step()
-
 
         self.alpha = self.model.log_alpha.exp()
 

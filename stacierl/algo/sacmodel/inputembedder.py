@@ -195,14 +195,14 @@ class InputEmbedding(Vanilla):
         state_batch: torch.Tensor,
         action_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.reset()
+        #self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q1_common_input_embedder,
             use_hidden_state=False,
         )
         q1 = self.q1(embedded_state, action_batch, use_hidden_state=False)
-        self.reset()
+        #self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q2_common_input_embedder,
@@ -217,14 +217,14 @@ class InputEmbedding(Vanilla):
         action_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # with torch.no_grad():
-        self.reset()
+        #self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q1_common_input_embedder,
             use_hidden_state=False,
         )
         q1 = self.target_q1(embedded_state, action_batch, use_hidden_state=False)
-        self.reset()
+        #self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q2_common_input_embedder,
@@ -237,7 +237,7 @@ class InputEmbedding(Vanilla):
     def get_update_action(
         self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.reset()
+        #self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.policy_common_input_embedder,

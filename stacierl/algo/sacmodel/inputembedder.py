@@ -118,7 +118,7 @@ class InputEmbedding(Vanilla):
     def _init_common_embedder(
         self, common_input_embedder: Embedder
     ):
-        hydra_out = 8
+        hydra_out = 18
 
         if common_input_embedder is None:
             network = NetworkDummy()

@@ -7,6 +7,7 @@ from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
 from ..util import ActionSpace
+from stacierl.algo.sacmodel.inputembedder import Embedder
 
 
 class SAC(Algo):
@@ -130,35 +131,45 @@ class SAC(Algo):
             policy_loss.detach().cpu().numpy(),
         ]
 
-    # def save_model(self, path: str):
-    #     print("... saving model ...")
-    #     torch.save(self.model.q_net_1.state_dict(), path + "_q_net1")
-    #     torch.save(self.model.q_net_2.state_dict(), path + "_q_net2")
+    def save_model(self, path: str):
+         print("... saving model ...")
+         torch.save(self.model.q1_common_input_embedder.network.state_dict(), path + "_common_net")
 
-    #     torch.save(self.model.target_q_net_1.state_dict(), path + "_target_q_net1")
-    #     torch.save(self.model.target_q_net_2.state_dict(), path + "_target_q_net2")
+         torch.save(self.model.q1.state_dict(), path + "_q1")
+         torch.save(self.model.q2.state_dict(), path + "_q2")
 
-    #     torch.save(self.model.policy_net.state_dict(), path + "_policy_net")
+         torch.save(self.model.target_q1.state_dict(), path + "_target_q1")
+         torch.save(self.model.target_q2.state_dict(), path + "_target_q2")
 
-    #     torch.save(self.alpha, path + "_alpha.pt")
+         torch.save(self.model.policy.state_dict(), path + "_policy")
 
-    # def load_model(self, path: str):
-    #     print("... loading model ...")
-    #     self.model.q_net_1.load_state_dict(torch.load(path + "_q_net1"))
-    #     self.model.q_net_2.load_state_dict(torch.load(path + "_q_net2"))
+         torch.save(self.alpha, path + "_alpha.pt")
 
-    #     self.model.target_q_net_1.load_state_dict(torch.load(path + "_target_q_net1"))
-    #     self.model.target_q_net_2.load_state_dict(torch.load(path + "_target_q_net2"))
+    # loading for eval only 
+    def load_model(self, path: str):
+         print("... loading model ...")
+         self.model.q1_common_input_embedder.network.load_state_dict(torch.load(path + "_common_net"))
+         self.model.q1_common_input_embedder.network.eval()
+         self.model.q1_common_input_embedder.bool = False
 
-    #     self.model.policy_net.load_state_dict(torch.load(path + "_policy_net"))
+         self.model.q1.load_state_dict(torch.load(path + "_q1"))
 
-    #     self.alpha = torch.load(path + "_alpha.pt")
+         self.model.q2.load_state_dict(torch.load(path + "_q2"))
+         self.model.q2_common_input_embedder = self.model.q1_common_input_embedder
 
-    #     self.model.q_net_1.eval()
-    #     self.model.q_net_2.eval()
-    #     self.model.target_q_net_1.eval()
-    #     self.model.target_q_net_2.eval()
-    #     self.model.policy_net.eval()
+         self.model.target_q1.load_state_dict(torch.load(path + "_target_q1"))
+         self.model.target_q2.load_state_dict(torch.load(path + "_target_q2"))
+
+         self.model.policy.load_state_dict(torch.load(path + "_policy"))
+         self.model.policy_common_input_embedder = self.model.q1_common_input_embedder
+
+         self.alpha = torch.load(path + "_alpha.pt")
+
+         self.model.q1.eval()
+         self.model.q2.eval()
+         self.model.target_q1.eval()
+         self.model.target_q2.eval()
+         self.model.policy.eval()
 
     def copy(self):
         copy = self.__class__(

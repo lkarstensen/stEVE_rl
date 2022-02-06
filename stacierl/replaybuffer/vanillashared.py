@@ -1,18 +1,20 @@
 import random
 from stacierl.replaybuffer.vanillaepisode import VanillaEpisode
 import numpy as np
-from .replaybuffer import ReplayBuffer
-from .vanilla import Episode, Batch, Vanilla
+from .replaybuffer import ReplayBuffer, Episode, Batch
+from .vanillastep import VanillaStep
 import torch.multiprocessing as mp
+from multiprocessing.synchronize import Lock as mp_lock
+from multiprocessing.synchronize import Event as mp_event
 
 
 class VanillaSharedBase(ReplayBuffer):
     def __init__(
         self,
-        task_queue: mp.SimpleQueue(),
-        result_queue: mp.SimpleQueue(),
-        request_lock: mp.Lock(),
-        shutdown_event: mp.Event(),
+        task_queue: mp.SimpleQueue,
+        result_queue: mp.SimpleQueue,
+        request_lock: mp_lock,
+        shutdown_event: mp_event,
         batch_size: int,
     ):
         self._task_queue = task_queue
@@ -61,7 +63,7 @@ class VanillaSharedBase(ReplayBuffer):
         self._request_lock.release()
 
 
-class VanillaShared(VanillaSharedBase):
+class VanillaStepShared(VanillaSharedBase):
     def __init__(self, capacity, batch_size):
         super().__init__(mp.SimpleQueue(), mp.SimpleQueue(), mp.Lock(), mp.Event(), batch_size)
         self.capacity = capacity
@@ -69,7 +71,7 @@ class VanillaShared(VanillaSharedBase):
         self._process.start()
 
     def run(self):
-        self._internal_replay_buffer = Vanilla(self.capacity, self._batch_size)
+        self._internal_replay_buffer = VanillaStep(self.capacity, self._batch_size)
         while not self._shutdown_event.is_set():
             task = self._task_queue.get()
             if task[0] == "push":
@@ -97,7 +99,7 @@ class VanillaShared(VanillaSharedBase):
         self._process.close()
 
 
-class VanillaEpisodeShared(VanillaShared):
+class VanillaEpisodeShared(VanillaStepShared):
     def run(self):
         self._internal_replay_buffer = VanillaEpisode(self.capacity, self._batch_size)
         while not self._shutdown_event.is_set():

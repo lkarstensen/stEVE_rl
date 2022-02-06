@@ -70,16 +70,18 @@ class SAC(Algo):
         actions = actions.to(dtype=torch.float32, device=self._device)
         rewards = rewards.to(dtype=torch.float32, device=self._device)
         dones = dones.to(dtype=torch.float32, device=self._device)
-        
+
         if padding_mask is not None:
             padding_mask = padding_mask.to(dtype=torch.float32, device=self._device)
 
         seq_length = actions.shape[1]
         states = torch.narrow(all_states, dim=1, start=0, length=seq_length)
 
+        # use all_states for next_actions and next_log_pi for proper hidden_state initilaization
         next_actions, next_log_pi = self.model.get_update_action(all_states)
         next_q1, next_q2 = self.model.get_target_q_values(all_states, next_actions)
         next_q_target = torch.min(next_q1, next_q2) - self.alpha * next_log_pi
+        # only use next_state for next_q_target
         next_q_target = torch.narrow(next_q_target, dim=1, start=1, length=seq_length)
         expected_q = rewards + (1 - dones) * self.gamma * next_q_target
 
@@ -91,7 +93,7 @@ class SAC(Algo):
 
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
-        
+
         self.model.q1_update_zero_grad()
         q1_loss.backward()
         self.model.q1_update_step()
@@ -132,44 +134,46 @@ class SAC(Algo):
         ]
 
     def save_model(self, path: str):
-         print("... saving model ...")
-         torch.save(self.model.q1_common_input_embedder.network.state_dict(), path + "_common_net")
+        print("... saving model ...")
+        torch.save(self.model.q1_common_input_embedder.network.state_dict(), path + "_common_net")
 
-         torch.save(self.model.q1.state_dict(), path + "_q1")
-         torch.save(self.model.q2.state_dict(), path + "_q2")
+        torch.save(self.model.q1.state_dict(), path + "_q1")
+        torch.save(self.model.q2.state_dict(), path + "_q2")
 
-         torch.save(self.model.target_q1.state_dict(), path + "_target_q1")
-         torch.save(self.model.target_q2.state_dict(), path + "_target_q2")
+        torch.save(self.model.target_q1.state_dict(), path + "_target_q1")
+        torch.save(self.model.target_q2.state_dict(), path + "_target_q2")
 
-         torch.save(self.model.policy.state_dict(), path + "_policy")
+        torch.save(self.model.policy.state_dict(), path + "_policy")
 
-         torch.save(self.alpha, path + "_alpha.pt")
+        torch.save(self.alpha, path + "_alpha.pt")
 
-    # loading for eval only 
+    # loading for eval only
     def load_model(self, path: str):
-         print("... loading model ...")
-         self.model.q1_common_input_embedder.network.load_state_dict(torch.load(path + "_common_net"))
-         self.model.q1_common_input_embedder.network.eval()
-         self.model.q1_common_input_embedder.bool = False
+        print("... loading model ...")
+        self.model.q1_common_input_embedder.network.load_state_dict(
+            torch.load(path + "_common_net")
+        )
+        self.model.q1_common_input_embedder.network.eval()
+        self.model.q1_common_input_embedder.bool = False
 
-         self.model.q1.load_state_dict(torch.load(path + "_q1"))
+        self.model.q1.load_state_dict(torch.load(path + "_q1"))
 
-         self.model.q2.load_state_dict(torch.load(path + "_q2"))
-         self.model.q2_common_input_embedder = self.model.q1_common_input_embedder
+        self.model.q2.load_state_dict(torch.load(path + "_q2"))
+        self.model.q2_common_input_embedder = self.model.q1_common_input_embedder
 
-         self.model.target_q1.load_state_dict(torch.load(path + "_target_q1"))
-         self.model.target_q2.load_state_dict(torch.load(path + "_target_q2"))
+        self.model.target_q1.load_state_dict(torch.load(path + "_target_q1"))
+        self.model.target_q2.load_state_dict(torch.load(path + "_target_q2"))
 
-         self.model.policy.load_state_dict(torch.load(path + "_policy"))
-         self.model.policy_common_input_embedder = self.model.q1_common_input_embedder
+        self.model.policy.load_state_dict(torch.load(path + "_policy"))
+        self.model.policy_common_input_embedder = self.model.q1_common_input_embedder
 
-         self.alpha = torch.load(path + "_alpha.pt")
+        self.alpha = torch.load(path + "_alpha.pt")
 
-         self.model.q1.eval()
-         self.model.q2.eval()
-         self.model.target_q1.eval()
-         self.model.target_q2.eval()
-         self.model.policy.eval()
+        self.model.q1.eval()
+        self.model.q2.eval()
+        self.model.target_q1.eval()
+        self.model.target_q2.eval()
+        self.model.policy.eval()
 
     def copy(self):
         copy = self.__class__(

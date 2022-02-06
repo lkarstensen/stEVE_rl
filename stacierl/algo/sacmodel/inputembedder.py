@@ -90,12 +90,12 @@ class InputEmbedding(Vanilla):
         self.policy = policy
         self.log_alpha = torch.zeros(1, requires_grad=True)
 
-        self.dict_to_flat_np_map = self.obs_space.dict_to_flat_np_map
-
         self.q1_common_input_embedder = self._init_common_embedder(self.q1_common_input_embedder)
         self.q2_common_input_embedder = self._init_common_embedder(self.q2_common_input_embedder)
-        self.policy_common_input_embedder = self._init_common_embedder(self.policy_common_input_embedder)
-        
+        self.policy_common_input_embedder = self._init_common_embedder(
+            self.policy_common_input_embedder
+        )
+
         n_actions = 1
         for dim in self.action_space.shape:
             n_actions *= dim
@@ -109,31 +109,31 @@ class InputEmbedding(Vanilla):
 
         for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
             target_param.data.copy_(param)
-        
+
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
-        #self._init_optimizer()
+        # self._init_optimizer()
 
-    def _init_common_embedder(
-        self, common_input_embedder: Embedder
-    ):
-        hydra_out = 18
+    def _init_common_embedder(self, common_input_embedder: Embedder):
+        n_observations = 0
+        for observation in self.obs_space.low.values():
+            n_observations += observation.size
 
         if common_input_embedder is None:
             network = NetworkDummy()
-            network.set_input(hydra_out)
+            network.set_input(n_observations)
             update = False
         else:
             network = common_input_embedder.network
             update = common_input_embedder.update
             if network.input_is_set:
-                if network.n_inputs != hydra_out:
+                if network.n_inputs != n_observations:
                     raise RuntimeError(
                         f"Input Embedder assignment seems to be wrong. Input Embedders always need the same number of inputs. Common Embedder Network {network} is wrongly assigned for q1_common_embedder."
                     )
             else:
-                network.set_input(hydra_out)
+                network.set_input(n_observations)
 
         return Embedder(network, update)
 
@@ -195,14 +195,14 @@ class InputEmbedding(Vanilla):
         state_batch: torch.Tensor,
         action_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        #self.reset()
+        # self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q1_common_input_embedder,
             use_hidden_state=False,
         )
         q1 = self.q1(embedded_state, action_batch, use_hidden_state=False)
-        #self.reset()
+        # self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q2_common_input_embedder,
@@ -217,14 +217,14 @@ class InputEmbedding(Vanilla):
         action_batch: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # with torch.no_grad():
-        #self.reset()
+        # self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q1_common_input_embedder,
             use_hidden_state=False,
         )
         q1 = self.target_q1(embedded_state, action_batch, use_hidden_state=False)
-        #self.reset()
+        # self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.q2_common_input_embedder,
@@ -237,7 +237,7 @@ class InputEmbedding(Vanilla):
     def get_update_action(
         self, state_batch: torch.Tensor, epsilon: float = 1e-6
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        #self.reset()
+        # self.reset()
         embedded_state = self._get_embedded_state(
             state_batch,
             self.policy_common_input_embedder,
@@ -251,8 +251,9 @@ class InputEmbedding(Vanilla):
         action_batch = torch.tanh(z)
 
         log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
-                torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
-                
+            torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True
+        )
+
         return action_batch, log_pi_batch
 
     def _get_embedded_state(

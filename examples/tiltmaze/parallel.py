@@ -84,7 +84,7 @@ def sac_training(
         action_space=env.action_space,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.Vanilla(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
     agent = stacierl.agent.Parallel(
         algo,
         env,

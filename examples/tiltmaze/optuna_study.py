@@ -1,7 +1,7 @@
 import csv
 import optuna
 import os
-from sacembedded import sac_training
+from fast_learner import sac_training
 import torch.multiprocessing as mp
 import argparse
 
@@ -13,8 +13,8 @@ def optuna_run(trial):
     lr = trial.suggest_loguniform("lr", 1e-4, 1e-2)
     gamma = trial.suggest_loguniform("gamma", 0.98, 0.9999)
     n_layers = trial.suggest_int("n_layers", 1, 3)
-    n_nodes = trial.suggest_int("n_nodes", 32, 256)
-    batch_size = trial.suggest_int("batch_size", 32, 256)
+    n_nodes = trial.suggest_int("n_nodes", 64, 256)
+    batch_size = trial.suggest_int("batch_size", 64, 256)
     hidden_layers = [n_nodes for _ in range(n_layers)]
     try:
         success, steps = sac_training(
@@ -24,10 +24,10 @@ def optuna_run(trial):
             id=trial.number,
             name=name,
             log_folder=f"{cwd}/optuna_results/{name}",
-            training_steps=1e5,
-            heatup=1e4,
+            training_steps=1.5e5,
+            heatup=1e5,
             batch_size=batch_size,
-            n_agents=3,
+            n_agents=1,
         )
     except ValueError:
         success = -1

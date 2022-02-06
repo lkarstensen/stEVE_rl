@@ -1,5 +1,6 @@
 import stacierl
 import tiltmaze
+import eve
 import torch
 from datetime import datetime
 import csv
@@ -29,19 +30,53 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    maze = tiltmaze.maze.RSS0(episodes_btw_geometry_change=math.inf, seed=1234)
-    velocity_limits = (100, 0.5)
-    physic = tiltmaze.physics.BallVelocity(
-        velocity_limits=velocity_limits,
-        action_scaling=velocity_limits,
-        dt_step=2 / 3,
+    eve_tree = eve.vesseltree.AorticArch(seed=1234)
+    vessel_tree = tiltmaze.vesseltree.FromEve3d(
+        eve3d_vessel_tree=eve_tree,
+        lao_rao=20,
+        cra_cau=-5,
+        contour_approx_margin=2.0,
+        scaling_artery_diameter=0.5,
     )
-    target = tiltmaze.target.CenterlineRandom(10)
-    pathfinder = tiltmaze.pathfinder.NodesBFS()
-    start = tiltmaze.start.CenterlineRandom()
+    simu = tiltmaze.simulation.Guidewire(
+        tip_length=25,
+        tip_angle=math.pi / 2,
+        flex_length=30,
+        flex_element_length=1,
+        flex_rotary_spring_stiffness=7e5,
+        flex_rotary_spring_damping=3e2,
+        stiff_element_length=2,
+        stiff_rotary_spring_stiffness=1e6,
+        stiff_rotary_spring_damping=3e2,
+        wire_diameter=2,
+        friction=1.0,
+        damping=0.000001,
+        velocity_limits=(50, 1.5),
+        normalize_action=True,
+        dt_step=1 / 7.5,
+        dt_simulation=0.0002,
+        body_mass=0.01,
+        body_moment=0.1,
+        spring_stiffness=2.5e6,
+        spring_damping=100,
+        last_segment_kp_angle=3,
+        last_segment_kp_translation=5,
+    )
+    target = tiltmaze.target.CenterlineRandom(
+        5,
+        branches=[
+            "right subclavian artery",
+            "right common carotid artery",
+            "left common carotid artery",
+            "left subclavian artery",
+            "brachiocephalic trunk",
+        ],
+    )
+    pathfinder = tiltmaze.pathfinder.BruteForceBFS()
+    start = tiltmaze.start.InsertionPoint()
     imaging = tiltmaze.imaging.ImagingDummy((500, 500))
 
-    pos = tiltmaze.state.Position()
+    pos = tiltmaze.state.Position(n_points=6, resolution=1)
     pos = tiltmaze.state.wrapper.Normalize(pos)
     target_state = tiltmaze.state.Target()
     target_state = tiltmaze.state.wrapper.Normalize(target_state)
@@ -60,18 +95,20 @@ def sac_training(
     success = tiltmaze.success.TargetReached()
     visu = tiltmaze.visualisation.VisualisationDummy()
 
+    randomizer = tiltmaze.randomizer.RandomizerDummy()
     env = tiltmaze.Env(
-        maze=maze,
+        vessel_tree=vessel_tree,
         state=state,
         reward=reward,
         done=done,
-        physic=physic,
+        simulation=simu,
         start=start,
         target=target,
         imaging=imaging,
         pathfinder=pathfinder,
         visualisation=visu,
         success=success,
+        randomizer=randomizer,
     )
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
@@ -86,9 +123,9 @@ def sac_training(
         action_space=env.action_space,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.SingleTuple(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
     agent = stacierl.agent.Single(
-        algo, env, replay_buffer, consecutive_action_steps=1, device=device
+        algo, env, env, replay_buffer, consecutive_action_steps=1, device=device
     )
 
     while True:
@@ -104,7 +141,7 @@ def sac_training(
         writer.writerow(["Episodes", "Steps", "Reward", "Success"])
 
     next_eval_step_limt = steps_between_eval
-    agent.heatup(steps=heatup)
+    agent.heatup(steps=heatup, custom_action_low=[0.0, -1.0])
     step_counter = agent.step_counter
     while step_counter.exploration < training_steps:
         agent.explore(steps=consecutive_explore_steps)

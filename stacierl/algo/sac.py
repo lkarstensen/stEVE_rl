@@ -142,7 +142,7 @@ class SAC(Algo):
     # loading for eval only
     def load_model(self, path: str):
         print("... loading model ...")
-        self.alpha = torch.load(path + "_alpha.pt")
+        self.alpha = torch.load(path + "_alpha.pt", map_location=self.device)
         
         self.model.load(path)
 

@@ -134,14 +134,14 @@ class SAC(Algo):
         ]
 
     def save_model(self, path: str):
-        print("... saving model ...")       
+        self.logger.info('... saving model ...')     
         torch.save(self.alpha, path + "_alpha.pt")
         
         self.model.save(path)
 
     # loading for eval only
     def load_model(self, path: str):
-        print("... loading model ...")
+        self.logger.info('... loading model ...')
         self.alpha = torch.load(path + "_alpha.pt", map_location=self.device)
         
         self.model.load(path)

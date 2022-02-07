@@ -46,13 +46,13 @@ class Algo(ABC):
     def reset(self) -> None:
         ...
 
-    # @abstractmethod
-    # def save_model(self, path):
-    #     ...
+    @abstractmethod
+    def save_model(self, path):
+         ...
 
-    # @abstractmethod
-    # def load_model(self, path):
-    #     ...
+    @abstractmethod
+    def load_model(self, path):
+         ...
 
     @abstractmethod
     def copy(self):

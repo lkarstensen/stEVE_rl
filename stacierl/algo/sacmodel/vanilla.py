@@ -274,6 +274,18 @@ class Vanilla(SACModel):
             self.log_alpha,
         )
         return model_state
+    
+    
+    @property
+    def optimizer_state_dict(self) -> Dict:
+        optimizer_state_dict = {
+            'q1': self.q1_optimizer.state_dict(),
+            'q2': self.q2_optimizer.state_dict(),
+            'policy': self.policy_optimizer.state_dict(),
+            'alpha': self.alpha_optimizer.state_dict()
+        }
+        
+        return optimizer_state_dict
 
     def reset(self) -> None:
         for net in self:

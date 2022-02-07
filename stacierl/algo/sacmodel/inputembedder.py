@@ -116,7 +116,7 @@ class InputEmbedding(Vanilla):
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
-        # self._init_optimizer()
+        self._init_optimizer()
 
     def _init_common_embedder(self, common_input_embedder: Embedder):
         n_observations = 0
@@ -408,6 +408,22 @@ class InputEmbedding(Vanilla):
         )
         
         return model_state
+    
+    @property
+    def optimizer_state_dict(self) -> Dict:
+        optimizer_state_dict = {
+            'q1': self.q1_optimizers[0].state_dict(),
+            'q2': self.q2_optimizers[0].state_dict(),
+            'policy': self.policy_optimizers[0].state_dict(),
+            'alpha': self.alpha_optimizer.state_dict(),
+            }
+        # common optimizer missing
+        if len(self.q1_optimizers) == 1:
+            optimizer_state_dict['q1_common'] = None
+        else:
+            optimizer_state_dict['q1_common'] = self.q1_optimizers[1].state_dict()
+        
+        return optimizer_state_dict
 
     def reset(self) -> None:
         for net in self:

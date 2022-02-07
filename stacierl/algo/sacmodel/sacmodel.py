@@ -70,3 +70,11 @@ class SACModel(Model, ABC):
     @abstractmethod
     def update_target_q(self, tau):
         ...
+        
+    @abstractmethod
+    def save(self, path):
+        ...
+        
+    @abstractmethod
+    def load(self, path):
+        ...

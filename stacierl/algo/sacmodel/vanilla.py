@@ -192,6 +192,30 @@ class Vanilla(SACModel):
 
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
+            
+    def save(self, path: str):
+        torch.save(self.q1.state_dict(), path + "_q1")
+        torch.save(self.q2.state_dict(), path + "_q2")
+
+        torch.save(self.target_q1.state_dict(), path + "_target_q1")
+        torch.save(self.target_q2.state_dict(), path + "_target_q2")
+
+        torch.save(self.policy.state_dict(), path + "_policy")
+        
+    def load(self, path: str):
+        self.q1.load_state_dict(torch.load(path + "_q1"))
+        self.q2.load_state_dict(torch.load(path + "_q2"))
+
+        self.target_q1.load_state_dict(torch.load(path + "_target_q1"))
+        self.target_q2.load_state_dict(torch.load(path + "_target_q2"))
+
+        self.policy.load_state_dict(torch.load(path + "_policy"))
+
+        self.q1.eval()
+        self.q2.eval()
+        self.target_q1.eval()
+        self.target_q2.eval()
+        self.policy.eval()
 
     def copy(self):
         copy = self.__class__(

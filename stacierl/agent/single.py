@@ -164,6 +164,7 @@ class Single(Agent):
 
     def close(self):
         self.env_train.close()
+        self.env_eval.close()
 
     @property
     def step_counter(self) -> StepCounter:

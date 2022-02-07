@@ -35,6 +35,7 @@ class SACEmbeddedStateDicts(SACStateDicts):
     q1_common: Dict[str, torch.Tensor]
     q2_common: Dict[str, torch.Tensor]
     policy_common: Dict[str, torch.Tensor]
+    log_alpha: torch.Tensor
 
     def __iter__(self):
         iter_list = [
@@ -46,6 +47,7 @@ class SACEmbeddedStateDicts(SACStateDicts):
             self.q1_common,
             self.q2_common,
             self.policy_common,
+            self.log_alpha,
         ]
         return iter(iter_list)
 
@@ -59,6 +61,7 @@ class SACEmbeddedStateDicts(SACStateDicts):
             deepcopy(self.q1_common),
             deepcopy(self.q2_common),
             deepcopy(self.policy_common),
+            deepcopy(self.log_alpha)
         )
 
 
@@ -375,12 +378,36 @@ class InputEmbedding(Vanilla):
     def copy_shared_memory(self):
         ...
 
-    def load_state_dicts(self, state_dicts: SACEmbeddedStateDicts):
-        ...
+    def load_model_state(self, model_state: SACEmbeddedStateDicts):
+        self.q1.load_state_dict(model_state.q1)
+        self.q1_common_input_embedder.network.load_state_dict(model_state.q1_common)
+        
+        self.q2.load_state_dict(model_state.q2)
+        self.q2_common_input_embedder.network.load_state_dict(model_state.q2_common)
+        
+        self.target_q1.load_state_dict(model_state.target_q1)
+        self.target_q2.load_state_dict(model_state.target_q2)
+        
+        self.policy.load_state_dict(model_state.policy)
+        self.policy_common_input_embedder.network.load_state_dict(model_state.policy_common)
+        
+        self.log_alpha = model_state.log_alpha
 
     @property
-    def state_dicts(self) -> SACEmbeddedStateDicts:
-        ...
+    def model_state(self) -> SACEmbeddedStateDicts:
+        model_state = SACEmbeddedStateDicts(
+            self.q1.state_dict(),
+            self.q2.state_dict(),
+            self.target_q1.state_dict(),
+            self.target_q2.state_dict(),
+            self.policy.state_dict(),
+            self.q1_common_input_embedder.network.state_dict(),
+            self.q2_common_input_embedder.network.state_dict(),
+            self.policy_common_input_embedder.network.state_dict(),
+            self.log_alpha,
+        )
+        
+        return model_state
 
     def reset(self) -> None:
         for net in self:

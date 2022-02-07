@@ -255,13 +255,13 @@ class Vanilla(SACModel):
 
         return copy
 
-    def load_model_state(self, sac_model_state_dicts: SACStateDicts):
-        self.q1.load_state_dict(sac_model_state_dicts.q1)
-        self.q2.load_state_dict(sac_model_state_dicts.q2)
-        self.target_q1.load_state_dict(sac_model_state_dicts.target_q1)
-        self.target_q2.load_state_dict(sac_model_state_dicts.target_q2)
-        self.policy.load_state_dict(sac_model_state_dicts.policy)
-        self.log_alpha = sac_model_state_dicts.log_alpha
+    def load_model_state(self, model_state: SACStateDicts):
+        self.q1.load_state_dict(model_state.q1)
+        self.q2.load_state_dict(model_state.q2)
+        self.target_q1.load_state_dict(model_state.target_q1)
+        self.target_q2.load_state_dict(model_state.target_q2)
+        self.policy.load_state_dict(model_state.policy)
+        self.log_alpha = model_state.log_alpha
 
     @property
     def model_state(self) -> SACStateDicts:

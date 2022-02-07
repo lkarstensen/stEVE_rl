@@ -62,7 +62,8 @@ def get_logging_config_dict():
 def run(
     id: int,
     algo: Algo,
-    env: Environment,
+    env_train: Environment,
+    env_eval: Environment,
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
@@ -86,7 +87,7 @@ def run(
     logging.config.dictConfig(log_config_dict)
     logger = logging.getLogger(__name__)
     logger.info("logger initialized")
-    agent = Single(algo, env, replay_buffer, device, consecutive_action_steps)
+    agent = Single(algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps)
     agent.step_counter = step_counter
     agent.episode_counter = episode_counter
     while not shutdown_event.is_set():
@@ -126,8 +127,7 @@ def run(
             continue
         result_queue.put(result)
 
-    env.close()
-    replay_buffer.close()
+    agent.close()
 
 
 class SingleAgentProcess(Agent):
@@ -135,7 +135,8 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env: Environment,
+        env_train: Environment,
+        env_eval: Environment,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -162,7 +163,8 @@ class SingleAgentProcess(Agent):
             args=[
                 id,
                 algo,
-                env,
+                env_train,
+                env_eval,
                 replay_buffer,
                 device,
                 consecutive_action_steps,

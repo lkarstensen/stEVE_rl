@@ -14,7 +14,8 @@ class Parallel(Agent):
     def __init__(
         self,
         algo: Algo,
-        env: Environment,
+        env_train: Environment,
+        env_eval: Environment,
         replay_buffer: ReplayBuffer,
         n_agents: int,
         device: torch.device = torch.device("cpu"),
@@ -32,11 +33,19 @@ class Parallel(Agent):
                 new_algo = algo.copy_shared_memory()
             else:
                 new_algo = algo.copy()
+
+            if env_train is env_eval:
+                new_env_train = new_env_eval = env_train.copy()
+            else:
+                new_env_train = env_train.copy()
+                new_env_eval = env_eval.copy()
+
             self.agents.append(
                 SingleAgentProcess(
                     i,
                     new_algo,
-                    env.copy(),
+                    new_env_train,
+                    new_env_eval,
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,
@@ -44,6 +53,8 @@ class Parallel(Agent):
                     parent_agent=self,
                 )
             )
+        if not shared_model:
+            self.update(0)
 
     def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)

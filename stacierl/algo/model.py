@@ -17,6 +17,14 @@ class ModelStateDicts(ABC):
     @abstractmethod
     def copy(self):
         ...
+        
+    # abstract or implement here?
+    def to_dict(self):
+        ...
+        
+    # abstract or implement here?
+    def from_dict(self):
+        ...
 
     def to(self, device: torch.device):
         for state_dict in self:
@@ -108,7 +116,7 @@ class ModelStateDicts(ABC):
 class Model(ABC):
     @property
     @abstractmethod
-    def state_dicts(self) -> ModelStateDicts:
+    def model_state(self) -> ModelStateDicts:
         ...
 
     @abstractmethod
@@ -128,7 +136,7 @@ class Model(ABC):
         ...
 
     @abstractmethod
-    def load_state_dicts(self, state_dicts: ModelStateDicts) -> None:
+    def load_model_state(self, state_dicts: ModelStateDicts) -> None:
         ...
 
     @abstractmethod

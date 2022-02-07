@@ -19,9 +19,10 @@ class SACStateDicts(ModelStateDicts):
     target_q1: Dict[str, torch.Tensor]
     target_q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
+    log_alpha: torch.Tensor
 
     def __iter__(self):
-        return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy])
+        return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy, self.log_alpha])
 
     def copy(self):
         return SACStateDicts(
@@ -30,6 +31,7 @@ class SACStateDicts(ModelStateDicts):
             deepcopy(self.target_q1),
             deepcopy(self.target_q2),
             deepcopy(self.policy),
+            deepcopy(self.log_alpha)
         )
 
 
@@ -253,23 +255,25 @@ class Vanilla(SACModel):
 
         return copy
 
-    def load_state_dicts(self, sac_model_state_dicts: SACStateDicts):
+    def load_model_state(self, sac_model_state_dicts: SACStateDicts):
         self.q1.load_state_dict(sac_model_state_dicts.q1)
         self.q2.load_state_dict(sac_model_state_dicts.q2)
         self.target_q1.load_state_dict(sac_model_state_dicts.target_q1)
         self.target_q2.load_state_dict(sac_model_state_dicts.target_q2)
         self.policy.load_state_dict(sac_model_state_dicts.policy)
+        self.log_alpha = sac_model_state_dicts.log_alpha
 
     @property
-    def state_dicts(self) -> SACStateDicts:
-        state_dicts = SACStateDicts(
+    def model_state(self) -> SACStateDicts:
+        model_state = SACStateDicts(
             self.q1.state_dict(),
             self.q2.state_dict(),
             self.target_q1.state_dict(),
             self.target_q2.state_dict(),
             self.policy.state_dict(),
+            self.log_alpha,
         )
-        return state_dicts
+        return model_state
 
     def reset(self) -> None:
         for net in self:

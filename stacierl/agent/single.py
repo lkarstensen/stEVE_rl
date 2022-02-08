@@ -165,6 +165,26 @@ class Single(Agent):
     def close(self):
         self.env_train.close()
         self.env_eval.close()
+        
+    def save_checkpoint(self, directory: str, name: str):
+        path = directory + '/' + name + '.pt'
+        
+        optimizer_dicts = self.algo.optimizer_state_dicts
+        model_state_dicts = self.algo.state_dicts
+        
+        checkpoint_dict = {
+            'optimizer_dicts': optimizer_dicts,
+            'model_state_dicts': model_state_dicts
+        }
+        
+        torch.save(checkpoint_dict, path)
+        
+    def load_checkpoint(self, directory: str, name: str):
+        path = directory + '/' + name + '.pt'
+        checkpoint = torch.load(path)
+        
+        self.algo.load_state_dicts(checkpoint['model_state_dicts'])
+        self.algo.load_optimizer_state_dicts(checkpoint['optimizer_dicts'])
 
     @property
     def step_counter(self) -> StepCounter:

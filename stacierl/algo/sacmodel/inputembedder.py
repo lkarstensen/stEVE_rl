@@ -412,25 +412,17 @@ class InputEmbedding(Vanilla):
     @property
     def optimizer_state_dict(self) -> Dict:
                 
-        q1_dict = {'q1_opt': self.q1_optimizers[0].state_dict()}
-        if len(self.q1_optimizers) == 1:
-            q1_dict['q1_common'] = None
-        else:
-            q1_dict['q1_common'] = self.q1_optimizers[1].state_dict()
+        q1_dict = {'main': self.q1_optimizers[0].state_dict()}
+        if len(self.q1_optimizers) > 1:
+            q1_dict['common'] = self.q1_optimizers[1].state_dict()
             
-        q2_dict = {'q2_opt': self.q2_optimizers[0].state_dict()}
-        if len(self.q2_optimizers) == 1:
-            q2_dict['q2_common'] = None
-        else:
-            q2_dict['q2_common'] = self.q2_optimizers[1].state_dict()
+        q2_dict = {'main': self.q2_optimizers[0].state_dict()}
+        if len(self.q2_optimizers) > 1:
+            q2_dict['common'] = self.q2_optimizers[1].state_dict()
             
-        policy_dict = {'policy_opt': self.policy_optimizers[0].state_dict()}
-        if len(self.policy_optimizers) == 1:
-            policy_dict['policy_common'] = None
-        else:
-            policy_dict['policy_common'] = self.policy_optimizers[1].state_dict()    
-            
-        # alpha dict?
+        policy_dict = {'main': self.policy_optimizers[0].state_dict()}
+        if len(self.policy_optimizers) > 1:
+            policy_dict['common'] = self.policy_optimizers[1].state_dict()    
             
         optimizer_state_dict = {
             'q1': q1_dict,
@@ -440,6 +432,21 @@ class InputEmbedding(Vanilla):
             }    
         
         return optimizer_state_dict
+    
+    def load_optimizer_state_dict(self, optimizer_state_dict: Dict):
+        self.q1_optimizers[0].load_state_dict(optimizer_state_dict['q1']['main']) 
+        if len(optimizer_state_dict['q1'] > 1):
+            self.q1_optimizers[1].load_state_dict(optimizer_state_dict['q1']['common'])
+            
+        self.q2_optimizers[0].load_state_dict(optimizer_state_dict['q2']['main']) 
+        if len(optimizer_state_dict['q2'] > 1):
+            self.q2_optimizers[1].load_state_dict(optimizer_state_dict['q2']['common'])
+            
+        self.policy_optimizers[0].load_state_dict(optimizer_state_dict['policy']['main']) 
+        if len(optimizer_state_dict['policy'] > 1):
+            self.policy_optimizers[1].load_state_dict(optimizer_state_dict['policy']['common'])
+                       
+        self.alpha_optimizer.load_state_dict(optimizer_state_dict['alpha'])
 
     def reset(self) -> None:
         for net in self:

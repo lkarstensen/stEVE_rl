@@ -147,3 +147,11 @@ class Agent(ABC):
     @abstractmethod
     def episode_counter(self) -> EpisodeCounter:
         ...
+        
+    @abstractmethod
+    def save_checkpoint(self, directory: str, name: str):
+        ...
+        
+    @abstractmethod
+    def load_checkpoint(self, directory: str, name: str):
+        ...

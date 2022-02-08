@@ -23,7 +23,7 @@ class Algo(ABC):
 
     @property
     @abstractmethod
-    def model_states(self) -> Dict:
+    def model_states_container(self) -> Dict:
         ...
         
     @property
@@ -44,7 +44,7 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def set_model_states(self, model_states: Dict) -> None:
+    def set_model_states(self, model_states_container: ModelStateDicts) -> None:
         ...
         
     @abstractmethod

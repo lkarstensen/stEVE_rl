@@ -116,7 +116,7 @@ class ModelStateDicts(ABC):
 class Model(ABC):
     @property
     @abstractmethod
-    def model_state(self) -> ModelStateDicts:
+    def model_states_container(self) -> ModelStateDicts:
         ...
         
     @property
@@ -141,11 +141,11 @@ class Model(ABC):
         ...
 
     @abstractmethod
-    def load_model_state(self, state_dicts: ModelStateDicts) -> None:
+    def set_model_states(self, state_dicts: ModelStateDicts) -> None:
         ...
         
     @abstractmethod
-    def load_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
+    def set_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
         ...
 
     @abstractmethod

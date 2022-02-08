@@ -483,7 +483,7 @@ class InputEmbedding(Vanilla):
         return model_state
     
     @property
-    def optimizer_state_dict(self) -> Dict:
+    def optimizer_state_dicts(self) -> Dict:
                 
         q1_dict = {'main': self.q1_optimizers[0].state_dict()}
         if len(self.q1_optimizers) > 1:
@@ -497,16 +497,16 @@ class InputEmbedding(Vanilla):
         if len(self.policy_optimizers) > 1:
             policy_dict['common'] = self.policy_optimizers[1].state_dict()    
             
-        optimizer_state_dict = {
+        optimizer_state_dicts = {
             'q1': q1_dict,
             'q2': q2_dict,
             'policy': policy_dict,
             'alpha': self.alpha_optimizer.state_dict(),
             }    
         
-        return optimizer_state_dict
+        return optimizer_state_dicts
     
-    def load_optimizer_state_dict(self, optimizer_state_dict: Dict):
+    def load_optimizer_state_dicts(self, optimizer_state_dict: Dict):
         self.q1_optimizers[0].load_state_dict(optimizer_state_dict['q1']['main']) 
         if len(optimizer_state_dict['q1'] > 1):
             self.q1_optimizers[1].load_state_dict(optimizer_state_dict['q1']['common'])

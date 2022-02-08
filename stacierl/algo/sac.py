@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Dict
 import torch
 import torch.nn.functional as F
 from .algo import Algo, ModelStateDicts
@@ -178,10 +178,17 @@ class SAC(Algo):
 
     @property
     def state_dicts(self) -> ModelStateDicts:
-        return self.model.state_dicts
+        return self.model.model_state
 
     def load_state_dicts(self, state_dicts: ModelStateDicts) -> None:
-        self.model.load_state_dicts(state_dicts)
+        self.model.load_model_state(state_dicts)
+
+    @property
+    def optimizer_dicts(self) -> Dict:
+        return self.model.optimizer_state_dicts
+    
+    def load_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
+        self.model.load_optimizer_state_dicts(optimizer_state_dicts)
 
     def reset(self) -> None:
         self.model.reset()

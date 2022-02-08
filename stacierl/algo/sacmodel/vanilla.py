@@ -297,17 +297,17 @@ class Vanilla(SACModel):
     
     
     @property
-    def optimizer_state_dict(self) -> Dict:
-        optimizer_state_dict = {
+    def optimizer_state_dicts(self) -> Dict:
+        optimizer_state_dicts = {
             'q1': self.q1_optimizer.state_dict(),
             'q2': self.q2_optimizer.state_dict(),
             'policy': self.policy_optimizer.state_dict(),
             'alpha': self.alpha_optimizer.state_dict()
         }
         
-        return optimizer_state_dict
+        return optimizer_state_dicts
     
-    def load_optimizer_state_dict(self, optimizer_state_dict: Dict):
+    def load_optimizer_state_dicts(self, optimizer_state_dict: Dict):
         self.q1_optimizer.load_state_dict(optimizer_state_dict['q1'])
         self.q2_optimizer.load_state_dict(optimizer_state_dict['q2'])
         self.policy_optimizer.load_state_dict(optimizer_state_dict['policy'])

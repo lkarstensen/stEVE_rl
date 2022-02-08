@@ -411,17 +411,33 @@ class InputEmbedding(Vanilla):
     
     @property
     def optimizer_state_dict(self) -> Dict:
-        optimizer_state_dict = {
-            'q1': self.q1_optimizers[0].state_dict(),
-            'q2': self.q2_optimizers[0].state_dict(),
-            'policy': self.policy_optimizers[0].state_dict(),
-            'alpha': self.alpha_optimizer.state_dict(),
-            }
-        # common optimizer missing
+                
+        q1_dict = {'q1_opt': self.q1_optimizers[0].state_dict()}
         if len(self.q1_optimizers) == 1:
-            optimizer_state_dict['q1_common'] = None
+            q1_dict['q1_common'] = None
         else:
-            optimizer_state_dict['q1_common'] = self.q1_optimizers[1].state_dict()
+            q1_dict['q1_common'] = self.q1_optimizers[1].state_dict()
+            
+        q2_dict = {'q2_opt': self.q2_optimizers[0].state_dict()}
+        if len(self.q2_optimizers) == 1:
+            q2_dict['q2_common'] = None
+        else:
+            q2_dict['q2_common'] = self.q2_optimizers[1].state_dict()
+            
+        policy_dict = {'policy_opt': self.policy_optimizers[0].state_dict()}
+        if len(self.policy_optimizers) == 1:
+            policy_dict['policy_common'] = None
+        else:
+            policy_dict['policy_common'] = self.policy_optimizers[1].state_dict()    
+            
+        # alpha dict?
+            
+        optimizer_state_dict = {
+            'q1': q1_dict,
+            'q2': q2_dict,
+            'policy': policy_dict,
+            'alpha': self.alpha_optimizer.state_dict(),
+            }    
         
         return optimizer_state_dict
 

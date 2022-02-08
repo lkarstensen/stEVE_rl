@@ -286,6 +286,12 @@ class Vanilla(SACModel):
         }
         
         return optimizer_state_dict
+    
+    def load_optimizer_state_dict(self, optimizer_state_dict: Dict):
+        self.q1_optimizer.load_state_dict(optimizer_state_dict['q1'])
+        self.q2_optimizer.load_state_dict(optimizer_state_dict['q2'])
+        self.policy_optimizer.load_state_dict(optimizer_state_dict['policy'])
+        self.alpha_optimizer.load_state_dict(optimizer_state_dict['alpha'])        
 
     def reset(self) -> None:
         for net in self:

@@ -1,6 +1,8 @@
 from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
+
+from stacierl.algo.model import ModelStateDicts
 from .vanilla import Vanilla, SACStateDicts
 from ... import network
 from ...network import NetworkDummy, Network
@@ -19,7 +21,7 @@ class Embedder:
 
 
 @dataclass
-class SACEmbeddedStateDicts(SACStateDicts):
+class SACEmbeddedStateDicts(ModelStateDicts):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     target_q1: Dict[str, torch.Tensor]
@@ -463,7 +465,7 @@ class InputEmbedding(Vanilla):
         
         self.policy.load_state_dict(model_states_container.policy)
         self.policy_common_input_embedder.network.load_state_dict(model_states_container.policy_common)
-        
+
         self.log_alpha = model_states_container.log_alpha['log_alpha']
 
     @property
@@ -477,9 +479,8 @@ class InputEmbedding(Vanilla):
             self.q1_common_input_embedder.network.state_dict(),
             self.q2_common_input_embedder.network.state_dict(),
             self.policy_common_input_embedder.network.state_dict(),
-            {'log_alpha': self.log_alpha},
+            {'log_alpha': self.log_alpha}
         )
-        
         return model_states_container
     
     @property
@@ -508,15 +509,15 @@ class InputEmbedding(Vanilla):
     
     def set_optimizer_state_dicts(self, optimizer_state_dict: Dict):
         self.q1_optimizers[0].load_state_dict(optimizer_state_dict['q1']['main']) 
-        if len(optimizer_state_dict['q1'] > 1):
+        if len(optimizer_state_dict['q1']) > 1:
             self.q1_optimizers[1].load_state_dict(optimizer_state_dict['q1']['common'])
             
         self.q2_optimizers[0].load_state_dict(optimizer_state_dict['q2']['main']) 
-        if len(optimizer_state_dict['q2'] > 1):
+        if len(optimizer_state_dict['q2']) > 1:
             self.q2_optimizers[1].load_state_dict(optimizer_state_dict['q2']['common'])
             
         self.policy_optimizers[0].load_state_dict(optimizer_state_dict['policy']['main']) 
-        if len(optimizer_state_dict['policy'] > 1):
+        if len(optimizer_state_dict['policy']) > 1:
             self.policy_optimizers[1].load_state_dict(optimizer_state_dict['policy']['common'])
                        
         self.alpha_optimizer.load_state_dict(optimizer_state_dict['alpha'])

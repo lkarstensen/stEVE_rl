@@ -28,7 +28,7 @@ class Algo(ABC):
         
     @property
     @abstractmethod
-    def optimizer_dicts(self) -> Dict:
+    def optimizer_state_dicts(self) -> Dict:
         ...
 
     @abstractmethod

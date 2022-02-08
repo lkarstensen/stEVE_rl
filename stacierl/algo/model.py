@@ -118,6 +118,11 @@ class Model(ABC):
     @abstractmethod
     def model_state(self) -> ModelStateDicts:
         ...
+        
+    @property
+    @abstractmethod
+    def optimizer_state_dicts(self) -> Dict:
+        ...
 
     @abstractmethod
     def get_play_action(self, flat_state: np.ndarray) -> np.ndarray:
@@ -140,7 +145,7 @@ class Model(ABC):
         ...
         
     @abstractmethod
-    def load_optimizer_state_dict(self, optimizer_state_dict: Dict) -> None:
+    def load_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
         ...
 
     @abstractmethod

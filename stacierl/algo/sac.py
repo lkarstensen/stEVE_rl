@@ -184,7 +184,7 @@ class SAC(Algo):
         self.model.load_model_state(state_dicts)
 
     @property
-    def optimizer_dicts(self) -> Dict:
+    def optimizer_state_dicts(self) -> Dict:
         return self.model.optimizer_state_dicts
     
     def load_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:

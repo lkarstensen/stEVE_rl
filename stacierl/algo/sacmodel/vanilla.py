@@ -54,7 +54,6 @@ class SACStateDicts(ModelStateDicts):
         self.policy = model_state_dict['policy']
         self.log_alpha = model_state_dict['log_alpha']
 
-
 class Vanilla(SACModel):
     def __init__(
         self,
@@ -275,7 +274,7 @@ class Vanilla(SACModel):
 
         return copy
 
-    def load_model_state(self, model_state: SACStateDicts):
+    def set_model_states(self, model_state: SACStateDicts):
         self.q1.load_state_dict(model_state.q1)
         self.q2.load_state_dict(model_state.q2)
         self.target_q1.load_state_dict(model_state.target_q1)
@@ -284,8 +283,8 @@ class Vanilla(SACModel):
         self.log_alpha = model_state.log_alpha['log_alpha']
 
     @property
-    def model_state(self) -> SACStateDicts:
-        model_state = SACStateDicts(
+    def model_states_container(self) -> SACStateDicts:
+        model_states_container = SACStateDicts(
             self.q1.state_dict(),
             self.q2.state_dict(),
             self.target_q1.state_dict(),
@@ -293,7 +292,7 @@ class Vanilla(SACModel):
             self.policy.state_dict(),
             {'log_alpha': self.log_alpha},
         )
-        return model_state
+        return model_states_container
     
     
     @property
@@ -307,7 +306,7 @@ class Vanilla(SACModel):
         
         return optimizer_state_dicts
     
-    def load_optimizer_state_dicts(self, optimizer_state_dict: Dict):
+    def set_optimizer_state_dicts(self, optimizer_state_dict: Dict):
         self.q1_optimizer.load_state_dict(optimizer_state_dict['q1'])
         self.q2_optimizer.load_state_dict(optimizer_state_dict['q2'])
         self.policy_optimizer.load_state_dict(optimizer_state_dict['policy'])

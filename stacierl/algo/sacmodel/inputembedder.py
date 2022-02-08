@@ -451,24 +451,24 @@ class InputEmbedding(Vanilla):
 
         return copy
 
-    def load_model_state(self, model_state: SACEmbeddedStateDicts):
-        self.q1.load_state_dict(model_state.q1)
-        self.q1_common_input_embedder.network.load_state_dict(model_state.q1_common)
+    def set_model_states(self, model_states_container: SACEmbeddedStateDicts):
+        self.q1.load_state_dict(model_states_container.q1)
+        self.q1_common_input_embedder.network.load_state_dict(model_states_container.q1_common)
         
-        self.q2.load_state_dict(model_state.q2)
-        self.q2_common_input_embedder.network.load_state_dict(model_state.q2_common)
+        self.q2.load_state_dict(model_states_container.q2)
+        self.q2_common_input_embedder.network.load_state_dict(model_states_container.q2_common)
         
-        self.target_q1.load_state_dict(model_state.target_q1)
-        self.target_q2.load_state_dict(model_state.target_q2)
+        self.target_q1.load_state_dict(model_states_container.target_q1)
+        self.target_q2.load_state_dict(model_states_container.target_q2)
         
-        self.policy.load_state_dict(model_state.policy)
-        self.policy_common_input_embedder.network.load_state_dict(model_state.policy_common)
+        self.policy.load_state_dict(model_states_container.policy)
+        self.policy_common_input_embedder.network.load_state_dict(model_states_container.policy_common)
         
-        self.log_alpha = model_state.log_alpha['log_alpha']
+        self.log_alpha = model_states_container.log_alpha['log_alpha']
 
     @property
-    def model_state(self) -> SACEmbeddedStateDicts:
-        model_state = SACEmbeddedStateDicts(
+    def model_states_container(self) -> SACEmbeddedStateDicts:
+        model_states_container = SACEmbeddedStateDicts(
             self.q1.state_dict(),
             self.q2.state_dict(),
             self.target_q1.state_dict(),
@@ -480,7 +480,7 @@ class InputEmbedding(Vanilla):
             {'log_alpha': self.log_alpha},
         )
         
-        return model_state
+        return model_states_container
     
     @property
     def optimizer_state_dicts(self) -> Dict:
@@ -506,7 +506,7 @@ class InputEmbedding(Vanilla):
         
         return optimizer_state_dicts
     
-    def load_optimizer_state_dicts(self, optimizer_state_dict: Dict):
+    def set_optimizer_state_dicts(self, optimizer_state_dict: Dict):
         self.q1_optimizers[0].load_state_dict(optimizer_state_dict['q1']['main']) 
         if len(optimizer_state_dict['q1'] > 1):
             self.q1_optimizers[1].load_state_dict(optimizer_state_dict['q1']['common'])

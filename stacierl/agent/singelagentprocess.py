@@ -1,7 +1,7 @@
 import logging
 from math import inf
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from .agent import Agent, EpisodeCounterShared, StepCounterShared
 from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
@@ -98,7 +98,7 @@ def run(
 
         task_name = task[0]
         if task_name == "heatup":
-            result = agent.heatup(task[1], task[2])
+            result = agent.heatup(task[1], task[2], task[3])
         elif task_name == "explore":
             result = agent.explore(task[1], task[2])
         elif task_name == "evaluate":
@@ -181,8 +181,10 @@ class SingleAgentProcess(Agent):
         )
         self._process.start()
 
-    def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
-        self._task_queue.put(["heatup", steps, episodes])
+    def heatup(
+        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+    ) -> Tuple[float, float]:
+        self._task_queue.put(["heatup", steps, episodes, custom_action_low])
 
     def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
         self._task_queue.put(["explore", steps, episodes])

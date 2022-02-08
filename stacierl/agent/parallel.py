@@ -56,10 +56,12 @@ class Parallel(Agent):
         if not shared_model:
             self.update(0)
 
-    def heatup(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
+    def heatup(
+        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+    ) -> Tuple[float, float]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
-            agent.heatup(steps_per_agent, episodes_per_agent)
+            agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
         result = self._get_play_results()
         return result
 

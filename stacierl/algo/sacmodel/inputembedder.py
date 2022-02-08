@@ -19,13 +19,6 @@ class Embedder:
 
 
 @dataclass
-class HydraNetwork:
-    network: Network
-    split_state_id: int
-    requires_grad: bool
-
-
-@dataclass
 class SACEmbeddedStateDicts(SACStateDicts):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
@@ -315,7 +308,7 @@ class InputEmbedding(Vanilla):
         self.alpha_optimizer.zero_grad()
         loss.backward()
         self.alpha_optimizer.step()
-        
+
     def save(self, path: str):
         torch.save(self.q1_common_input_embedder.network.state_dict(), path + "_common_net")
 
@@ -326,7 +319,7 @@ class InputEmbedding(Vanilla):
         torch.save(self.target_q2.state_dict(), path + "_target_q2")
 
         torch.save(self.policy.state_dict(), path + "_policy")
-        
+
     def load(self, path: str):
         self.q1_common_input_embedder.network.load_state_dict(
             torch.load(path + "_common_net", map_location=self.device)
@@ -373,10 +366,63 @@ class InputEmbedding(Vanilla):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
-        ...
+        q1_embed_network_current = self.q1_common_input_embedder.network
+        q1_embed_update = self.q1_common_input_embedder.update
+        q2_embed_network_current = self.q2_common_input_embedder.network
+        q2_embed_update = self.q2_common_input_embedder.update
+        policy_embed_network_current = self.policy_common_input_embedder.network
+        policy_embed_update = self.policy_common_input_embedder.update
+        q1_embed_network_copy = q1_embed_network_current.copy()
+        if q2_embed_network_current is q1_embed_network_current:
+            q2_embed_network_copy = q1_embed_network_copy
+        else:
+            q2_embed_network_copy = q2_embed_network_current.copy()
+
+        if policy_embed_network_current is q1_embed_network_current:
+            policy_embed_network_copy = q1_embed_network_copy
+        elif policy_embed_network_current is q2_embed_network_current:
+            policy_embed_network_copy = q2_embed_network_copy
+        else:
+            policy_embed_network_copy = policy_embed_network_current.copy()
+
+        copy = self.__class__(
+            self.q1.copy(),
+            self.q2.copy(),
+            self.policy.copy(),
+            self.learning_rate,
+            self.obs_space,
+            self.action_space,
+            Embedder(q1_embed_network_copy, q1_embed_update),
+            Embedder(q2_embed_network_copy, q2_embed_update),
+            Embedder(policy_embed_network_copy, policy_embed_update),
+        )
+        return copy
 
     def copy_shared_memory(self):
-        ...
+        self.q1.share_memory()
+        self.q2.share_memory()
+        self.target_q1.share_memory()
+        self.target_q2.share_memory()
+        self.policy.share_memory()
+        self.q1_common_input_embedder.network.share_memory()
+        self.q2_common_input_embedder.network.share_memory()
+        self.policy_common_input_embedder.network.share_memory()
+
+        copy = self.__class__(
+            self.q1,
+            self.q2,
+            self.policy,
+            self.learning_rate,
+            self.obs_space,
+            self.action_space,
+            self.q1_common_input_embedder,
+            self.q2_common_input_embedder,
+            self.policy_common_input_embedder,
+        )
+        copy.target_q1 = self.target_q1
+        copy.target_q2 = self.target_q2
+
+        return copy
 
     def load_model_state(self, model_state: SACEmbeddedStateDicts):
         self.q1.load_state_dict(model_state.q1)

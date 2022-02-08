@@ -33,6 +33,26 @@ class SACStateDicts(ModelStateDicts):
             deepcopy(self.policy),
             deepcopy(self.log_alpha)
         )
+        
+    def to_dict(self) -> Dict:
+        model_state_dict = {
+            'q1': self.q1,
+            'q2': self.q2,
+            'target_q1': self.target_q1,
+            'target_q2': self.target_q2,
+            'policy': self.policy,
+            'log_alpha': self.log_alpha
+        }
+        
+        return model_state_dict
+    
+    def from_dict(self, model_state_dict: Dict):
+        self.q1 = model_state_dict['q1']
+        self.q2 = model_state_dict['q2']
+        self.target_q1 = model_state_dict['target_q1']
+        self.target_q2 = model_state_dict['target_q2']
+        self.policy = model_state_dict['policy']
+        self.log_alpha = model_state_dict['log_alpha']
 
 
 class Vanilla(SACModel):

@@ -18,12 +18,12 @@ class ModelStateDicts(ABC):
     def copy(self):
         ...
         
-    # abstract or implement here?
+    @abstractmethod
     def to_dict(self):
         ...
         
-    # abstract or implement here?
-    def from_dict(self):
+    @abstractmethod
+    def from_dict(self, model_state_dict: Dict):
         ...
 
     def to(self, device: torch.device):

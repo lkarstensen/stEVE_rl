@@ -56,6 +56,33 @@ class SACEmbeddedStateDicts(SACStateDicts):
             deepcopy(self.policy_common),
             deepcopy(self.log_alpha)
         )
+        
+        
+    def to_dict(self) -> Dict:
+        model_state_dict = {
+            'q1': self.q1,
+            'q2': self.q2,
+            'target_q1': self.target_q1,
+            'target_q2': self.target_q2,
+            'policy': self.policy,
+            'q1_common': self.q1_common,
+            'q2_common': self.q2_common,
+            'policy_common': self.policy_common,
+            'log_alpha': self.log_alpha
+        }
+        
+        return model_state_dict
+    
+    def from_dict(self, model_state_dict: Dict):
+        self.q1 = model_state_dict['q1']
+        self.q2 = model_state_dict['q2']
+        self.target_q1 = model_state_dict['target_q1']
+        self.target_q2 = model_state_dict['target_q2']
+        self.policy = model_state_dict['policy']
+        self.q1_common = model_state_dict['q1_common']
+        self.q2_common = model_state_dict['q2_common']
+        self.policy_common = model_state_dict['policy_common']
+        self.log_alpha = model_state_dict['log_alpha']
 
 
 class InputEmbedding(Vanilla):

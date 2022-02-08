@@ -170,8 +170,8 @@ class Single(Agent):
         path = directory + '/' + name + '.pt'
         
         optimizer_dicts = self.algo.optimizer_state_dicts
-        model_state_dicts = self.algo.state_dicts
-        
+        model_state_dicts = self.algo.model_states_container.to_dict()
+
         checkpoint_dict = {
             'optimizer_dicts': optimizer_dicts,
             'model_state_dicts': model_state_dicts
@@ -183,8 +183,11 @@ class Single(Agent):
         path = directory + '/' + name + '.pt'
         checkpoint = torch.load(path)
         
-        self.algo.load_state_dicts(checkpoint['model_state_dicts'])
-        self.algo.load_optimizer_state_dicts(checkpoint['optimizer_dicts'])
+        model_states_container = self.algo.model.model_states_container
+        model_states_container.from_dict(checkpoint['model_state_dicts'])
+        
+        self.algo.set_model_states(model_states_container)
+        self.algo.set_optimizer_state_dicts(checkpoint['optimizer_dicts'])
 
     @property
     def step_counter(self) -> StepCounter:

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from typing import List, NamedTuple, Optional, Tuple
+from typing import List, NamedTuple, Optional, Tuple, Dict
 import numpy as np
 import torch
 from dataclasses import dataclass
@@ -137,6 +137,10 @@ class Model(ABC):
 
     @abstractmethod
     def load_model_state(self, state_dicts: ModelStateDicts) -> None:
+        ...
+        
+    @abstractmethod
+    def load_optimizer_state_dict(self, optimizer_state_dict: Dict) -> None:
         ...
 
     @abstractmethod

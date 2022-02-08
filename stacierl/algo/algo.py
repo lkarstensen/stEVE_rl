@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
 from .model import Model, ModelStateDicts
@@ -24,6 +24,11 @@ class Algo(ABC):
     @property
     @abstractmethod
     def state_dicts(self) -> ModelStateDicts:
+        ...
+        
+    @property
+    @abstractmethod
+    def optimizer_dicts(self) -> Dict:
         ...
 
     @abstractmethod

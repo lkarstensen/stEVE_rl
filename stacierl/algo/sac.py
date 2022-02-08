@@ -177,22 +177,18 @@ class SAC(Algo):
         self.model.to(device)
 
     @property
-    def state_dicts(self) -> Dict:
-        return self.model.model_state.to_dict()
+    def model_states_container(self) -> ModelStateDicts:
+        return self.model.model_states_container
 
-    def load_state_dicts(self, state_dicts: Dict) -> None:
-        # THIS NEEDS TESTING!
-        # converting
-        self.model.model_state.from_dict(state_dicts)
-        # load data
-        self.model.load_model_state(self.model.model_state)
+    def set_model_states(self, model_states_container: ModelStateDicts) -> None:
+        self.model.set_model_states(model_states_container)
 
     @property
     def optimizer_state_dicts(self) -> Dict:
         return self.model.optimizer_state_dicts
     
-    def load_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
-        self.model.load_optimizer_state_dicts(optimizer_state_dicts)
+    def set_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
+        self.model.set_optimizer_state_dicts(optimizer_state_dicts)
 
     def reset(self) -> None:
         self.model.reset()

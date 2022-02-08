@@ -28,7 +28,7 @@ class SACEmbeddedStateDicts(SACStateDicts):
     q1_common: Dict[str, torch.Tensor]
     q2_common: Dict[str, torch.Tensor]
     policy_common: Dict[str, torch.Tensor]
-    log_alpha: torch.Tensor
+    log_alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
         iter_list = [
@@ -437,7 +437,7 @@ class InputEmbedding(Vanilla):
         self.policy.load_state_dict(model_state.policy)
         self.policy_common_input_embedder.network.load_state_dict(model_state.policy_common)
         
-        self.log_alpha = model_state.log_alpha
+        self.log_alpha = model_state.log_alpha['log_alpha']
 
     @property
     def model_state(self) -> SACEmbeddedStateDicts:
@@ -450,7 +450,7 @@ class InputEmbedding(Vanilla):
             self.q1_common_input_embedder.network.state_dict(),
             self.q2_common_input_embedder.network.state_dict(),
             self.policy_common_input_embedder.network.state_dict(),
-            self.log_alpha,
+            {'log_alpha': self.log_alpha},
         )
         
         return model_state

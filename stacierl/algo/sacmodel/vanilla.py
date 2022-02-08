@@ -19,7 +19,7 @@ class SACStateDicts(ModelStateDicts):
     target_q1: Dict[str, torch.Tensor]
     target_q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
-    log_alpha: torch.Tensor
+    log_alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
         return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy, self.log_alpha])
@@ -261,7 +261,7 @@ class Vanilla(SACModel):
         self.target_q1.load_state_dict(model_state.target_q1)
         self.target_q2.load_state_dict(model_state.target_q2)
         self.policy.load_state_dict(model_state.policy)
-        self.log_alpha = model_state.log_alpha
+        self.log_alpha = model_state.log_alpha['log_alpha']
 
     @property
     def model_state(self) -> SACStateDicts:
@@ -271,7 +271,7 @@ class Vanilla(SACModel):
             self.target_q1.state_dict(),
             self.target_q2.state_dict(),
             self.policy.state_dict(),
-            self.log_alpha,
+            {'log_alpha': self.log_alpha},
         )
         return model_state
     

@@ -121,7 +121,7 @@ class Model(ABC):
         
     @property
     @abstractmethod
-    def optimizer_state_dicts(self) -> Dict:
+    def optimizer_states_container(self) -> ModelStateDicts:
         ...
 
     @abstractmethod
@@ -145,7 +145,7 @@ class Model(ABC):
         ...
         
     @abstractmethod
-    def set_optimizer_state_dicts(self, optimizer_state_dicts: Dict) -> None:
+    def set_optimizer_states(self, optimizer_states_container: ModelStateDicts) -> None:
         ...
 
     @abstractmethod

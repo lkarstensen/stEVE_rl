@@ -82,11 +82,11 @@ class SACOptimizerStateDicts(ModelStateDicts):
         
         return optimizer_state_dict
     
-    def from_dict(self, model_state_dict: Dict):
-        self.q1 = model_state_dict['q1']
-        self.q2 = model_state_dict['q2']
-        self.policy = model_state_dict['policy']
-        self.log_alpha = model_state_dict['alpha']
+    def from_dict(self, optimizer_state_dict: Dict):
+        self.q1 = optimizer_state_dict['q1']
+        self.q2 = optimizer_state_dict['q2']
+        self.policy = optimizer_state_dict['policy']
+        self.log_alpha = optimizer_state_dict['alpha']
 
 class Vanilla(SACModel):
     def __init__(

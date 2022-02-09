@@ -56,14 +56,6 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def save_model(self, path):
-         ...
-
-    @abstractmethod
-    def load_model(self, path):
-         ...
-
-    @abstractmethod
     def copy(self):
         ...
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
-from .model import Model, PytorchStatesContainer
+from .model import Model, NetworkStatesContainer
 import torch
 
 
@@ -21,16 +21,6 @@ class Algo(ABC):
     def device(self) -> torch.device:
         ...
 
-    @property
-    @abstractmethod
-    def network_states_container(self) -> PytorchStatesContainer:
-        ...
-
-    @property
-    @abstractmethod
-    def optimizer_states_container(self) -> PytorchStatesContainer:
-        ...
-
     @abstractmethod
     def update(self, batch: Batch) -> List[float]:
         ...
@@ -41,14 +31,6 @@ class Algo(ABC):
 
     @abstractmethod
     def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
-        ...
-
-    @abstractmethod
-    def set_network_states(self, network_states_container: PytorchStatesContainer) -> None:
-        ...
-
-    @abstractmethod
-    def set_optimizer_states(self, optimizer_states_container: PytorchStatesContainer) -> None:
         ...
 
     @abstractmethod

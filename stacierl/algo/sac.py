@@ -2,7 +2,7 @@ import logging
 from typing import List, Dict
 import torch
 import torch.nn.functional as F
-from .algo import Algo, PytorchStatesContainer
+from .algo import Algo, NetworkStatesContainer
 from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
@@ -162,20 +162,6 @@ class SAC(Algo):
         self.alpha = self.alpha.to(device)
         self.target_entropy = self.target_entropy.to(device)
         self.model.to(device)
-
-    @property
-    def network_states_container(self) -> PytorchStatesContainer:
-        return self.model.network_states_container
-
-    def set_network_states(self, network_states_container: PytorchStatesContainer) -> None:
-        self.model.set_network_states(network_states_container)
-
-    @property
-    def optimizer_states_container(self) -> PytorchStatesContainer:
-        return self.model.optimizer_states_container
-
-    def set_optimizer_states(self, optimizer_states_container: PytorchStatesContainer) -> None:
-        self.model.set_optimizer_states(optimizer_states_container)
 
     def reset(self) -> None:
         self.model.reset()

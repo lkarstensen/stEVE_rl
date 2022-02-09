@@ -170,8 +170,8 @@ class Single(Agent):
     def save_checkpoint(self, directory: str, name: str) -> None:
         path = directory + "/" + name + ".pt"
 
-        optimizer_state_dicts = self.algo.optimizer_states_container.to_dict()
-        network_state_dicts = self.algo.network_states_container.to_dict()
+        optimizer_state_dicts = self.algo.model.optimizer_states_container.to_dict()
+        network_state_dicts = self.algo.model.network_states_container.to_dict()
 
         checkpoint_dict = {
             "optimizer_state_dicts": optimizer_state_dicts,
@@ -189,14 +189,14 @@ class Single(Agent):
         path = os.path.join(directory, name + ".pt")
         checkpoint = torch.load(path, map_location=self.device)
 
-        network_states_container = self.algo.network_states_container
+        network_states_container = self.algo.model.network_states_container
         network_states_container.from_dict(checkpoint["network_state_dicts"])
 
-        optimizer_states_container = self.algo.optimizer_states_container
+        optimizer_states_container = self.algo.model.optimizer_states_container
         optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
 
-        self.algo.set_network_states(network_states_container)
-        self.algo.set_optimizer_states(optimizer_states_container)
+        self.algo.model.set_network_states(network_states_container)
+        self.algo.model.set_optimizer_states(optimizer_states_container)
 
         self.step_counter = StepCounter(
             checkpoint["heatup_steps"],
@@ -214,9 +214,9 @@ class Single(Agent):
         return self._episode_counter
 
     @step_counter.setter
-    def step_counter(self, new_counter: StepCounter) -> StepCounter:
+    def step_counter(self, new_counter: StepCounter) -> None:
         self._step_counter = new_counter
 
     @episode_counter.setter
-    def episode_counter(self, new_counter: EpisodeCounter) -> EpisodeCounter:
+    def episode_counter(self, new_counter: EpisodeCounter) -> None:
         self._episode_counter = new_counter

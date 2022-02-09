@@ -2,8 +2,8 @@ from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from stacierl.algo.model import PytorchStatesContainer
-from .vanilla import SACOptimizerStateContainer, Vanilla, SACNetworkStateContainer
+
+from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
 from ... import network
 from ...network import NetworkDummy, Network
 import torch.optim as optim
@@ -21,7 +21,7 @@ class Embedder:
 
 
 @dataclass
-class SACEmbeddedNetworkStateContainer(PytorchStatesContainer):
+class SACEmbeddedNetworkStateContainer(NetworkStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     target_q1: Dict[str, torch.Tensor]
@@ -87,7 +87,7 @@ class SACEmbeddedNetworkStateContainer(PytorchStatesContainer):
 
 
 @dataclass
-class SACEmbeddedOptimizerStateContainer(PytorchStatesContainer):
+class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]

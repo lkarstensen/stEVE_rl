@@ -2,7 +2,7 @@ from typing import Dict, Iterator, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from .sacmodel import SACModel, PytorchStatesContainer
+from .sacmodel import SACModel, NetworkStatesContainer, OptimizerStatesContainer
 from ... import network
 import torch.optim as optim
 import torch
@@ -13,7 +13,7 @@ from ...util import ObservationSpace, ActionSpace
 
 
 @dataclass
-class SACNetworkStateContainer(PytorchStatesContainer):
+class SACNetworkStateContainer(NetworkStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     target_q1: Dict[str, torch.Tensor]
@@ -56,7 +56,7 @@ class SACNetworkStateContainer(PytorchStatesContainer):
 
 
 @dataclass
-class SACOptimizerStateContainer(PytorchStatesContainer):
+class SACOptimizerStateContainer(OptimizerStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
@@ -67,7 +67,7 @@ class SACOptimizerStateContainer(PytorchStatesContainer):
 
     def copy(self):
         return SACOptimizerStateContainer(
-            deepcopy(self.q1), deepcopy(self.q2), deepcopy(self.policy), deepcopy(self.log_alpha)
+            deepcopy(self.q1), deepcopy(self.q2), deepcopy(self.policy), deepcopy(self.alpha)
         )
 
     def to_dict(self) -> Dict:
@@ -84,7 +84,7 @@ class SACOptimizerStateContainer(PytorchStatesContainer):
         self.q1 = optimizer_state_dict["q1"]
         self.q2 = optimizer_state_dict["q2"]
         self.policy = optimizer_state_dict["policy"]
-        self.log_alpha = optimizer_state_dict["alpha"]
+        self.alpha = optimizer_state_dict["alpha"]
 
 
 class Vanilla(SACModel):

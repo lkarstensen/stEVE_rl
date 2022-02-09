@@ -23,7 +23,7 @@ class ModelStateDicts(ABC):
         ...
         
     @abstractmethod
-    def from_dict(self, model_state_dict: Dict):
+    def from_dict(self, state_dict: Dict):
         ...
 
     def to(self, device: torch.device):

@@ -53,6 +53,40 @@ class SACStateDicts(ModelStateDicts):
         self.target_q2 = model_state_dict['target_q2']
         self.policy = model_state_dict['policy']
         self.log_alpha = model_state_dict['log_alpha']
+              
+@dataclass
+class SACOptimizerStateDicts(ModelStateDicts):
+    q1: Dict[str, torch.Tensor]
+    q2: Dict[str, torch.Tensor]
+    policy: Dict[str, torch.Tensor]
+    alpha: Dict[str, torch.Tensor]
+
+    def __iter__(self):
+        return iter([self.q1, self.q2, self.policy, self.log_alpha])
+
+    def copy(self):
+        return SACOptimizerStateDicts(
+            deepcopy(self.q1),
+            deepcopy(self.q2),
+            deepcopy(self.policy),
+            deepcopy(self.log_alpha)
+        )
+        
+    def to_dict(self) -> Dict:
+        optimizer_state_dict = {
+            'q1': self.q1,
+            'q2': self.q2,
+            'policy': self.policy,
+            'alpha': self.alpha
+        }
+        
+        return optimizer_state_dict
+    
+    def from_dict(self, model_state_dict: Dict):
+        self.q1 = model_state_dict['q1']
+        self.q2 = model_state_dict['q2']
+        self.policy = model_state_dict['policy']
+        self.log_alpha = model_state_dict['alpha']
 
 class Vanilla(SACModel):
     def __init__(
@@ -286,21 +320,21 @@ class Vanilla(SACModel):
     
     
     @property
-    def optimizer_state_dicts(self) -> Dict:
-        optimizer_state_dicts = {
-            'q1': self.q1_optimizer.state_dict(),
-            'q2': self.q2_optimizer.state_dict(),
-            'policy': self.policy_optimizer.state_dict(),
-            'alpha': self.alpha_optimizer.state_dict()
-        }
+    def optimizer_states_container(self) -> SACOptimizerStateDicts:
+        optimizer_states_container = SACOptimizerStateDicts(
+            self.q1_optimizer.state_dict(),
+            self.q2_optimizer.state_dict(),
+            self.policy_optimizer.state_dict(),
+            self.alpha_optimizer.state_dict()
+        )
         
-        return optimizer_state_dicts
+        return optimizer_states_container
     
-    def set_optimizer_state_dicts(self, optimizer_state_dict: Dict):
-        self.q1_optimizer.load_state_dict(optimizer_state_dict['q1'])
-        self.q2_optimizer.load_state_dict(optimizer_state_dict['q2'])
-        self.policy_optimizer.load_state_dict(optimizer_state_dict['policy'])
-        self.alpha_optimizer.load_state_dict(optimizer_state_dict['alpha'])        
+    def set_optimizer_states(self, optimizer_states_container: SACOptimizerStateDicts):
+        self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
+        self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
+        self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
+        self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)        
 
     def reset(self) -> None:
         for net in self:

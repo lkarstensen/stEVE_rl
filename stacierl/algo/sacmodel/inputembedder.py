@@ -91,9 +91,9 @@ class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
-    q1_common: Dict[str, torch.Tensor] or dict()
-    q2_common: Dict[str, torch.Tensor] or dict()
-    policy_common: Dict[str, torch.Tensor] or dict()
+    q1_common: Dict[str, torch.Tensor] or None
+    q2_common: Dict[str, torch.Tensor] or None
+    policy_common: Dict[str, torch.Tensor] or None
     alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
@@ -101,11 +101,14 @@ class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
             self.q1,
             self.q2,
             self.policy,
-            self.q1_common,
-            self.q2_common,
-            self.policy_common,
             self.alpha,
         ]
+        if self.q1_common is not None:
+            iter_list.append(self.q1_common)
+        if self.q2_common is not None:
+            iter_list.append(self.q2_common)
+        if self.policy_common is not None:
+            iter_list.append(self.policy_common)
         return iter(iter_list)
 
     def copy(self):

@@ -338,41 +338,6 @@ class InputEmbedding(Vanilla):
         loss.backward()
         self.alpha_optimizer.step()
 
-    def save(self, path: str):
-        torch.save(self.q1_common_input_embedder.network.state_dict(), path + "_common_net")
-
-        torch.save(self.q1.state_dict(), path + "_q1")
-        torch.save(self.q2.state_dict(), path + "_q2")
-
-        torch.save(self.target_q1.state_dict(), path + "_target_q1")
-        torch.save(self.target_q2.state_dict(), path + "_target_q2")
-
-        torch.save(self.policy.state_dict(), path + "_policy")
-
-    def load(self, path: str):
-        self.q1_common_input_embedder.network.load_state_dict(
-            torch.load(path + "_common_net", map_location=self.device)
-        )
-        self.q1_common_input_embedder.network.eval()
-        self.q1_common_input_embedder.bool = False
-
-        self.q1.load_state_dict(torch.load(path + "_q1", map_location=self.device))
-
-        self.q2.load_state_dict(torch.load(path + "_q2", map_location=self.device))
-        self.q2_common_input_embedder = self.q1_common_input_embedder
-
-        self.target_q1.load_state_dict(torch.load(path + "_target_q1", map_location=self.device))
-        self.target_q2.load_state_dict(torch.load(path + "_target_q2", map_location=self.device))
-
-        self.policy.load_state_dict(torch.load(path + "_policy", map_location=self.device))
-        self.policy_common_input_embedder = self.q1_common_input_embedder
-
-        self.q1.eval()
-        self.q2.eval()
-        self.target_q1.eval()
-        self.target_q2.eval()
-        self.policy.eval()
-
     def to(self, device: torch.device):
         self.device = device
         self.q1.to(device)

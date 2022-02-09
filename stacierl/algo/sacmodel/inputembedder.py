@@ -3,7 +3,7 @@ import numpy as np
 from torch.distributions.normal import Normal
 
 from stacierl.algo.model import ModelStateDicts
-from .vanilla import Vanilla, SACStateDicts
+from .vanilla import SACOptimizerStateDicts, Vanilla, SACStateDicts
 from ... import network
 from ...network import NetworkDummy, Network
 import torch.optim as optim
@@ -85,6 +85,62 @@ class SACEmbeddedStateDicts(ModelStateDicts):
         self.q2_common = model_state_dict['q2_common']
         self.policy_common = model_state_dict['policy_common']
         self.log_alpha = model_state_dict['log_alpha']
+        
+@dataclass
+class SACEmbeddedOptimizerStateDicts(ModelStateDicts):
+    q1: Dict[str, torch.Tensor]
+    q2: Dict[str, torch.Tensor]
+    policy: Dict[str, torch.Tensor]
+    q1_common: Dict[str, torch.Tensor] or None
+    q2_common: Dict[str, torch.Tensor] or None
+    policy_common: Dict[str, torch.Tensor] or None
+    alpha: Dict[str, torch.Tensor]
+
+    def __iter__(self):
+        iter_list = [
+            self.q1,
+            self.q2,
+            self.policy,
+            self.q1_common,
+            self.q2_common,
+            self.policy_common,
+            self.alpha,
+        ]
+        return iter(iter_list)
+
+    def copy(self):
+        return SACEmbeddedOptimizerStateDicts(
+            deepcopy(self.q1),
+            deepcopy(self.q2),
+            deepcopy(self.policy),
+            deepcopy(self.q1_common),
+            deepcopy(self.q2_common),
+            deepcopy(self.policy_common),
+            deepcopy(self.alpha)
+        )
+        
+        
+    def to_dict(self) -> Dict:
+        model_state_dict = {
+            'q1': self.q1,
+            'q2': self.q2,
+            'policy': self.policy,
+            'q1_common': self.q1_common,
+            'q2_common': self.q2_common,
+            'policy_common': self.policy_common,
+            'alpha': self.alpha
+        }
+        
+        return model_state_dict
+    
+    def from_dict(self, model_state_dict: Dict):
+        self.q1 = model_state_dict['q1']
+        self.q2 = model_state_dict['q2']
+        self.policy = model_state_dict['policy']
+        self.q1_common = model_state_dict['q1_common']
+        self.q2_common = model_state_dict['q2_common']
+        self.policy_common = model_state_dict['policy_common']
+        self.alpha = model_state_dict['log_alpha']
 
 
 class InputEmbedding(Vanilla):
@@ -474,43 +530,49 @@ class InputEmbedding(Vanilla):
         return model_states_container
     
     @property
-    def optimizer_state_dicts(self) -> Dict:
+    def optimizer_states_container(self) -> SACEmbeddedOptimizerStateDicts:
                 
-        q1_dict = {'main': self.q1_optimizers[0].state_dict()}
+        q1 = self.q1_optimizers[0].state_dict()
+        q1_common = None
         if len(self.q1_optimizers) > 1:
-            q1_dict['common'] = self.q1_optimizers[1].state_dict()
+            q1_common = self.q1_optimizers[1].state_dict()
             
-        q2_dict = {'main': self.q2_optimizers[0].state_dict()}
+        q2 = self.q2_optimizers[0].state_dict()
+        q2_common = None
         if len(self.q2_optimizers) > 1:
-            q2_dict['common'] = self.q2_optimizers[1].state_dict()
+            q2_common = self.q2_optimizers[1].state_dict()
             
-        policy_dict = {'main': self.policy_optimizers[0].state_dict()}
+        policy = self.policy_optimizers[0].state_dict()
+        policy_common = None
         if len(self.policy_optimizers) > 1:
-            policy_dict['common'] = self.policy_optimizers[1].state_dict()    
+            policy_common = self.policy_optimizers[1].state_dict()    
             
-        optimizer_state_dicts = {
-            'q1': q1_dict,
-            'q2': q2_dict,
-            'policy': policy_dict,
-            'alpha': self.alpha_optimizer.state_dict(),
-            }    
-        
-        return optimizer_state_dicts
+        optimizer_states_container = (
+            q1,
+            q2,
+            policy,
+            q1_common, 
+            q2_common,
+            policy_common,
+            self.alpha_optimizer.state_dict()
+        )
+                
+        return optimizer_states_container
     
-    def set_optimizer_state_dicts(self, optimizer_state_dict: Dict):
-        self.q1_optimizers[0].load_state_dict(optimizer_state_dict['q1']['main']) 
-        if len(optimizer_state_dict['q1']) > 1:
-            self.q1_optimizers[1].load_state_dict(optimizer_state_dict['q1']['common'])
+    def set_optimizer_states(self, optimizer_states_container: SACEmbeddedOptimizerStateDicts):
+        self.q1_optimizers[0].load_state_dict(optimizer_states_container.q1) 
+        if optimizer_states_container.q1_common:
+            self.q1_optimizers[1].load_state_dict(optimizer_states_container.q1_common)
             
-        self.q2_optimizers[0].load_state_dict(optimizer_state_dict['q2']['main']) 
-        if len(optimizer_state_dict['q2']) > 1:
-            self.q2_optimizers[1].load_state_dict(optimizer_state_dict['q2']['common'])
+        self.q2_optimizers[0].load_state_dict(optimizer_states_container.q2) 
+        if optimizer_states_container.q2_common:
+            self.q2_optimizers[1].load_state_dict(optimizer_states_container.q2_common)
             
-        self.policy_optimizers[0].load_state_dict(optimizer_state_dict['policy']['main']) 
-        if len(optimizer_state_dict['policy']) > 1:
-            self.policy_optimizers[1].load_state_dict(optimizer_state_dict['policy']['common'])
+        self.policy_optimizers[0].load_state_dict(optimizer_states_container.policy) 
+        if optimizer_states_container.policy_common:
+            self.policy_optimizers[1].load_state_dict(optimizer_states_container.policy_common)
                        
-        self.alpha_optimizer.load_state_dict(optimizer_state_dict['alpha'])
+        self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
 
     def reset(self) -> None:
         for net in self:

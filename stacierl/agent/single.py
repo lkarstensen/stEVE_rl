@@ -166,7 +166,7 @@ class Single(Agent):
         self.env_train.close()
         self.env_eval.close()
         
-    def save_checkpoint(self, directory: str, name: str):
+    def save_checkpoint(self, directory: str, name: str) -> None:
         path = directory + '/' + name + '.pt'
         
         optimizer_dicts = self.algo.optimizer_state_dicts
@@ -174,12 +174,15 @@ class Single(Agent):
 
         checkpoint_dict = {
             'optimizer_dicts': optimizer_dicts,
-            'model_state_dicts': model_state_dicts
+            'model_state_dicts': model_state_dicts,
+            'explore_steps': self.step_counter.exploration,
+            'update_steps': self.step_counter.update,
+            'evaluation_steps': self.step_counter.evaluation
         }
         
         torch.save(checkpoint_dict, path)
         
-    def load_checkpoint(self, directory: str, name: str):
+    def load_checkpoint(self, directory: str, name: str) -> None:
         path = directory + '/' + name + '.pt'
         checkpoint = torch.load(path)
         

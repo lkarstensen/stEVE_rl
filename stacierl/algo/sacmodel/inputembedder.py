@@ -133,14 +133,14 @@ class SACEmbeddedOptimizerStateDicts(ModelStateDicts):
         
         return model_state_dict
     
-    def from_dict(self, model_state_dict: Dict):
-        self.q1 = model_state_dict['q1']
-        self.q2 = model_state_dict['q2']
-        self.policy = model_state_dict['policy']
-        self.q1_common = model_state_dict['q1_common']
-        self.q2_common = model_state_dict['q2_common']
-        self.policy_common = model_state_dict['policy_common']
-        self.alpha = model_state_dict['log_alpha']
+    def from_dict(self, optimizer_state_dict: Dict):
+        self.q1 = optimizer_state_dict['q1']
+        self.q2 = optimizer_state_dict['q2']
+        self.policy = optimizer_state_dict['policy']
+        self.q1_common = optimizer_state_dict['q1_common']
+        self.q2_common = optimizer_state_dict['q2_common']
+        self.policy_common = optimizer_state_dict['policy_common']
+        self.alpha = optimizer_state_dict['alpha']
 
 
 class InputEmbedding(Vanilla):
@@ -547,7 +547,7 @@ class InputEmbedding(Vanilla):
         if len(self.policy_optimizers) > 1:
             policy_common = self.policy_optimizers[1].state_dict()    
             
-        optimizer_states_container = (
+        optimizer_states_container = SACEmbeddedOptimizerStateDicts(
             q1,
             q2,
             policy,
@@ -556,7 +556,7 @@ class InputEmbedding(Vanilla):
             policy_common,
             self.alpha_optimizer.state_dict()
         )
-                
+        
         return optimizer_states_container
     
     def set_optimizer_states(self, optimizer_states_container: SACEmbeddedOptimizerStateDicts):

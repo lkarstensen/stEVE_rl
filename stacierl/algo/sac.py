@@ -167,8 +167,8 @@ class SAC(Algo):
     def model_states_container(self) -> ModelStateDicts:
         return self.model.model_states_container
 
-    def set_model_states(self, model_states_container: ModelStateDicts) -> None:
-        self.model.set_model_states(model_states_container)
+    def set_model_states(self, model_states_container: ModelStateDicts, continue_training=True) -> None:
+        self.model.set_model_states(model_states_container, continue_training)
 
     @property
     def optimizer_state_dicts(self) -> Dict:

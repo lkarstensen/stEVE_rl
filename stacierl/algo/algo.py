@@ -44,7 +44,7 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def set_model_states(self, model_states_container: ModelStateDicts) -> None:
+    def set_model_states(self, model_states_container: ModelStateDicts, continue_training: bool = True) -> None:
         ...
         
     @abstractmethod

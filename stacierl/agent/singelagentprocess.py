@@ -1,10 +1,11 @@
 import logging
 from math import inf
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from .agent import Agent, EpisodeCounterShared, StepCounterShared
-from .single import Single, EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .agent import Agent, EpisodeCounterShared, StepCounterShared, StepCounter, EpisodeCounter
+from .single import Single, Algo, ReplayBuffer
+from ..algo.model import NetworkStatesContainer, OptimizerStatesContainer
 from ..util import Environment
 from torch import multiprocessing as mp
 import torch
@@ -110,15 +111,25 @@ def run(
                 logger.warning(f"Update Error: {error}")
                 shutdown_event.set()
                 result = error
-        elif task_name == "put_state_dict":
-            state_dicts = agent.algo.state_dicts
-            state_dicts.to(torch.device("cpu"))
-            model_queue.put(state_dicts)
+        elif task_name == "put_network_states_container":
+            network_states_container = agent.algo.model.network_states_container
+            network_states_container.to(torch.device("cpu"))
+            model_queue.put(network_states_container)
             continue
-        elif task_name == "set_state_dict":
-            state_dicts = task[1]
-            state_dicts.to(device)
-            agent.algo.load_state_dicts(state_dicts)
+        elif task_name == "set_network_states_container":
+            network_states_container = task[1]
+            network_states_container.to(device)
+            agent.algo.model.set_network_states(network_states_container)
+            continue
+        elif task_name == "put_optimizer_states_container":
+            optimizer_states_container = agent.algo.model.optimizer_states_container
+            optimizer_states_container.to(torch.device("cpu"))
+            model_queue.put(optimizer_states_container)
+            continue
+        elif task_name == "set_optmizer_states_container":
+            optimizer_states_container = task[1]
+            optimizer_states_container.to(device)
+            agent.algo.model.set_optimizer_states(optimizer_states_container)
             continue
         elif task_name == "shutdown":
             agent.close()
@@ -142,8 +153,6 @@ class SingleAgentProcess(Agent):
         consecutive_action_steps: int,
         name: str,
         parent_agent: Agent,
-        step_counter: Optional[StepCounterShared] = None,
-        episode_counter: Optional[EpisodeCounterShared] = None,
     ) -> None:
 
         self.id = id
@@ -155,8 +164,8 @@ class SingleAgentProcess(Agent):
         self.device = device
         self.parent_agent = parent_agent
 
-        self._step_counter = step_counter or StepCounterShared()
-        self._episode_counter = episode_counter or EpisodeCounterShared()
+        self._step_counter = StepCounterShared()
+        self._episode_counter = EpisodeCounterShared()
         logging_config = get_logging_config_dict()
         self._process = mp.Process(
             target=run,
@@ -183,35 +192,40 @@ class SingleAgentProcess(Agent):
 
     def heatup(
         self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
-    ) -> Tuple[float, float]:
+    ) -> None:
         self._task_queue.put(["heatup", steps, episodes, custom_action_low])
 
-    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> None:
         self._task_queue.put(["explore", steps, episodes])
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> None:
         self._task_queue.put(["evaluate", steps, episodes])
 
-    def update(self, steps):
+    def update(self, steps) -> None:
         self._task_queue.put(["update", steps])
 
-    def set_state_dict(self, all_state_dicts):
-        self._task_queue.put(["set_state_dict", all_state_dicts])
-
-    def put_state_dict(self):
-        self._task_queue.put(["put_state_dict"])
-
-    def get_result(self):
+    def get_result(self) -> Any:
         result = self._result_queue.get()
         if isinstance(result, Exception):
             self.parent_agent.close()
             raise result
         return result
 
-    def get_state_dict(self):
+    def set_network_states(self, states_container: NetworkStatesContainer):
+        self._task_queue.put(["set_network_states_container", states_container])
+
+    def get_network_states_container(self) -> NetworkStatesContainer:
+        self._task_queue.put(["put_network_states_container"])
         return self._model_queue.get()
 
-    def close(self):
+    def set_optimizer_states(self, states_container: OptimizerStatesContainer):
+        self._task_queue.put(["set_optimizer_states_container", states_container])
+
+    def get_optimizer_states_container(self) -> OptimizerStatesContainer:
+        self._task_queue.put(["put_optimizer_states_container"])
+        return self._model_queue.get()
+
+    def close(self) -> None:
         self._shutdown_event.set()
         self._task_queue.put(["shutdown"])
         self._process.join()
@@ -232,6 +246,25 @@ class SingleAgentProcess(Agent):
     def step_counter(self) -> StepCounterShared:
         return self._step_counter
 
+    @step_counter.setter
+    def step_counter(self, new_counter: StepCounter) -> None:
+        self._step_counter.heatup = new_counter.heatup
+        self._step_counter.exploration = new_counter.exploration
+        self._step_counter.evaluation = new_counter.evaluation
+        self._step_counter.update = new_counter.update
+
     @property
     def episode_counter(self) -> EpisodeCounterShared:
         return self._episode_counter
+
+    @episode_counter.setter
+    def episode_counter(self, new_counter: EpisodeCounter) -> None:
+        self._episode_counter.heatup = new_counter.heatup
+        self._episode_counter.exploration = new_counter.exploration
+        self._episode_counter.evaluation = new_counter.evaluation
+
+    def load_checkpoint(self, directory: str, name: str) -> None:
+        ...
+
+    def save_checkpoint(self, directory: str, name: str) -> None:
+        ...

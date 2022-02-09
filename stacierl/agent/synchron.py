@@ -113,23 +113,23 @@ class Synchron(Agent):
 
         if self.share_trainer_model:
             self.trainer[0].put_state_dict()
-            new_state_dict = self.trainer[0].get_state_dict()
+            new_state_dict = self.trainer[0].get_network_states_container()
         else:
             for agent in self.trainer:
                 agent.put_state_dict()
             new_state_dict = None
             for agent in self.trainer:
-                state_dicts = agent.get_state_dict() / self.n_trainer
+                state_dicts = agent.get_network_states_container() / self.n_trainer
                 if new_state_dict is None:
                     new_state_dict = state_dicts
                 else:
                     new_state_dict += state_dicts
 
         for agent in self.worker:
-            agent.set_state_dict(new_state_dict)
+            agent.set_network_states(new_state_dict)
         if not self.share_trainer_model:
             for agent in self.trainer:
-                agent.set_state_dict(new_state_dict)
+                agent.set_network_states(new_state_dict)
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:

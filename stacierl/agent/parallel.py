@@ -8,6 +8,7 @@ from torch import multiprocessing as mp
 from math import ceil, inf
 import numpy as np
 import torch
+import os
 
 
 class Parallel(Agent):
@@ -79,19 +80,17 @@ class Parallel(Agent):
             agent.update(steps_per_agent)
         result = self._get_update_results()
         if not self.shared_model:
-            for agent in self.agents:
-                agent.put_state_dict()
 
-            new_state_dict = None
+            new_network_states_container = None
             for agent in self.agents:
-                state_dicts = agent.get_state_dict() / self.n_agents
-                if new_state_dict is None:
-                    new_state_dict = state_dicts
+                network_states_container = agent.get_network_states_container() / self.n_agents
+                if new_network_states_container is None:
+                    new_network_states_container = network_states_container
                 else:
-                    new_state_dict += state_dicts
+                    new_network_states_container += network_states_container
 
             for agent in self.agents:
-                agent.set_state_dict(new_state_dict)
+                agent.set_network_states(new_network_states_container)
 
         result = list(result) if np.any(result) else result
         return result
@@ -139,6 +138,10 @@ class Parallel(Agent):
         step_counter = StepCounter()
         for agent in self.agents:
             step_counter += agent.step_counter
+        step_counter.heatup = int(step_counter.heatup)
+        step_counter.exploration = int(step_counter.exploration)
+        step_counter.evaluation = int(step_counter.evaluation)
+        step_counter.update = int(step_counter.update)
         return step_counter
 
     @property
@@ -146,5 +149,64 @@ class Parallel(Agent):
         episode_counter = EpisodeCounter()
         for agent in self.agents:
             episode_counter += agent.episode_counter
-
+        episode_counter.heatup = int(episode_counter.heatup)
+        episode_counter.exploration = int(episode_counter.exploration)
+        episode_counter.evaluation = int(episode_counter.evaluation)
         return episode_counter
+
+    def save_checkpoint(self, directory: str, name: str) -> None:
+        path = directory + "/" + name + ".pt"
+
+        new_optimizer_states_container = None
+        for agent in self.agents:
+            optimizer_states_container = agent.get_optimizer_states_container() / self.n_agents
+            if new_optimizer_states_container is None:
+                new_optimizer_states_container = optimizer_states_container
+            else:
+                new_optimizer_states_container += optimizer_states_container
+        optimizer_state_dicts = new_optimizer_states_container.to_dict()
+
+        new_network_states_container = None
+        for agent in self.agents:
+            network_states_container = agent.get_network_states_container() / self.n_agents
+            if new_network_states_container is None:
+                new_network_states_container = network_states_container
+            else:
+                new_network_states_container += network_states_container
+        network_state_dicts = new_network_states_container.to_dict()
+
+        step_counter = self.step_counter
+
+        checkpoint_dict = {
+            "optimizer_state_dicts": optimizer_state_dicts,
+            "network_state_dicts": network_state_dicts,
+            "heatup_steps": step_counter.heatup,
+            "exploration_steps": step_counter.exploration,
+            "update_steps": step_counter.update,
+            "evaluation_steps": step_counter.evaluation,
+        }
+
+        torch.save(checkpoint_dict, path)
+
+    def load_checkpoint(self, directory: str, name: str) -> None:
+        name, _ = os.path.splitext(name)
+        path = os.path.join(directory, name + ".pt")
+        checkpoint = torch.load(path)
+
+        network_states_container = self.agents[0].get_network_states_container()
+        network_states_container.from_dict(checkpoint["network_state_dicts"])
+
+        optimizer_states_container = self.agents[0].get_optimizer_states_container()
+        optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
+
+        single_agent_step_counter = StepCounter(
+            checkpoint["heatup_steps"] / self.n_agents,
+            checkpoint["exploration_steps"] / self.n_agents,
+            checkpoint["evaluation_steps"] / self.n_agents,
+            checkpoint["update_steps"] / self.n_agents,
+        )
+
+        for agent in self.agents:
+            agent.set_network_states(network_states_container)
+            agent.set_optimizer_states(optimizer_states_container)
+            agent.step_counter = single_agent_step_counter

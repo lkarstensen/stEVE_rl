@@ -488,7 +488,7 @@ class InputEmbedding(Vanilla):
             network_states_container.policy_common
         )
 
-        self.log_alpha = network_states_container.log_alpha["log_alpha"]
+        self.log_alpha.data.copy_(network_states_container.log_alpha["log_alpha"])
 
     @property
     def network_states_container(self) -> SACEmbeddedNetworkStateContainer:

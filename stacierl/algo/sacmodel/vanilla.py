@@ -289,7 +289,7 @@ class Vanilla(SACModel):
         self.target_q1.load_state_dict(network_states_container.target_q1)
         self.target_q2.load_state_dict(network_states_container.target_q2)
         self.policy.load_state_dict(network_states_container.policy)
-        self.log_alpha = network_states_container.log_alpha["log_alpha"]
+        self.log_alpha.data.copy_(network_states_container.log_alpha["log_alpha"])
 
     @property
     def network_states_container(self) -> SACNetworkStateContainer:

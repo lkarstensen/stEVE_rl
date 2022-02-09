@@ -153,5 +153,5 @@ class Agent(ABC):
         ...
         
     @abstractmethod
-    def load_checkpoint(self, directory: str, name: str) -> None:
+    def load_checkpoint(self, directory: str, name: str, continue_training: bool = True) -> None:
         ...

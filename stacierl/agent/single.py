@@ -182,14 +182,14 @@ class Single(Agent):
         
         torch.save(checkpoint_dict, path)
         
-    def load_checkpoint(self, directory: str, name: str) -> None:
+    def load_checkpoint(self, directory: str, name: str, continue_training=True) -> None:
         path = directory + '/' + name + '.pt'
         checkpoint = torch.load(path)
         
         model_states_container = self.algo.model.model_states_container
         model_states_container.from_dict(checkpoint['model_state_dicts'])
         
-        self.algo.set_model_states(model_states_container)
+        self.algo.set_model_states(model_states_container, continue_training)
         self.algo.set_optimizer_state_dicts(checkpoint['optimizer_dicts'])
 
     @property

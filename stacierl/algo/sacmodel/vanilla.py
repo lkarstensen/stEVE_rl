@@ -251,7 +251,7 @@ class Vanilla(SACModel):
 
         return copy
 
-    def set_model_states(self, model_states_container: SACStateDicts, training=True):
+    def set_model_states(self, model_states_container: SACStateDicts, continue_training=True):
         self.q1.load_state_dict(model_states_container.q1)
         self.q2.load_state_dict(model_states_container.q2)     
         self.target_q1.load_state_dict(model_states_container.target_q1)
@@ -259,7 +259,7 @@ class Vanilla(SACModel):
         self.policy.load_state_dict(model_states_container.policy)
         self.log_alpha = model_states_container.log_alpha['log_alpha']
         
-        if training:
+        if continue_training:
             self.q1.train()
             self.q2.train()
             self.target_q1.train()

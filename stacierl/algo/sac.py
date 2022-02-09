@@ -133,19 +133,6 @@ class SAC(Algo):
             policy_loss.detach().cpu().numpy(),
         ]
 
-    def save_model(self, path: str):
-        self.logger.info('... saving model ...')     
-        torch.save(self.alpha, path + "_alpha.pt")
-        
-        self.model.save(path)
-
-    # loading for eval only
-    def load_model(self, path: str):
-        self.logger.info('... loading model ...')
-        self.alpha = torch.load(path + "_alpha.pt", map_location=self.device)
-        
-        self.model.load(path)
-
     def copy(self):
         copy = self.__class__(
             self.model.copy(),

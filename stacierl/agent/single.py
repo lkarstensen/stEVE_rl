@@ -184,7 +184,7 @@ class Single(Agent):
         
     def load_checkpoint(self, directory: str, name: str, continue_training=True) -> None:
         path = directory + '/' + name + '.pt'
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path, map_location=self.device)
         
         model_states_container = self.algo.model.model_states_container
         model_states_container.from_dict(checkpoint['model_state_dicts'])

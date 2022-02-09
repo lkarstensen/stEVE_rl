@@ -4,7 +4,7 @@ import numpy as np
 from ..model import Model
 import torch
 
-from ..model import ModelStateDicts
+from ..model import PytorchStatesContainer
 
 
 class SACModel(Model, ABC):
@@ -70,4 +70,3 @@ class SACModel(Model, ABC):
     @abstractmethod
     def update_target_q(self, tau):
         ...
-        

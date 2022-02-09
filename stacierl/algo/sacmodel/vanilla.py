@@ -2,7 +2,7 @@ from typing import Dict, Iterator, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from .sacmodel import SACModel, ModelStateDicts
+from .sacmodel import SACModel, PytorchStatesContainer
 from ... import network
 import torch.optim as optim
 import torch
@@ -13,7 +13,7 @@ from ...util import ObservationSpace, ActionSpace
 
 
 @dataclass
-class SACStateDicts(ModelStateDicts):
+class SACNetworkStateContainer(PytorchStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     target_q1: Dict[str, torch.Tensor]
@@ -25,68 +25,67 @@ class SACStateDicts(ModelStateDicts):
         return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy, self.log_alpha])
 
     def copy(self):
-        return SACStateDicts(
+        return SACNetworkStateContainer(
             deepcopy(self.q1),
             deepcopy(self.q2),
             deepcopy(self.target_q1),
             deepcopy(self.target_q2),
             deepcopy(self.policy),
-            deepcopy(self.log_alpha)
+            deepcopy(self.log_alpha),
         )
-        
+
     def to_dict(self) -> Dict:
         model_state_dict = {
-            'q1': self.q1,
-            'q2': self.q2,
-            'target_q1': self.target_q1,
-            'target_q2': self.target_q2,
-            'policy': self.policy,
-            'log_alpha': self.log_alpha
+            "q1": self.q1,
+            "q2": self.q2,
+            "target_q1": self.target_q1,
+            "target_q2": self.target_q2,
+            "policy": self.policy,
+            "log_alpha": self.log_alpha,
         }
-        
+
         return model_state_dict
-    
+
     def from_dict(self, model_state_dict: Dict):
-        self.q1 = model_state_dict['q1']
-        self.q2 = model_state_dict['q2']
-        self.target_q1 = model_state_dict['target_q1']
-        self.target_q2 = model_state_dict['target_q2']
-        self.policy = model_state_dict['policy']
-        self.log_alpha = model_state_dict['log_alpha']
-              
+        self.q1 = model_state_dict["q1"]
+        self.q2 = model_state_dict["q2"]
+        self.target_q1 = model_state_dict["target_q1"]
+        self.target_q2 = model_state_dict["target_q2"]
+        self.policy = model_state_dict["policy"]
+        self.log_alpha = model_state_dict["log_alpha"]
+
+
 @dataclass
-class SACOptimizerStateDicts(ModelStateDicts):
+class SACOptimizerStateContainer(PytorchStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
     alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
-        return iter([self.q1, self.q2, self.policy, self.log_alpha])
+        return iter([self.q1, self.q2, self.policy, self.alpha])
 
     def copy(self):
-        return SACOptimizerStateDicts(
-            deepcopy(self.q1),
-            deepcopy(self.q2),
-            deepcopy(self.policy),
-            deepcopy(self.log_alpha)
+        return SACOptimizerStateContainer(
+            deepcopy(self.q1), deepcopy(self.q2), deepcopy(self.policy), deepcopy(self.log_alpha)
         )
-        
+
     def to_dict(self) -> Dict:
         optimizer_state_dict = {
-            'q1': self.q1,
-            'q2': self.q2,
-            'policy': self.policy,
-            'alpha': self.alpha
+            "q1": self.q1,
+            "q2": self.q2,
+            "policy": self.policy,
+            "alpha": self.alpha,
         }
-        
+
         return optimizer_state_dict
-    
+
     def from_dict(self, optimizer_state_dict: Dict):
-        self.q1 = optimizer_state_dict['q1']
-        self.q2 = optimizer_state_dict['q2']
-        self.policy = optimizer_state_dict['policy']
-        self.log_alpha = optimizer_state_dict['alpha']
+        self.q1 = optimizer_state_dict["q1"]
+        self.q2 = optimizer_state_dict["q2"]
+        self.policy = optimizer_state_dict["policy"]
+        self.log_alpha = optimizer_state_dict["alpha"]
+
 
 class Vanilla(SACModel):
     def __init__(
@@ -118,10 +117,10 @@ class Vanilla(SACModel):
             for dim in state_shape:
                 n_state_observations *= dim
             n_observations += n_state_observations
-        
+
         self.q1.set_input(n_observations, n_actions)
         self.q2.set_input(n_observations, n_actions)
-        
+
         self.target_q1.set_input(n_observations, n_actions)
         self.target_q2.set_input(n_observations, n_actions)
 
@@ -130,7 +129,7 @@ class Vanilla(SACModel):
 
         for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
             target_param.data.copy_(param)
-        
+
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(param)
 
@@ -194,7 +193,7 @@ class Vanilla(SACModel):
         self.reset()
         mean_batch, log_std = self.policy.forward(state_batch)
         std_batch = log_std.exp()
-        
+
         normal = Normal(mean_batch, std_batch)
         z = normal.rsample()
         action_batch = torch.tanh(z)
@@ -202,7 +201,7 @@ class Vanilla(SACModel):
         log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
         log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
 
-        #log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
+        # log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
         #        torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
 
         return action_batch, log_pi_batch
@@ -247,8 +246,7 @@ class Vanilla(SACModel):
 
         for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
-            
-        
+
     def copy(self):
         copy = self.__class__(
             self.q1.copy(),
@@ -285,56 +283,42 @@ class Vanilla(SACModel):
 
         return copy
 
-    def set_model_states(self, model_states_container: SACStateDicts, continue_training=True):
-        self.q1.load_state_dict(model_states_container.q1)
-        self.q2.load_state_dict(model_states_container.q2)     
-        self.target_q1.load_state_dict(model_states_container.target_q1)
-        self.target_q2.load_state_dict(model_states_container.target_q2)
-        self.policy.load_state_dict(model_states_container.policy)
-        self.log_alpha = model_states_container.log_alpha['log_alpha']
-        
-        if continue_training:
-            self.q1.train()
-            self.q2.train()
-            self.target_q1.train()
-            self.target_q2.train()
-            self.policy.train()
-        else:
-            self.q1.eval()
-            self.q2.eval()
-            self.target_q1.eval()
-            self.target_q2.eval()
-            self.policy.eval()            
+    def set_network_states(self, network_states_container: SACNetworkStateContainer):
+        self.q1.load_state_dict(network_states_container.q1)
+        self.q2.load_state_dict(network_states_container.q2)
+        self.target_q1.load_state_dict(network_states_container.target_q1)
+        self.target_q2.load_state_dict(network_states_container.target_q2)
+        self.policy.load_state_dict(network_states_container.policy)
+        self.log_alpha = network_states_container.log_alpha["log_alpha"]
 
     @property
-    def model_states_container(self) -> SACStateDicts:
-        model_states_container = SACStateDicts(
+    def network_states_container(self) -> SACNetworkStateContainer:
+        network_states_container = SACNetworkStateContainer(
             self.q1.state_dict(),
             self.q2.state_dict(),
             self.target_q1.state_dict(),
             self.target_q2.state_dict(),
             self.policy.state_dict(),
-            {'log_alpha': self.log_alpha},
+            {"log_alpha": self.log_alpha},
         )
-        return model_states_container
-    
-    
+        return network_states_container
+
     @property
-    def optimizer_states_container(self) -> SACOptimizerStateDicts:
-        optimizer_states_container = SACOptimizerStateDicts(
+    def optimizer_states_container(self) -> SACOptimizerStateContainer:
+        optimizer_states_container = SACOptimizerStateContainer(
             self.q1_optimizer.state_dict(),
             self.q2_optimizer.state_dict(),
             self.policy_optimizer.state_dict(),
-            self.alpha_optimizer.state_dict()
+            self.alpha_optimizer.state_dict(),
         )
-        
+
         return optimizer_states_container
-    
-    def set_optimizer_states(self, optimizer_states_container: SACOptimizerStateDicts):
+
+    def set_optimizer_states(self, optimizer_states_container: SACOptimizerStateContainer):
         self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
         self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
         self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
-        self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)        
+        self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
 
     def reset(self) -> None:
         for net in self:

@@ -9,7 +9,7 @@ from ..network import Network
 
 
 @dataclass
-class ModelStateDicts(ABC):
+class PytorchStatesContainer(ABC):
     @abstractmethod
     def __iter__(self):
         ...
@@ -17,11 +17,11 @@ class ModelStateDicts(ABC):
     @abstractmethod
     def copy(self):
         ...
-        
+
     @abstractmethod
     def to_dict(self):
         ...
-        
+
     @abstractmethod
     def from_dict(self, state_dict: Dict):
         ...
@@ -116,12 +116,12 @@ class ModelStateDicts(ABC):
 class Model(ABC):
     @property
     @abstractmethod
-    def model_states_container(self) -> ModelStateDicts:
+    def network_states_container(self) -> PytorchStatesContainer:
         ...
-        
+
     @property
     @abstractmethod
-    def optimizer_states_container(self) -> ModelStateDicts:
+    def optimizer_states_container(self) -> PytorchStatesContainer:
         ...
 
     @abstractmethod
@@ -141,11 +141,11 @@ class Model(ABC):
         ...
 
     @abstractmethod
-    def set_model_states(self, model_states_container: ModelStateDicts, continue_training: bool = True) -> None:
+    def set_network_states(self, network_states_container: PytorchStatesContainer) -> None:
         ...
-        
+
     @abstractmethod
-    def set_optimizer_states(self, optimizer_states_container: ModelStateDicts) -> None:
+    def set_optimizer_states(self, optimizer_states_container: PytorchStatesContainer) -> None:
         ...
 
     @abstractmethod

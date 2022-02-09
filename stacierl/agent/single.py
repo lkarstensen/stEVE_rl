@@ -8,6 +8,7 @@ import torch
 from math import inf
 
 import numpy as np
+import os
 
 
 class Single(Agent):
@@ -165,35 +166,44 @@ class Single(Agent):
     def close(self):
         self.env_train.close()
         self.env_eval.close()
-        
+
     def save_checkpoint(self, directory: str, name: str) -> None:
-        path = directory + '/' + name + '.pt'
-        
-        optimizer_dicts = self.algo.optimizer_states_container.to_dict()
-        model_state_dicts = self.algo.model_states_container.to_dict()
+        path = directory + "/" + name + ".pt"
+
+        optimizer_state_dicts = self.algo.optimizer_states_container.to_dict()
+        network_state_dicts = self.algo.network_states_container.to_dict()
 
         checkpoint_dict = {
-            'optimizer_dicts': optimizer_dicts,
-            'model_state_dicts': model_state_dicts,
-            'explore_steps': self.step_counter.exploration,
-            'update_steps': self.step_counter.update,
-            'evaluation_steps': self.step_counter.evaluation
+            "optimizer_state_dicts": optimizer_state_dicts,
+            "network_state_dicts": network_state_dicts,
+            "heatup_steps": self.step_counter.heatup,
+            "exploration_steps": self.step_counter.exploration,
+            "update_steps": self.step_counter.update,
+            "evaluation_steps": self.step_counter.evaluation,
         }
-        
+
         torch.save(checkpoint_dict, path)
-        
-    def load_checkpoint(self, directory: str, name: str, continue_training=True) -> None:
-        path = directory + '/' + name + '.pt'
+
+    def load_checkpoint(self, directory: str, name: str) -> None:
+        name, _ = os.path.splitext(name)
+        path = os.path.join(directory, name + ".pt")
         checkpoint = torch.load(path, map_location=self.device)
-        
-        model_states_container = self.algo.model.model_states_container
-        model_states_container.from_dict(checkpoint['model_state_dicts'])
-        
-        optimizer_states_container = self.algo.model.optimizer_states_container
-        optimizer_states_container.from_dict(checkpoint['optimizer_dicts'])
-        
-        self.algo.set_model_states(model_states_container, continue_training)
+
+        network_states_container = self.algo.network_states_container
+        network_states_container.from_dict(checkpoint["network_state_dicts"])
+
+        optimizer_states_container = self.algo.optimizer_states_container
+        optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
+
+        self.algo.set_network_states(network_states_container)
         self.algo.set_optimizer_states(optimizer_states_container)
+
+        self.step_counter = StepCounter(
+            checkpoint["heatup_steps"],
+            checkpoint["exploration_steps"],
+            checkpoint["evaluation_steps"],
+            checkpoint["update_steps"],
+        )
 
     @property
     def step_counter(self) -> StepCounter:

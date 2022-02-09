@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
-from .model import Model, ModelStateDicts
+from .model import Model, PytorchStatesContainer
 import torch
 
 
@@ -23,12 +23,12 @@ class Algo(ABC):
 
     @property
     @abstractmethod
-    def model_states_container(self) -> ModelStateDicts:
+    def network_states_container(self) -> PytorchStatesContainer:
         ...
-        
+
     @property
     @abstractmethod
-    def optimizer_states_container(self) -> ModelStateDicts:
+    def optimizer_states_container(self) -> PytorchStatesContainer:
         ...
 
     @abstractmethod
@@ -44,11 +44,11 @@ class Algo(ABC):
         ...
 
     @abstractmethod
-    def set_model_states(self, model_states_container: ModelStateDicts, continue_training: bool = True) -> None:
+    def set_network_states(self, network_states_container: PytorchStatesContainer) -> None:
         ...
-        
+
     @abstractmethod
-    def set_optimizer_states(self, optimizer_states_container: ModelStateDicts) -> None:
+    def set_optimizer_states(self, optimizer_states_container: PytorchStatesContainer) -> None:
         ...
 
     @abstractmethod

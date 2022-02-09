@@ -2,8 +2,8 @@ from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from stacierl.algo.model import ModelStateDicts
-from .vanilla import SACOptimizerStateDicts, Vanilla, SACStateDicts
+from stacierl.algo.model import PytorchStatesContainer
+from .vanilla import SACOptimizerStateContainer, Vanilla, SACNetworkStateContainer
 from ... import network
 from ...network import NetworkDummy, Network
 import torch.optim as optim
@@ -21,7 +21,7 @@ class Embedder:
 
 
 @dataclass
-class SACEmbeddedStateDicts(ModelStateDicts):
+class SACEmbeddedNetworkStateContainer(PytorchStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     target_q1: Dict[str, torch.Tensor]
@@ -47,7 +47,7 @@ class SACEmbeddedStateDicts(ModelStateDicts):
         return iter(iter_list)
 
     def copy(self):
-        return SACEmbeddedStateDicts(
+        return SACEmbeddedNetworkStateContainer(
             deepcopy(self.q1),
             deepcopy(self.q2),
             deepcopy(self.target_q1),
@@ -56,44 +56,44 @@ class SACEmbeddedStateDicts(ModelStateDicts):
             deepcopy(self.q1_common),
             deepcopy(self.q2_common),
             deepcopy(self.policy_common),
-            deepcopy(self.log_alpha)
+            deepcopy(self.log_alpha),
         )
-        
-        
+
     def to_dict(self) -> Dict:
         model_state_dict = {
-            'q1': self.q1,
-            'q2': self.q2,
-            'target_q1': self.target_q1,
-            'target_q2': self.target_q2,
-            'policy': self.policy,
-            'q1_common': self.q1_common,
-            'q2_common': self.q2_common,
-            'policy_common': self.policy_common,
-            'log_alpha': self.log_alpha
+            "q1": self.q1,
+            "q2": self.q2,
+            "target_q1": self.target_q1,
+            "target_q2": self.target_q2,
+            "policy": self.policy,
+            "q1_common": self.q1_common,
+            "q2_common": self.q2_common,
+            "policy_common": self.policy_common,
+            "log_alpha": self.log_alpha,
         }
-        
+
         return model_state_dict
-    
+
     def from_dict(self, model_state_dict: Dict):
-        self.q1 = model_state_dict['q1']
-        self.q2 = model_state_dict['q2']
-        self.target_q1 = model_state_dict['target_q1']
-        self.target_q2 = model_state_dict['target_q2']
-        self.policy = model_state_dict['policy']
-        self.q1_common = model_state_dict['q1_common']
-        self.q2_common = model_state_dict['q2_common']
-        self.policy_common = model_state_dict['policy_common']
-        self.log_alpha = model_state_dict['log_alpha']
-        
+        self.q1 = model_state_dict["q1"]
+        self.q2 = model_state_dict["q2"]
+        self.target_q1 = model_state_dict["target_q1"]
+        self.target_q2 = model_state_dict["target_q2"]
+        self.policy = model_state_dict["policy"]
+        self.q1_common = model_state_dict["q1_common"]
+        self.q2_common = model_state_dict["q2_common"]
+        self.policy_common = model_state_dict["policy_common"]
+        self.log_alpha = model_state_dict["log_alpha"]
+
+
 @dataclass
-class SACEmbeddedOptimizerStateDicts(ModelStateDicts):
+class SACEmbeddedOptimizerStateContainer(PytorchStatesContainer):
     q1: Dict[str, torch.Tensor]
     q2: Dict[str, torch.Tensor]
     policy: Dict[str, torch.Tensor]
-    q1_common: Dict[str, torch.Tensor] or None
-    q2_common: Dict[str, torch.Tensor] or None
-    policy_common: Dict[str, torch.Tensor] or None
+    q1_common: Dict[str, torch.Tensor] or dict()
+    q2_common: Dict[str, torch.Tensor] or dict()
+    policy_common: Dict[str, torch.Tensor] or dict()
     alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
@@ -109,38 +109,37 @@ class SACEmbeddedOptimizerStateDicts(ModelStateDicts):
         return iter(iter_list)
 
     def copy(self):
-        return SACEmbeddedOptimizerStateDicts(
+        return SACEmbeddedOptimizerStateContainer(
             deepcopy(self.q1),
             deepcopy(self.q2),
             deepcopy(self.policy),
             deepcopy(self.q1_common),
             deepcopy(self.q2_common),
             deepcopy(self.policy_common),
-            deepcopy(self.alpha)
+            deepcopy(self.alpha),
         )
-        
-        
+
     def to_dict(self) -> Dict:
         model_state_dict = {
-            'q1': self.q1,
-            'q2': self.q2,
-            'policy': self.policy,
-            'q1_common': self.q1_common,
-            'q2_common': self.q2_common,
-            'policy_common': self.policy_common,
-            'alpha': self.alpha
+            "q1": self.q1,
+            "q2": self.q2,
+            "policy": self.policy,
+            "q1_common": self.q1_common,
+            "q2_common": self.q2_common,
+            "policy_common": self.policy_common,
+            "alpha": self.alpha,
         }
-        
+
         return model_state_dict
-    
+
     def from_dict(self, optimizer_state_dict: Dict):
-        self.q1 = optimizer_state_dict['q1']
-        self.q2 = optimizer_state_dict['q2']
-        self.policy = optimizer_state_dict['policy']
-        self.q1_common = optimizer_state_dict['q1_common']
-        self.q2_common = optimizer_state_dict['q2_common']
-        self.policy_common = optimizer_state_dict['policy_common']
-        self.alpha = optimizer_state_dict['alpha']
+        self.q1 = optimizer_state_dict["q1"]
+        self.q2 = optimizer_state_dict["q2"]
+        self.policy = optimizer_state_dict["policy"]
+        self.q1_common = optimizer_state_dict["q1_common"]
+        self.q2_common = optimizer_state_dict["q2_common"]
+        self.policy_common = optimizer_state_dict["policy_common"]
+        self.alpha = optimizer_state_dict["alpha"]
 
 
 class InputEmbedding(Vanilla):
@@ -474,49 +473,26 @@ class InputEmbedding(Vanilla):
 
         return copy
 
-    def set_model_states(self, model_states_container: SACEmbeddedStateDicts, continue_training=True):
-        self.q1.load_state_dict(model_states_container.q1)
-        self.q1_common_input_embedder.network.load_state_dict(model_states_container.q1_common)
-        
-        self.q2.load_state_dict(model_states_container.q2)
-        self.q2_common_input_embedder.network.load_state_dict(model_states_container.q2_common)
-        
-        self.target_q1.load_state_dict(model_states_container.target_q1)
-        self.target_q2.load_state_dict(model_states_container.target_q2)
-        
-        self.policy.load_state_dict(model_states_container.policy)
-        self.policy_common_input_embedder.network.load_state_dict(model_states_container.policy_common)
+    def set_network_states(self, network_states_container: SACEmbeddedNetworkStateContainer):
+        self.q1.load_state_dict(network_states_container.q1)
+        self.q1_common_input_embedder.network.load_state_dict(network_states_container.q1_common)
 
-        self.log_alpha = model_states_container.log_alpha['log_alpha']
-        
-        if continue_training:
-            self.q1.train()
-            self.q1_common_input_embedder.network.train()
-            
-            self.q2.train()
-            self.q2_common_input_embedder.network.train()
-            
-            self.target_q1.train()
-            self.target_q2.train()
-            
-            self.policy.train()
-            self.policy_common_input_embedder.network.train()
-        else:
-            self.q1.eval()
-            self.q1_common_input_embedder.network.eval()
-            
-            self.q2.eval()
-            self.q2_common_input_embedder.network.eval()
-            
-            self.target_q1.eval()
-            self.target_q2.eval()
-            
-            self.policy.eval()
-            self.policy_common_input_embedder.network.eval()
+        self.q2.load_state_dict(network_states_container.q2)
+        self.q2_common_input_embedder.network.load_state_dict(network_states_container.q2_common)
+
+        self.target_q1.load_state_dict(network_states_container.target_q1)
+        self.target_q2.load_state_dict(network_states_container.target_q2)
+
+        self.policy.load_state_dict(network_states_container.policy)
+        self.policy_common_input_embedder.network.load_state_dict(
+            network_states_container.policy_common
+        )
+
+        self.log_alpha = network_states_container.log_alpha["log_alpha"]
 
     @property
-    def model_states_container(self) -> SACEmbeddedStateDicts:
-        model_states_container = SACEmbeddedStateDicts(
+    def network_states_container(self) -> SACEmbeddedNetworkStateContainer:
+        network_states_container = SACEmbeddedNetworkStateContainer(
             self.q1.state_dict(),
             self.q2.state_dict(),
             self.target_q1.state_dict(),
@@ -525,53 +501,51 @@ class InputEmbedding(Vanilla):
             self.q1_common_input_embedder.network.state_dict(),
             self.q2_common_input_embedder.network.state_dict(),
             self.policy_common_input_embedder.network.state_dict(),
-            {'log_alpha': self.log_alpha}
+            {"log_alpha": self.log_alpha},
         )
-        return model_states_container
-    
+        return network_states_container
+
     @property
-    def optimizer_states_container(self) -> SACEmbeddedOptimizerStateDicts:
-                
+    def optimizer_states_container(self) -> SACEmbeddedOptimizerStateContainer:
+
         q1 = self.q1_optimizers[0].state_dict()
-        q1_common = None
         if len(self.q1_optimizers) > 1:
             q1_common = self.q1_optimizers[1].state_dict()
-            
+        else:
+            q1_common = None
+
         q2 = self.q2_optimizers[0].state_dict()
-        q2_common = None
         if len(self.q2_optimizers) > 1:
             q2_common = self.q2_optimizers[1].state_dict()
-            
+        else:
+            q2_common = None
+
         policy = self.policy_optimizers[0].state_dict()
-        policy_common = None
+
         if len(self.policy_optimizers) > 1:
-            policy_common = self.policy_optimizers[1].state_dict()    
-            
-        optimizer_states_container = SACEmbeddedOptimizerStateDicts(
-            q1,
-            q2,
-            policy,
-            q1_common, 
-            q2_common,
-            policy_common,
-            self.alpha_optimizer.state_dict()
+            policy_common = self.policy_optimizers[1].state_dict()
+        else:
+            policy_common = None
+
+        optimizer_states_container = SACEmbeddedOptimizerStateContainer(
+            q1, q2, policy, q1_common, q2_common, policy_common, self.alpha_optimizer.state_dict()
         )
-        
+
         return optimizer_states_container
-    
-    def set_optimizer_states(self, optimizer_states_container: SACEmbeddedOptimizerStateDicts):
-        self.q1_optimizers[0].load_state_dict(optimizer_states_container.q1) 
+
+    def set_optimizer_states(self, optimizer_states_container: SACEmbeddedOptimizerStateContainer):
+        self.q1_optimizers[0].load_state_dict(optimizer_states_container.q1)
         if optimizer_states_container.q1_common:
             self.q1_optimizers[1].load_state_dict(optimizer_states_container.q1_common)
-            
-        self.q2_optimizers[0].load_state_dict(optimizer_states_container.q2) 
+
+        self.q2_optimizers[0].load_state_dict(optimizer_states_container.q2)
         if optimizer_states_container.q2_common:
             self.q2_optimizers[1].load_state_dict(optimizer_states_container.q2_common)
-            
-        self.policy_optimizers[0].load_state_dict(optimizer_states_container.policy) 
+
+        self.policy_optimizers[0].load_state_dict(optimizer_states_container.policy)
         if optimizer_states_container.policy_common:
             self.policy_optimizers[1].load_state_dict(optimizer_states_container.policy_common)
-                       
+
         self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
 
     def reset(self) -> None:

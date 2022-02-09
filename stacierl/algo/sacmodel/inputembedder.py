@@ -418,7 +418,7 @@ class InputEmbedding(Vanilla):
 
         return copy
 
-    def set_model_states(self, model_states_container: SACEmbeddedStateDicts):
+    def set_model_states(self, model_states_container: SACEmbeddedStateDicts, continue_training=True):
         self.q1.load_state_dict(model_states_container.q1)
         self.q1_common_input_embedder.network.load_state_dict(model_states_container.q1_common)
         
@@ -432,6 +432,31 @@ class InputEmbedding(Vanilla):
         self.policy_common_input_embedder.network.load_state_dict(model_states_container.policy_common)
 
         self.log_alpha = model_states_container.log_alpha['log_alpha']
+        
+        if continue_training:
+            self.q1.train()
+            self.q1_common_input_embedder.network.train()
+            
+            self.q2.train()
+            self.q2_common_input_embedder.network.train()
+            
+            self.target_q1.train()
+            self.target_q2.train()
+            
+            self.policy.train()
+            self.policy_common_input_embedder.network.train()
+        else:
+            self.q1.eval()
+            self.q1_common_input_embedder.network.eval()
+            
+            self.q2.eval()
+            self.q2_common_input_embedder.network.eval()
+            
+            self.target_q1.eval()
+            self.target_q2.eval()
+            
+            self.policy.eval()
+            self.policy_common_input_embedder.network.eval()
 
     @property
     def model_states_container(self) -> SACEmbeddedStateDicts:

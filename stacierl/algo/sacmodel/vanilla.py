@@ -299,7 +299,7 @@ class Vanilla(SACModel):
             self.target_q1.state_dict(),
             self.target_q2.state_dict(),
             self.policy.state_dict(),
-            {"log_alpha": self.log_alpha},
+            {"log_alpha": self.log_alpha.detach()},
         )
         return network_states_container
 

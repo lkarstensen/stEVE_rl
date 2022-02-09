@@ -501,7 +501,7 @@ class InputEmbedding(Vanilla):
             self.q1_common_input_embedder.network.state_dict(),
             self.q2_common_input_embedder.network.state_dict(),
             self.policy_common_input_embedder.network.state_dict(),
-            {"log_alpha": self.log_alpha},
+            {"log_alpha": self.log_alpha.detach()},
         )
         return network_states_container
 

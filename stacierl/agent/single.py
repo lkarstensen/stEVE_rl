@@ -169,7 +169,7 @@ class Single(Agent):
     def save_checkpoint(self, directory: str, name: str) -> None:
         path = directory + '/' + name + '.pt'
         
-        optimizer_dicts = self.algo.optimizer_state_dicts
+        optimizer_dicts = self.algo.optimizer_states_container.to_dict()
         model_state_dicts = self.algo.model_states_container.to_dict()
 
         checkpoint_dict = {
@@ -189,8 +189,11 @@ class Single(Agent):
         model_states_container = self.algo.model.model_states_container
         model_states_container.from_dict(checkpoint['model_state_dicts'])
         
+        optimizer_states_container = self.algo.model.optimizer_states_container
+        optimizer_states_container.from_dict(checkpoint['optimizer_dicts'])
+        
         self.algo.set_model_states(model_states_container, continue_training)
-        self.algo.set_optimizer_state_dicts(checkpoint['optimizer_dicts'])
+        self.algo.set_optimizer_states(optimizer_states_container)
 
     @property
     def step_counter(self) -> StepCounter:

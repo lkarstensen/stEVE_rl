@@ -1,3 +1,4 @@
+from copy import deepcopy
 import logging
 from math import inf
 
@@ -112,7 +113,7 @@ def run(
                 shutdown_event.set()
                 result = error
         elif task_name == "put_network_states_container":
-            network_states_container = agent.algo.model.network_states_container
+            network_states_container = deepcopy(agent.algo.model.network_states_container)
             network_states_container.to(torch.device("cpu"))
             model_queue.put(network_states_container)
             continue
@@ -122,7 +123,7 @@ def run(
             agent.algo.model.set_network_states(network_states_container)
             continue
         elif task_name == "put_optimizer_states_container":
-            optimizer_states_container = agent.algo.model.optimizer_states_container
+            optimizer_states_container = deepcopy(agent.algo.model.optimizer_states_container)
             optimizer_states_container.to(torch.device("cpu"))
             model_queue.put(optimizer_states_container)
             continue

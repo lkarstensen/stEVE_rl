@@ -10,19 +10,19 @@ import math
 
 def sac_training(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    lr=0.005857455980764544,
-    hidden_layers=[128, 128],
+    lr=0.001991743536437494,
+    hidden_layers=[255, 255, 255],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=1.5e5,
+    training_steps=1e5,
     consecutive_explore_steps=1,
     steps_between_eval=1e4,
     eval_episodes=100,
-    batch_size=64,
+    batch_size=164,
     heatup=1e4,
-    log_folder: str = "",
+    log_folder: str = os.getcwd() + "/fast_learner_example_results/",
     id=0,
-    name="",
+    name="fast_learner",
     *args,
     **kwargs,
 ):
@@ -139,8 +139,9 @@ def sac_training(
         writer.writerow(["lr", "gamma", "hidden_layers"])
         writer.writerow([lr, gamma, hidden_layers])
         writer.writerow(["Episodes", "Steps", "Reward", "Success"])
-
-    next_eval_step_limt = steps_between_eval
+    # agent.load_checkpoint(log_folder, "checkpoint_10053.pt")
+    next_eval_step_limt = steps_between_eval + agent.step_counter.exploration
+    training_steps += agent.step_counter.exploration
     agent.heatup(steps=heatup, custom_action_low=[0.0, -1.0])
     step_counter = agent.step_counter
     while step_counter.exploration < training_steps:
@@ -150,6 +151,7 @@ def sac_training(
         agent.update(update_steps)
 
         if step_counter.exploration >= next_eval_step_limt:
+            agent.save_checkpoint(log_folder, f"checkpoint_{step_counter.exploration}")
             reward, success = agent.evaluate(episodes=eval_episodes)
             reward = sum(reward) / len(reward)
             success = sum(success) / len(success)
@@ -171,12 +173,4 @@ def sac_training(
 
 
 if __name__ == "__main__":
-    cwd = os.getcwd()
-    log_folder = cwd + "/fast_learner_example_results/"
-    result = sac_training(
-        lr=0.001991743536437494,
-        gamma=0.9800243887646142,
-        hidden_layers=[255, 255, 255],
-        log_folder=log_folder,
-        batch_size=164,
-    )
+    result = sac_training()

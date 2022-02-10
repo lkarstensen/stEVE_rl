@@ -11,19 +11,19 @@ import math
 def sac_training(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     lr=0.000766667,
-    hidden_layers=[256, 256],
+    hidden_layers=[255, 255, 255],
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=1.5e5,
     consecutive_explore_episodes=1,
     steps_between_eval=1e4,
     eval_episodes=100,
-    batch_size=64,
-    heatup=5e4,
-    log_folder: str = "",
-    n_agents=3,
+    batch_size=164,
+    heatup=1e4,
+    log_folder: str = os.getcwd() + "/parallel_example_results/",
+    n_agents=5,
     id=0,
-    name="",
+    name="parallel",
 ):
 
     if not os.path.isdir(log_folder):
@@ -75,7 +75,7 @@ def sac_training(
     start = tiltmaze.start.InsertionPoint()
     imaging = tiltmaze.imaging.ImagingDummy((500, 500))
 
-    pos = tiltmaze.state.Position(n_points=6, resolution=1)
+    pos = tiltmaze.state.Position()
     pos = tiltmaze.state.wrapper.Normalize(pos)
     target_state = tiltmaze.state.Target()
     target_state = tiltmaze.state.wrapper.Normalize(target_state)
@@ -113,7 +113,7 @@ def sac_training(
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
     policy_net = stacierl.network.GaussianPolicy(hidden_layers, action_space=env.action_space)
-    sac_model = stacierl.algo.sacmodel.Vanilla(
+    sac_model = stacierl.algo.sacmodel.InputEmbedding(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
@@ -122,7 +122,7 @@ def sac_training(
         action_space=env.action_space,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.VanillaStepShared(replay_buffer, batch_size)
     agent = stacierl.agent.Parallel(
         algo,
         env,
@@ -140,10 +140,11 @@ def sac_training(
         writer.writerow(["lr", "gamma", "hidden_layers"])
         writer.writerow([lr, gamma, hidden_layers])
         writer.writerow(["Episodes", "Steps", "Reward", "Success"])
-
-    next_eval_step_limt = steps_between_eval
-    agent.heatup(steps=heatup)
+    # agent.load_checkpoint(log_folder, "checkpoint40200")
+    agent.heatup(steps=heatup, custom_action_low=[0.0, -1.0])
     step_counter = agent.step_counter
+    training_steps += step_counter.exploration
+    next_eval_step_limt = steps_between_eval + step_counter.exploration
     while step_counter.exploration < training_steps:
         agent.explore(episodes=consecutive_explore_episodes)
         step_counter = agent.step_counter
@@ -151,6 +152,7 @@ def sac_training(
         agent.update(update_steps)
 
         if step_counter.exploration > next_eval_step_limt:
+            agent.save_checkpoint(log_folder, f"checkpoint{step_counter.exploration}")
             reward, success = agent.evaluate(episodes=eval_episodes)
             reward = sum(reward) / len(reward)
             success = sum(success) / len(success)
@@ -177,5 +179,4 @@ if __name__ == "__main__":
         hidden_layers=[255, 255, 255],
         log_folder=log_folder,
         batch_size=164,
-        n_agents=3,
     )

@@ -9,21 +9,23 @@ import math
 
 
 def sac_training(
-    device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     lr=0.001991743536437494,
     hidden_layers=[255, 255, 255],
     gamma=0.9800243887646142,
     replay_buffer=1e6,
-    training_steps=1.5e5,
+    training_steps=2e4,
     consecutive_explore_episodes=1,
     steps_between_eval=1e4,
     eval_episodes=100,
     batch_size=164,
     heatup=1e4,
-    log_folder: str = os.getcwd() + "/parallel_example_results/",
-    n_agents=5,
+    log_folder: str = os.getcwd() + "/synchron_example_results/",
+    n_worker=5,
+    n_trainer=2,
+    worker_device=torch.device("cpu"),
+    trainer_device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     id=0,
-    name="parallel",
+    name="synchron",
 ):
 
     if not os.path.isdir(log_folder):
@@ -123,15 +125,17 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaStepShared(replay_buffer, batch_size)
-    agent = stacierl.agent.Parallel(
+    agent = stacierl.agent.Synchron(
         algo,
         env,
         env,
         replay_buffer,
-        n_agents,
-        device=device,
+        n_worker,
+        n_trainer,
+        worker_device=worker_device,
+        trainer_device=trainer_device,
         consecutive_action_steps=1,
-        shared_model=False,
+        share_trainer_model=False,
     )
 
     logfile = log_folder + f"/{name}_{id}.csv"

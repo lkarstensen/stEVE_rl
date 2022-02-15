@@ -55,7 +55,7 @@ class Single(Agent):
             self._step_counter.heatup < step_limit and self._episode_counter.heatup < episode_limit
         ):
             episode_transitions, episode_reward, step_counter, success = self._play_episode(
-                env=self.env_eval,
+                env=self.env_train,
                 action_function=random_action,
                 consecutive_actions=self.consecutive_action_steps,
             )
@@ -79,7 +79,7 @@ class Single(Agent):
             and self._episode_counter.exploration < episode_limit
         ):
             episode_transitions, episode_reward, step_counter, success = self._play_episode(
-                env=self.env_eval,
+                env=self.env_train,
                 action_function=self.algo.get_exploration_action,
                 consecutive_actions=self.consecutive_action_steps,
             )

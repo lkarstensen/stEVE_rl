@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 from torch import device 
 import inspect
+from enum import Enum
 
 
 class StacieRLUserObject(ABC):
@@ -20,9 +21,8 @@ class StacieRLUserObject(ABC):
     def to_dict(self):
         attributes_dict = {}
         attributes_dict["class"] = f"{self.__module__}.{self.__class__.__name__}"
-        print(attributes_dict["class"])
         repr_attributes = self._get_repr_attributes(self.__init__)
-        print(repr_attributes)
+    
         # intermediate solution
         if 'args' and 'kwargs' in repr_attributes:
             repr_attributes.remove('args')
@@ -41,7 +41,13 @@ class StacieRLUserObject(ABC):
 
             if isinstance(value, device):
                 value = str(value)
-
+                
+            if isinstance(value, Enum):
+                value = value.value
+                
+            if isinstance(value, np.ndarray):
+                value = tuple(value)                    
+                
             attributes_dict[attribute] = value
         return attributes_dict    
 

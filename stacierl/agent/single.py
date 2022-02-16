@@ -220,3 +220,6 @@ class Single(Agent):
     @episode_counter.setter
     def episode_counter(self, new_counter: EpisodeCounter) -> None:
         self._episode_counter = new_counter
+
+    def copy(self):
+        ...

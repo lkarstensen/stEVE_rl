@@ -7,6 +7,7 @@ import torch
 
 from dataclasses import dataclass
 
+from ..util import StacieRLUserObject
 
 @dataclass
 class EpisodeNumpy:
@@ -65,7 +66,7 @@ class Batch(NamedTuple):
     padding_mask: torch.Tensor = None
 
 
-class ReplayBuffer(ABC):
+class ReplayBuffer(StacieRLUserObject, ABC):
     @property
     @abstractmethod
     def batch_size(self) -> int:

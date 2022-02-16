@@ -3,6 +3,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 from dataclasses import dataclass
 import torch.multiprocessing as mp
+from ..util import StacieRLUserObject
 
 
 @dataclass
@@ -117,7 +118,7 @@ class EpisodeCounterShared(EpisodeCounter):
         return self
 
 
-class Agent(ABC):
+class Agent(StacieRLUserObject, ABC):
     @abstractmethod
     def heatup(self, steps: int = None, episodes: int = None) -> Tuple[List[float], List[float]]:
         ...
@@ -154,4 +155,8 @@ class Agent(ABC):
 
     @abstractmethod
     def load_checkpoint(self, directory: str, name: str) -> None:
+        ...
+
+    @abstractmethod
+    def copy(self):
         ...

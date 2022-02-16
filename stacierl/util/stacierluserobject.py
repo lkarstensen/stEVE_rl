@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from attr import attr
 import numpy as np
 from torch import device 
 import inspect
@@ -23,7 +24,6 @@ class StacieRLUserObject(ABC):
         attributes_dict["class"] = f"{self.__module__}.{self.__class__.__name__}"
         repr_attributes = self._get_repr_attributes(self.__init__)
     
-        # intermediate solution
         if 'args' and 'kwargs' in repr_attributes:
             repr_attributes.remove('args')
             repr_attributes.remove('kwargs')
@@ -34,20 +34,31 @@ class StacieRLUserObject(ABC):
             # hasattr ist slower, but more general
             #if not isinstance(value, (int, float, list, str, np.number)):
             if hasattr(value, 'to_dict'):
-                value = value.to_dict()
+                dict_value = value.to_dict()
 
-            if (isinstance(value, np.integer)):
-                value = int(value)
+            elif (isinstance(value, np.integer)):
+                dict_value = int(value)
 
-            if isinstance(value, device):
-                value = str(value)
+            elif isinstance(value, device):
+                dict_value = str(value)
                 
-            if isinstance(value, Enum):
-                value = value.value
+            elif isinstance(value, Enum):
+                dict_value = value.value
                 
-            if isinstance(value, np.ndarray):
-                value = tuple(value)                    
+            elif isinstance(value, np.ndarray):
+                dict_value = tuple(value)  
+
+            elif isinstance(value, list):
+                dict_value = []
+                for v in value:
+                    if hasattr(v, 'to_dict'):
+                        dict_value.append(v.to_dict())
+                    else:
+                        dict_value.append(v)                
+            
+            else:
+                dict_value = value
                 
-            attributes_dict[attribute] = value
+            attributes_dict[attribute] = dict_value
         return attributes_dict    
 

@@ -22,6 +22,12 @@ class StacieRLUserObject(ABC):
         attributes_dict["class"] = f"{self.__module__}.{self.__class__.__name__}"
         print(attributes_dict["class"])
         repr_attributes = self._get_repr_attributes(self.__init__)
+        print(repr_attributes)
+        # intermediate solution
+        if 'args' and 'kwargs' in repr_attributes:
+            repr_attributes.remove('args')
+            repr_attributes.remove('kwargs')
+            
         for attribute in repr_attributes:
             value = getattr(self, attribute)
 

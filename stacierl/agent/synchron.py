@@ -115,7 +115,7 @@ class Synchron(Agent):
         return result
 
     def explore_and_update_parallel(
-        self, update_steps: int, explore_steps: int, explore_episodes: int
+        self, update_steps: int, explore_steps: int = inf, explore_episodes: int = inf
     ) -> Tuple[Tuple[List[float], List[float]], List[float]]:
         update_steps_per_agent = ceil(update_steps / self.n_trainer)
         explore_steps_per_agent, explore_episodes_per_agent = self._divide_steps_and_episodes(

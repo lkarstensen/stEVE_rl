@@ -78,6 +78,7 @@ def run(
     shutdown_event,
     name,
 ):
+    torch.set_num_threads(1)
     for handler_name, handler_config in log_config_dict["handlers"].items():
         if "filename" in handler_config.keys():
             filename = handler_config["filename"]

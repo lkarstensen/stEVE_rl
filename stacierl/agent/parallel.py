@@ -24,7 +24,12 @@ class Parallel(Agent):
         shared_model=False,
     ) -> None:
 
+        self.algo = algo
+        self.env_train = env_train
+        self.env_eval = env_eval
         self.n_agents = n_agents
+        self.consecutive_action_steps = consecutive_action_steps
+        self.device = device
         self.shared_model = shared_model
         self.agents: List[SingleAgentProcess] = []
         self.replay_buffer = replay_buffer
@@ -210,3 +215,6 @@ class Parallel(Agent):
             agent.set_network_states(network_states_container)
             agent.set_optimizer_states(optimizer_states_container)
             agent.step_counter = single_agent_step_counter
+
+    def copy(self):
+        ...

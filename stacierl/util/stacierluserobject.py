@@ -4,6 +4,7 @@ import numpy as np
 from torch import device 
 import inspect
 from enum import Enum
+#from stacierl.util.environment import ActionSpace, ObservationSpace
 
 
 class StacieRLUserObject(ABC):
@@ -54,7 +55,10 @@ class StacieRLUserObject(ABC):
                     if hasattr(v, 'to_dict'):
                         dict_value.append(v.to_dict())
                     else:
-                        dict_value.append(v)                
+                        dict_value.append(v)
+
+            elif 'Tiltmaze' in str(value):
+                dict_value = str(type(value))                
             
             else:
                 dict_value = value

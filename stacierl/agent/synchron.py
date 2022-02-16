@@ -8,6 +8,7 @@ from ..util import Environment, DummyEnvironment
 from math import ceil, inf
 import torch
 import os
+from time import sleep
 
 
 class Synchron(Agent):
@@ -48,6 +49,7 @@ class Synchron(Agent):
                     parent_agent=self,
                 )
             )
+            sleep(1)
 
         for i in range(n_trainer):
             if share_trainer_model:
@@ -67,6 +69,7 @@ class Synchron(Agent):
                     parent_agent=self,
                 )
             )
+            sleep(1)
         self.logger.debug("Synchron Agent initialized")
 
     def heatup(

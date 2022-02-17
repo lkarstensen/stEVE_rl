@@ -24,6 +24,14 @@ class Synchron(Agent):
         consecutive_action_steps: int = 1,
         share_trainer_model=False,
     ) -> None:
+        
+        # needed for saving config only
+        self.algo = algo
+        self.env_train = env_train
+        self.env_eval = env_eval
+        self.worker_device = worker_device
+        self.trainer_device = trainer_device
+        
         self.logger = logging.getLogger(self.__module__)
         self.n_worker = n_worker
         self.n_trainer = n_trainer

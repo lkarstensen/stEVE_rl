@@ -24,12 +24,14 @@ class Parallel(Agent):
         shared_model=False,
     ) -> None:
 
+        # needed for saving config only
         self.algo = algo
         self.env_train = env_train
         self.env_eval = env_eval
         self.n_agents = n_agents
         self.consecutive_action_steps = consecutive_action_steps
         self.device = device
+        
         self.shared_model = shared_model
         self.agents: List[SingleAgentProcess] = []
         self.replay_buffer = replay_buffer

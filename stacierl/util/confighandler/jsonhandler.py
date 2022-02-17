@@ -1,4 +1,4 @@
-from tiltmaze.confighandler.confighandler import ConfigHandler
+from stacierl.util.confighandler import ConfigHandler
 import json
 from importlib import import_module
 

@@ -1,6 +1,9 @@
+from abc import ABC, abstractmethod
 from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
+
+from stacierl.util.stacierluserobject import StacieRLUserObject
 
 
 from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
@@ -15,11 +18,12 @@ from ...util import ObservationSpace, ActionSpace
 
 
 @dataclass
-class Embedder:
+class Embedder(StacieRLUserObject):
     network: Network
     update: bool
 
-
+    def copy(self):
+        ...
 @dataclass
 class SACEmbeddedNetworkStateContainer(NetworkStatesContainer):
     q1: Dict[str, torch.Tensor]

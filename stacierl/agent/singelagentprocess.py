@@ -270,3 +270,6 @@ class SingleAgentProcess(Agent):
 
     def save_checkpoint(self, directory: str, name: str) -> None:
         ...
+
+    def copy(self):
+        ...

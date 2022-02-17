@@ -1,11 +1,12 @@
 import torch.nn as nn
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 
 import torch
+from ..util import StacieRLUserObject
 
 
-class Network(ABC, nn.Module):
+class Network(StacieRLUserObject, nn.Module):
     @property
     @abstractmethod
     def input_is_set(self) -> bool:

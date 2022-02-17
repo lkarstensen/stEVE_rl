@@ -2,11 +2,12 @@ from abc import ABC, abstractmethod
 from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
+from ..util import StacieRLUserObject
 from .model import Model, NetworkStatesContainer
 import torch
 
 
-class Algo(ABC):
+class Algo(StacieRLUserObject, ABC):
     @abstractmethod
     def __init__(self) -> None:
         self._device: torch.device = torch.device()

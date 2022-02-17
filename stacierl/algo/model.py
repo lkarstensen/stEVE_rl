@@ -5,6 +5,8 @@ import numpy as np
 import torch
 from dataclasses import dataclass
 
+from stacierl.util.stacierluserobject import StacieRLUserObject
+
 from ..network import Network
 
 
@@ -157,7 +159,7 @@ class OptimizerStatesContainer(ABC):
         return self
 
 
-class Model(ABC):
+class Model(StacieRLUserObject, ABC):
     @property
     @abstractmethod
     def network_states_container(self) -> NetworkStatesContainer:

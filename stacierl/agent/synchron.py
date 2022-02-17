@@ -24,14 +24,15 @@ class Synchron(Agent):
         consecutive_action_steps: int = 1,
         share_trainer_model=False,
     ) -> None:
-        
+
         # needed for saving config only
         self.algo = algo
         self.env_train = env_train
         self.env_eval = env_eval
         self.worker_device = worker_device
         self.trainer_device = trainer_device
-        
+        self.consecutive_action_steps = consecutive_action_steps
+
         self.logger = logging.getLogger(self.__module__)
         self.n_worker = n_worker
         self.n_trainer = n_trainer
@@ -278,3 +279,17 @@ class Synchron(Agent):
             trainer.set_optimizer_states(optimizer_states_container)
             trainer.set_network_states(network_states_container)
             trainer.step_counter = single_trainer_step_counter
+
+    def copy(self):
+        return self.__class__(
+            self.algo.copy(),
+            self.env_train.copy(),
+            self.env_eval.copy(),
+            self.replay_buffer.copy(),
+            self.n_worker,
+            self.n_trainer,
+            self.worker_device,
+            self.trainer_device,
+            self.consecutive_action_steps,
+            self.share_trainer_model,
+        )

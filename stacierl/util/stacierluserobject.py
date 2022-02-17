@@ -1,9 +1,12 @@
 from abc import ABC, abstractmethod
+import json
 from attr import attr
 import numpy as np
 from torch import device 
 import inspect
 from enum import Enum
+
+import stacierl
 #from stacierl.util.environment import ActionSpace, ObservationSpace
 
 
@@ -64,5 +67,13 @@ class StacieRLUserObject(ABC):
                 dict_value = value
                 
             attributes_dict[attribute] = dict_value
-        return attributes_dict    
+        return attributes_dict 
+    
+    def save_config(self, directory: str, file_name: str):
+        config_dict = self.to_dict()
+        json_handler = stacierl.util.JSONHandler()
+        
+        path = directory + '/' + file_name + '.json'
+        
+        json_handler.save_dict_to_file(config_dict, path) 
 

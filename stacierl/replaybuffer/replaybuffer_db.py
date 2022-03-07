@@ -72,7 +72,7 @@ class Batch(NamedTuple):
     padding_mask: torch.Tensor = None
 
 
-class ReplayBuffer(StacieRLUserObject, ABC):
+class ReplayBufferDB(StacieRLUserObject, ABC):
     @property
     @abstractmethod
     def batch_size(self) -> int:

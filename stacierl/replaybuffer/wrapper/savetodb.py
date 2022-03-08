@@ -19,8 +19,9 @@ class SavetoDB(Wrapper):
         self.port = port
         self.socket = SocketClient(self.host, self.port)
 
+    @property
     def batch_size(self) -> int:
-        return self.wrapped_replaybuffer.batch_size()
+        return self.wrapped_replaybuffer.batch_size
     
     def push(self, episode: EpisodeSuccess) -> None:
         # save to db

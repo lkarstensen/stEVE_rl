@@ -7,20 +7,23 @@ from my_socket.socketclient import SocketClient
 class LoadFromDB(Wrapper):
     def __init__(
         self,
+        nb_loaded_episodes: int,
+        filter: str,  
         wrapped_replaybuffer: ReplayBufferDB,
         host='10.15.16.73',
         port=65430,
     ) -> None:
         
-        # load episodes in buffer
-        
         self.wrapped_replaybuffer = wrapped_replaybuffer
         self.host = host
         self.port = port
         self.socket = SocketClient(self.host, self.port)
+        
+        # load episodes from db in buffer
 
+    @property
     def batch_size(self) -> int:
-        return self.wrapped_replaybuffer.batch_size()
+        return self.wrapped_replaybuffer.batch_size
     
     def push(self, episode: EpisodeSuccess) -> None:        
         self.wrapped_replaybuffer.push(episode)

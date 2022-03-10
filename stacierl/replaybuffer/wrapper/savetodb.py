@@ -3,18 +3,19 @@ from typing import Dict
 from . import Wrapper
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
 from my_socket.socketclient import SocketClient
+from tiltmaze.env import Env
 
 class SavetoDB(Wrapper):
     def __init__(
         self,
         wrapped_replaybuffer: ReplayBufferDB,
-        env_config: Dict,
+        env: Env,
         host='10.15.16.73',
         port=65430,
     ) -> None:
         
         self.wrapped_replaybuffer = wrapped_replaybuffer
-        self.env_config = env_config
+        self.env = env
         self.host = host
         self.port = port
         self.socket = SocketClient(self.host, self.port)
@@ -24,9 +25,21 @@ class SavetoDB(Wrapper):
         return self.wrapped_replaybuffer.batch_size
     
     def push(self, episode: EpisodeSuccess) -> None:
-        # save to db
-        
+        self._save_to_database(episode)
         self.wrapped_replaybuffer.push(episode)
+      
+    # episode needs to be first element of list  
+    def _save_to_database(self, episode) -> None:
+        self.socket.send_init_msg("save")
+        
+        info_dict = {
+            'episode_length': len(episode.dones),
+            'env_config': self.env.to_dict()
+            }
+        self.socket.send_data([episode, info_dict])
+        
+        self.socket.recieve_confirm_message(self.socket)
+
         
     def sample(self) -> Batch:
         return self.wrapped_replaybuffer.sample()
@@ -34,7 +47,7 @@ class SavetoDB(Wrapper):
     def copy(self):
         return self.__class__(
             self.wrapped_replaybuffer.copy(),
-            self.env_config,
+            self.env,
             self.host,
             self.port)
         

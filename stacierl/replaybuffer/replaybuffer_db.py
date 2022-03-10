@@ -16,7 +16,7 @@ class EpisodeNumpy:
     actions: np.ndarray
     rewards: np.ndarray
     dones: np.ndarray
-    success: bool
+    success: float
 
     def __len__(self):
         return len(self.states)
@@ -28,22 +28,21 @@ class EpisodeSuccess:
         self.actions: List[np.ndarray] = []
         self.rewards: List[np.ndarray] = []
         self.dones: List[np.ndarray] = []
-        self.success: bool = False
-        
-    def successful(self):
-        self.success = True
-        
+        self.success: float = 0.0
+                
     def add_transition(
         self,
         state: np.ndarray,
         action: np.ndarray,
         reward: float,
         done: bool,
+        success: float,
     ):
         self.states.append(state)
         self.actions.append(action)
         self.rewards.append(np.array([reward]))
         self.dones.append(np.array([done]))
+        self.success = success
 
     def add_reset_state(
         self,

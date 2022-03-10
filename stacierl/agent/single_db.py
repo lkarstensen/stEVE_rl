@@ -152,11 +152,9 @@ class SingleDB(Agent):
                 step_counter += 1
                 flat_state = env.observation_space.to_flat_array(state)
                 env.render()
-                episode_transitions.add_transition(flat_state, action, reward, done)
+                episode_transitions.add_transition(flat_state, action, reward, done, success)
                 episode_reward += reward
                 if done:
-                    if success > 0:
-                        episode_transitions.successful()
                     break
 
         return episode_transitions, episode_reward, step_counter, success

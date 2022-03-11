@@ -78,68 +78,71 @@ def run(
     shutdown_event,
     name,
 ):
-    torch.set_num_threads(1)
-    for handler_name, handler_config in log_config_dict["handlers"].items():
-        if "filename" in handler_config.keys():
-            filename = handler_config["filename"]
-            if ".log" in filename:
-                filename = filename.replace(".log", f"-{name}.log")
-            else:
-                filename += f"-{name}"
-            log_config_dict["handlers"][handler_name]["filename"] = filename
-    logging.config.dictConfig(log_config_dict)
-    logger = logging.getLogger(__name__)
-    logger.info("logger initialized")
-    agent = Single(algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps)
-    agent.step_counter = step_counter
-    agent.episode_counter = episode_counter
-    while not shutdown_event.is_set():
-        try:
-            task = task_queue.get(timeout=1)
-        except queue.Empty:
-            continue
-
-        task_name = task[0]
-        if task_name == "heatup":
-            result = agent.heatup(task[1], task[2], task[3])
-        elif task_name == "explore":
-            result = agent.explore(task[1], task[2])
-        elif task_name == "evaluate":
-            result = agent.evaluate(task[1], task[2])
-        elif task_name == "update":
+    try:
+        torch.set_num_threads(1)
+        for handler_name, handler_config in log_config_dict["handlers"].items():
+            if "filename" in handler_config.keys():
+                filename = handler_config["filename"]
+                if ".log" in filename:
+                    filename = filename.replace(".log", f"-{name}.log")
+                else:
+                    filename += f"-{name}"
+                log_config_dict["handlers"][handler_name]["filename"] = filename
+        logging.config.dictConfig(log_config_dict)
+        logger = logging.getLogger(__name__)
+        logger.info("logger initialized")
+        agent = Single(algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps)
+        agent.step_counter = step_counter
+        agent.episode_counter = episode_counter
+        while not shutdown_event.is_set():
             try:
-                result = agent.update(task[1])
-            except ValueError as error:
-                logger.warning(f"Update Error: {error}")
-                shutdown_event.set()
-                result = error
-        elif task_name == "put_network_states_container":
-            network_states_container = deepcopy(agent.algo.model.network_states_container)
-            network_states_container.to(torch.device("cpu"))
-            model_queue.put(network_states_container)
-            continue
-        elif task_name == "set_network_states_container":
-            network_states_container = task[1]
-            network_states_container.to(device)
-            agent.algo.model.set_network_states(network_states_container)
-            continue
-        elif task_name == "put_optimizer_states_container":
-            optimizer_states_container = deepcopy(agent.algo.model.optimizer_states_container)
-            optimizer_states_container.to(torch.device("cpu"))
-            model_queue.put(optimizer_states_container)
-            continue
-        elif task_name == "set_optmizer_states_container":
-            optimizer_states_container = task[1]
-            optimizer_states_container.to(device)
-            agent.algo.model.set_optimizer_states(optimizer_states_container)
-            continue
-        elif task_name == "shutdown":
-            agent.close()
-            continue
-        else:
-            continue
-        result_queue.put(result)
+                task = task_queue.get(timeout=1)
+            except queue.Empty:
+                continue
 
+            task_name = task[0]
+            if task_name == "heatup":
+                result = agent.heatup(task[1], task[2], task[3])
+            elif task_name == "explore":
+                result = agent.explore(task[1], task[2])
+            elif task_name == "evaluate":
+                result = agent.evaluate(task[1], task[2])
+            elif task_name == "update":
+                try:
+                    result = agent.update(task[1])
+                except ValueError as error:
+                    logger.warning(f"Update Error: {error}")
+                    shutdown_event.set()
+                    result = error
+            elif task_name == "put_network_states_container":
+                network_states_container = deepcopy(agent.algo.model.network_states_container)
+                network_states_container.to(torch.device("cpu"))
+                model_queue.put(network_states_container)
+                continue
+            elif task_name == "set_network_states_container":
+                network_states_container = task[1]
+                network_states_container.to(device)
+                agent.algo.model.set_network_states(network_states_container)
+                continue
+            elif task_name == "put_optimizer_states_container":
+                optimizer_states_container = deepcopy(agent.algo.model.optimizer_states_container)
+                optimizer_states_container.to(torch.device("cpu"))
+                model_queue.put(optimizer_states_container)
+                continue
+            elif task_name == "set_optmizer_states_container":
+                optimizer_states_container = task[1]
+                optimizer_states_container.to(device)
+                agent.algo.model.set_optimizer_states(optimizer_states_container)
+                continue
+            elif task_name == "shutdown":
+                agent.close()
+                continue
+            else:
+                continue
+            result_queue.put(result)
+    except Exception as e:
+        logger.warning(e)
+        result_queue.put(e)
     agent.close()
 
 

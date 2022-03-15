@@ -2,7 +2,7 @@ from typing import Dict
 
 from . import Wrapper
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
-from my_socket.socketclient import SocketClient
+from stacie_sockets.stacie_socketclient import SocketClient
 
 class LoadFromDB(Wrapper):
     def __init__(

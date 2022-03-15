@@ -2,7 +2,7 @@ from typing import Dict
 
 from . import Wrapper
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
-from my_socket.socketclient import SocketClient
+from stacie_sockets.stacie_socketclient import SocketClient
 #from tiltmaze.env import Env
 
 class SavetoDB(Wrapper):
@@ -30,14 +30,14 @@ class SavetoDB(Wrapper):
       
     # episode needs to be first element of list  
     def _save_to_database(self, episode) -> None:
-        self.socket.send_init_msg("save")
-        
+        self.socket.send_init_msg(self.socket.db_methods.SAVE)
+       
         info_dict = {
             'episode_length': len(episode.dones),
             'env_config': self.env.to_dict()
             }
-        self.socket.send_data([episode, info_dict])
-        self.socket.recieve_confirm_message(self.socket.socket)
+        self.socket.send_data([episode, info_dict],self.socket.socket)
+        self.socket.receive_confirm_message(self.socket.socket)
 
         
     def sample(self) -> Batch:

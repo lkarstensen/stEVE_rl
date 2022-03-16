@@ -36,8 +36,8 @@ class SavetoDB(Wrapper):
             'episode_length': len(episode.dones),
             'env_config': self.env.to_dict()
             }
-        self.socket.send_data([episode, info_dict],self.socket.socket)
-        self.socket.receive_confirm_message(self.socket.socket)
+        self.socket.send_data([episode, info_dict])
+        self.socket.receive_confirm_message()
 
         
     def sample(self) -> Batch:

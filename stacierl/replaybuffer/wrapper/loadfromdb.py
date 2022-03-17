@@ -3,13 +3,13 @@ from typing import List
 from . import Wrapper, FilterElement
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
 from stacie_sockets.stacie_socketclient import SocketClient
+from stacie_sockets.socket_msg import Querry_Msg
 
 class LoadFromDB(Wrapper):
     def __init__(
         self,
         nb_loaded_episodes: int,
-        general_filter: List[FilterElement],
-        env_filter: List[FilterElement],  
+        filter: List[FilterElement],  
         wrapped_replaybuffer: ReplayBufferDB,
         host='10.15.16.73',
         port=65430,
@@ -19,8 +19,14 @@ class LoadFromDB(Wrapper):
         self.host = host
         self.port = port
         self.socket = SocketClient(self.host, self.port)
+
+        # load episodes from db in buffer, nb_loaded_episodes needs to be send too
+        querry_msg = Querry_Msg(filter)
+        self.socket.send_data(querry_msg)
+        db_episodes = self.socket.receive_data()
         
-        # load episodes from db in buffer
+        for episode in db_episodes:
+            self.wrapped_replaybuffer.push(episode)
 
     @property
     def batch_size(self) -> int:

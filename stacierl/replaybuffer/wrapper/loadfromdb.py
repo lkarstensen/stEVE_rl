@@ -1,6 +1,6 @@
-from typing import Dict
+from typing import List
 
-from . import Wrapper
+from . import Wrapper, FilterElement
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
 from stacie_sockets.stacie_socketclient import SocketClient
 
@@ -8,7 +8,8 @@ class LoadFromDB(Wrapper):
     def __init__(
         self,
         nb_loaded_episodes: int,
-        filter: str,  
+        general_filter: List[FilterElement],
+        env_filter: List[FilterElement],  
         wrapped_replaybuffer: ReplayBufferDB,
         host='10.15.16.73',
         port=65430,

@@ -6,9 +6,7 @@ from typing import Any
 
 class FilterMethod(str, Enum):
     EXACT = '=='
-    GREATER = '>'
     GREATEREQUAL = '>='
-    LESS = '<'
     LESSEQUAL = '<='
     NOTEQUAL = '!='
 

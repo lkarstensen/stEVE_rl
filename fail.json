@@ -1,0 +1,374 @@
+{
+    "class": "stacierl.agent.single.Single",
+    "algo": {
+        "class": "stacierl.algo.sac.SAC",
+        "model": {
+            "class": "stacierl.algo.sacmodel.inputembedder.InputEmbedding",
+            "q1": {
+                "class": "stacierl.network.qnetwork.QNetwork",
+                "hidden_layers": [
+                    255,
+                    255,
+                    255
+                ],
+                "init_w": 0.003
+            },
+            "q2": {
+                "class": "stacierl.network.qnetwork.QNetwork",
+                "hidden_layers": [
+                    255,
+                    255,
+                    255
+                ],
+                "init_w": 0.003
+            },
+            "policy": {
+                "class": "stacierl.network.gaussianpolicy.GaussianPolicy",
+                "hidden_layers": [
+                    255,
+                    255,
+                    255
+                ],
+                "action_space": "<class 'tiltmaze.env.TiltmazeActionSpace'>",
+                "init_w": 0.003,
+                "log_std_min": -20,
+                "log_std_max": 2
+            },
+            "learning_rate": 0.001991743536437494,
+            "obs_space": "<class 'tiltmaze.env.TiltmazeObservationSpace'>",
+            "action_space": "<class 'tiltmaze.env.TiltmazeActionSpace'>",
+            "q1_common_input_embedder": {
+                "class": "stacierl.algo.sacmodel.inputembedder.Embedder",
+                "network": {
+                    "class": "stacierl.network.lstm.LSTM",
+                    "n_layer": 1,
+                    "n_nodes": 128
+                },
+                "update": true
+            },
+            "q2_common_input_embedder": {
+                "class": "stacierl.algo.sacmodel.inputembedder.Embedder",
+                "network": {
+                    "class": "stacierl.network.lstm.LSTM",
+                    "n_layer": 1,
+                    "n_nodes": 128
+                },
+                "update": false
+            },
+            "policy_common_input_embedder": {
+                "class": "stacierl.algo.sacmodel.inputembedder.Embedder",
+                "network": {
+                    "class": "stacierl.network.lstm.LSTM",
+                    "n_layer": 1,
+                    "n_nodes": 128
+                },
+                "update": false
+            }
+        },
+        "action_space": "<class 'tiltmaze.env.TiltmazeActionSpace'>",
+        "gamma": 0.9800243887646142,
+        "tau": 0.005,
+        "reward_scaling": 1,
+        "action_scaling": 1,
+        "exploration_action_noise": 0.25
+    },
+    "env_train": {
+        "class": "tiltmaze.env.Env",
+        "vessel_tree": {
+            "class": "tiltmaze.vesseltree.fromeve3d.FromEve3d",
+            "eve3d_vessel_tree": {
+                "class": "eve.vesseltree.aorticarch.AorticArch",
+                "arch_type": 1,
+                "scaling_xy": 1.0,
+                "scaling_z": 1.0,
+                "scaling_artery_diameter": 1.0,
+                "seed": 1234,
+                "scaling_xy_limits": [
+                    1.0,
+                    1.0
+                ],
+                "scaling_z_limits": [
+                    1.0,
+                    1.0
+                ]
+            },
+            "lao_rao": 20,
+            "cra_cau": -5,
+            "scaling_artery_diameter": 0.5,
+            "pixel_spacing": 0.5,
+            "contour_approx_margin": 2.0
+        },
+        "simulation": {
+            "class": "tiltmaze.simulation.guidewire.Guidewire",
+            "tip_length": 25,
+            "tip_angle": 1.5707963267948966,
+            "flex_length": 30,
+            "flex_rotary_spring_stiffness": 700000.0,
+            "flex_rotary_spring_damping": 300.0,
+            "flex_element_length": 1,
+            "stiff_rotary_spring_stiffness": 1000000.0,
+            "stiff_rotary_spring_damping": 300.0,
+            "stiff_element_length": 2,
+            "wire_diameter": 2,
+            "friction": 1.0,
+            "damping": 1e-06,
+            "velocity_limits": [
+                50.0,
+                1.5
+            ],
+            "normalize_action": true,
+            "dt_step": 0.13333333333333333,
+            "dt_simulation": 0.0002,
+            "body_mass": 0.01,
+            "body_moment": 0.1,
+            "spring_stiffness": 2500000.0,
+            "spring_damping": 100,
+            "last_segment_kp_angle": 3,
+            "last_segment_kp_translation": 5
+        },
+        "start": {
+            "class": "tiltmaze.start.insertionpoint.InsertionPoint"
+        },
+        "target": {
+            "class": "tiltmaze.target.centerlinerandom.CenterlineRandom",
+            "threshold": 5,
+            "branches": [
+                "right subclavian artery",
+                "right common carotid artery",
+                "left common carotid artery",
+                "left subclavian artery",
+                "brachiocephalic trunk"
+            ]
+        },
+        "success": {
+            "class": "tiltmaze.success.targetreached.TargetReached"
+        },
+        "state": {
+            "class": "tiltmaze.state.combination.Combination",
+            "wrapped_states": [
+                {
+                    "class": "tiltmaze.state.wrapper.normalize.Normalize",
+                    "wrapped_state": {
+                        "class": "tiltmaze.state.position.Position",
+                        "n_points": 6,
+                        "resolution": 1,
+                        "name": "position"
+                    },
+                    "name": "position"
+                },
+                {
+                    "class": "tiltmaze.state.wrapper.normalize.Normalize",
+                    "wrapped_state": {
+                        "class": "tiltmaze.state.target.Target",
+                        "name": "target"
+                    },
+                    "name": "target"
+                },
+                {
+                    "class": "tiltmaze.state.rotation.Rotation",
+                    "name": "rotation"
+                }
+            ]
+        },
+        "reward": {
+            "class": "tiltmaze.reward.combination.Combination",
+            "wrapped_rewards": [
+                {
+                    "class": "tiltmaze.reward.targetreached.TargetReached",
+                    "factor": 1.0
+                },
+                {
+                    "class": "tiltmaze.reward.step.Step",
+                    "factor": -0.005
+                },
+                {
+                    "class": "tiltmaze.reward.pathlengthdelta.PathLengthDelta",
+                    "factor": 0.001
+                }
+            ]
+        },
+        "done": {
+            "class": "tiltmaze.done.combination.Combination",
+            "wrapped_dones": [
+                {
+                    "class": "tiltmaze.done.targetreached.TargetReached"
+                },
+                {
+                    "class": "tiltmaze.done.maxsteps.MaxSteps",
+                    "max_steps": 100
+                }
+            ]
+        },
+        "info": {
+            "class": "tiltmaze.info.dummy.Dummy"
+        },
+        "imaging": {
+            "class": "tiltmaze.imaging.dummy.Dummy"
+        },
+        "pathfinder": {
+            "class": "tiltmaze.pathfinder.bruteforcebfs.BruteForceBFS"
+        },
+        "interim_targets": {
+            "class": "tiltmaze.interimtargets.dummy.Dummy"
+        },
+        "visualisation": {
+            "class": "tiltmaze.visualisation.dummy.Dummy"
+        },
+        "randomizer": {
+            "class": "tiltmaze.randomizer.dummy.Dummy"
+        }
+    },
+    "env_eval": {
+        "class": "tiltmaze.env.Env",
+        "vessel_tree": {
+            "class": "tiltmaze.vesseltree.fromeve3d.FromEve3d",
+            "eve3d_vessel_tree": {
+                "class": "eve.vesseltree.aorticarch.AorticArch",
+                "arch_type": 1,
+                "scaling_xy": 1.0,
+                "scaling_z": 1.0,
+                "scaling_artery_diameter": 1.0,
+                "seed": 1234,
+                "scaling_xy_limits": [
+                    1.0,
+                    1.0
+                ],
+                "scaling_z_limits": [
+                    1.0,
+                    1.0
+                ]
+            },
+            "lao_rao": 20,
+            "cra_cau": -5,
+            "scaling_artery_diameter": 0.5,
+            "pixel_spacing": 0.5,
+            "contour_approx_margin": 2.0
+        },
+        "simulation": {
+            "class": "tiltmaze.simulation.guidewire.Guidewire",
+            "tip_length": 25,
+            "tip_angle": 1.5707963267948966,
+            "flex_length": 30,
+            "flex_rotary_spring_stiffness": 700000.0,
+            "flex_rotary_spring_damping": 300.0,
+            "flex_element_length": 1,
+            "stiff_rotary_spring_stiffness": 1000000.0,
+            "stiff_rotary_spring_damping": 300.0,
+            "stiff_element_length": 2,
+            "wire_diameter": 2,
+            "friction": 1.0,
+            "damping": 1e-06,
+            "velocity_limits": [
+                50.0,
+                1.5
+            ],
+            "normalize_action": true,
+            "dt_step": 0.13333333333333333,
+            "dt_simulation": 0.0002,
+            "body_mass": 0.01,
+            "body_moment": 0.1,
+            "spring_stiffness": 2500000.0,
+            "spring_damping": 100,
+            "last_segment_kp_angle": 3,
+            "last_segment_kp_translation": 5
+        },
+        "start": {
+            "class": "tiltmaze.start.insertionpoint.InsertionPoint"
+        },
+        "target": {
+            "class": "tiltmaze.target.centerlinerandom.CenterlineRandom",
+            "threshold": 5,
+            "branches": [
+                "right subclavian artery",
+                "right common carotid artery",
+                "left common carotid artery",
+                "left subclavian artery",
+                "brachiocephalic trunk"
+            ]
+        },
+        "success": {
+            "class": "tiltmaze.success.targetreached.TargetReached"
+        },
+        "state": {
+            "class": "tiltmaze.state.combination.Combination",
+            "wrapped_states": [
+                {
+                    "class": "tiltmaze.state.wrapper.normalize.Normalize",
+                    "wrapped_state": {
+                        "class": "tiltmaze.state.position.Position",
+                        "n_points": 6,
+                        "resolution": 1,
+                        "name": "position"
+                    },
+                    "name": "position"
+                },
+                {
+                    "class": "tiltmaze.state.wrapper.normalize.Normalize",
+                    "wrapped_state": {
+                        "class": "tiltmaze.state.target.Target",
+                        "name": "target"
+                    },
+                    "name": "target"
+                },
+                {
+                    "class": "tiltmaze.state.rotation.Rotation",
+                    "name": "rotation"
+                }
+            ]
+        },
+        "reward": {
+            "class": "tiltmaze.reward.combination.Combination",
+            "wrapped_rewards": [
+                {
+                    "class": "tiltmaze.reward.targetreached.TargetReached",
+                    "factor": 1.0
+                },
+                {
+                    "class": "tiltmaze.reward.step.Step",
+                    "factor": -0.005
+                },
+                {
+                    "class": "tiltmaze.reward.pathlengthdelta.PathLengthDelta",
+                    "factor": 0.001
+                }
+            ]
+        },
+        "done": {
+            "class": "tiltmaze.done.combination.Combination",
+            "wrapped_dones": [
+                {
+                    "class": "tiltmaze.done.targetreached.TargetReached"
+                },
+                {
+                    "class": "tiltmaze.done.maxsteps.MaxSteps",
+                    "max_steps": 100
+                }
+            ]
+        },
+        "info": {
+            "class": "tiltmaze.info.dummy.Dummy"
+        },
+        "imaging": {
+            "class": "tiltmaze.imaging.dummy.Dummy"
+        },
+        "pathfinder": {
+            "class": "tiltmaze.pathfinder.bruteforcebfs.BruteForceBFS"
+        },
+        "interim_targets": {
+            "class": "tiltmaze.interimtargets.dummy.Dummy"
+        },
+        "visualisation": {
+            "class": "tiltmaze.visualisation.dummy.Dummy"
+        },
+        "randomizer": {
+            "class": "tiltmaze.randomizer.dummy.Dummy"
+        }
+    },
+    "replay_buffer": {
+        "class": "stacierl.replaybuffer.vanillaepisode.VanillaEpisode",
+        "capacity": 1000000.0,
+        "batch_size": 6
+    },
+    "device": "cuda",
+    "consecutive_action_steps": 1
+}

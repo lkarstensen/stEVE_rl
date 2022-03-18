@@ -1,9 +1,8 @@
 from typing import List
-
-from . import Wrapper, FilterElement
+from .wrapper import Wrapper, FilterElement
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
-from stacie_sockets.stacie_socketclient import SocketClient
-from stacie_sockets.socket_msg import Query_Msg
+from stacie_sockets.stacie_socketclient import SocketClient, DBMethods
+from stacie_sockets.socket_msg import Query_Msg, Init_Msg
 
 class LoadFromDB(Wrapper):
     def __init__(
@@ -18,13 +17,16 @@ class LoadFromDB(Wrapper):
         self.wrapped_replaybuffer = wrapped_replaybuffer
         self.host = host
         self.port = port
-        self.socket = SocketClient(self.host, self.port)
+        self.socket = SocketClient()
+        self.socket.start_connection(self.host, self.port)
 
         # load episodes from db in buffer, nb_loaded_episodes needs to be send too
+        self.socket.send_init_msg(DBMethods.GET_EPISODES)
         query_msg = Query_Msg(db_filter, nb_loaded_episodes)
         self.socket.send_data(query_msg)
-        db_episodes = self.socket.receive_data()
-        
+        episodes_msg = self.socket.receive_data()
+        db_episodes = episodes_msg.episodes
+       
         for episode in db_episodes:
             self.wrapped_replaybuffer.push(episode)
 

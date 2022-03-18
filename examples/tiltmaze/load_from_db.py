@@ -5,7 +5,7 @@ replay_buffer = 1e6,
 batch_size = 64
 
 db_filter = [
-    FilterElement('success', 0.5, FilterMethod.GREATEREQUAL),
+    FilterElement('success', 1, FilterMethod.GREATEREQUAL),
     FilterElement('simulation.tip_length', 25, FilterMethod.EXACT)
 ]
 

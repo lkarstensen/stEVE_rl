@@ -3,7 +3,7 @@ from typing import Dict
 from . import Wrapper
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
 from stacie_sockets.stacie_socketclient import SocketClient
-from stacie_sockets.socket_msg import Episode_Msg,Episodes_Msg,Text_Msg,Querry_Msg,Length_Msg
+from stacie_sockets.socket_msg import Episode_Msg,Episodes_Msg,Text_Msg,Query_Msg,Length_Msg
 #from tiltmaze.env import Env
 
 class SavetoDB(Wrapper):

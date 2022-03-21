@@ -30,6 +30,8 @@ class LoadFromDB(Wrapper):
         for episode in db_episodes:
             self.wrapped_replaybuffer.push(episode)
 
+        print('%d episodes were successfully loaded to buffer'%len(db_episodes))
+
     @property
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size

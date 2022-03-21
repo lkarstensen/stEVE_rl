@@ -1,17 +1,15 @@
-from typing import Dict
-
 from . import Wrapper
 from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
 from stacie_sockets.stacie_socketclient import SocketClient
-from stacie_sockets.socket_msg import Episode_Msg,Episodes_Msg,Text_Msg,Query_Msg,Length_Msg
-#from tiltmaze.env import Env
+from stacie_sockets.socket_msg import Episode_Msg, Episodes_Msg, Text_Msg, Query_Msg, Length_Msg
+from tiltmaze.env import Env
 
 class SavetoDB(Wrapper):
     def __init__(
         self,
         wrapped_replaybuffer: ReplayBufferDB,
-        env,
-        host='10.15.16.73',
+        env: Env,
+        host='127.0.1.1',
         port=65430,
     ) -> None:
         
@@ -22,7 +20,6 @@ class SavetoDB(Wrapper):
         self.socket = SocketClient()
         self.socket.start_connection(host,port)
         
-
     @property
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size
@@ -41,7 +38,6 @@ class SavetoDB(Wrapper):
             }
         self.socket.send_data(Episode_Msg([episode, info_dict]))
         self.socket.receive_confirm_message()
-
         
     def sample(self) -> Batch:
         return self.wrapped_replaybuffer.sample()

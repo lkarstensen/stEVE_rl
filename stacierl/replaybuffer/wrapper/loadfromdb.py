@@ -10,7 +10,7 @@ class LoadFromDB(Wrapper):
         nb_loaded_episodes: int,
         db_filter: List[FilterElement],  
         wrapped_replaybuffer: ReplayBufferDB,
-        host='10.15.16.73',
+        host='127.0.1.1',
         port=65430,
     ) -> None:
         

@@ -13,7 +13,7 @@ replay_buffer = stacierl.replaybuffer.VanillaStepDB(replay_buffer, batch_size)
 replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
                                                  db_filter=db_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
-                                                 host='10.15.16.238',
-                                                 port=27017)
+                                                 host='127.0.1.1',
+                                                 port=65430)
 
 

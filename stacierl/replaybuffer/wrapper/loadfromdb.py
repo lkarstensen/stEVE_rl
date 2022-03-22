@@ -20,7 +20,6 @@ class LoadFromDB(Wrapper):
         self.socket = SocketClient()
         self.socket.start_connection(self.host, self.port)
 
-        # load episodes from db in buffer, nb_loaded_episodes needs to be send too
         self.socket.send_init_msg(DBMethods.GET_EPISODES)
         query_msg = Query_Msg(db_filter, nb_loaded_episodes)
         self.socket.send_data(query_msg)

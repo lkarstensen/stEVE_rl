@@ -43,7 +43,6 @@ step_reward_filter = [
 
 guidewire_filter_element = object_to_filterelement(tiltmaze.simulation.Guidewire(), guidewire_filter)
 success_filter_element = object_to_filterelement(tiltmaze.success.TargetReached())
-reward_filter_element = object_to_filterelement(tiltmaze.reward.Step(), step_reward_filter)
 
 db_filter1 = guidewire_filter_element + success_filter_element + [FilterElement('success', 0.5, FilterMethod.GREATEREQUAL)]
 

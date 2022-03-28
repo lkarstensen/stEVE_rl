@@ -4,9 +4,7 @@ import eve
 
 import math
 
-from stacierl.replaybuffer.wrapper import FilterElement, FilterMethod
-from tiltmaze.env import Environment
-from typing import List, Optional, Dict
+from stacierl.replaybuffer.wrapper import filter_database
 
 ########################################################
 # 3) USER INTERFACE BASED, HARD-CODED FILTER OPTIONS
@@ -43,16 +41,7 @@ simu = tiltmaze.simulation.Guidewire(
     last_segment_kp_angle=3,
     last_segment_kp_translation=5,
 )
-target = tiltmaze.target.CenterlineRandom(
-    5,
-    branches=[
-        "right subclavian artery",
-        "right common carotid artery",
-        "left common carotid artery",
-        "left subclavian artery",
-        "brachiocephalic trunk",
-    ],
-)
+target = tiltmaze.target.CenterlineRandom(5)
 pathfinder = tiltmaze.pathfinder.BruteForceBFS()
 start = tiltmaze.start.InsertionPoint()
 imaging = tiltmaze.imaging.ImagingDummy((500, 500))
@@ -91,52 +80,15 @@ env = tiltmaze.Env(
     success=success,
     randomizer=randomizer,
 )
-def dict_to_filter(obj_dict: Dict, path: List[str]=[], filter_list: list=[]):    
-    keys = obj_dict.keys()
-    for key in keys:
-        path.append(key)
-        if isinstance(obj_dict[key], dict):
-            path, filter_list = dict_to_filter(obj_dict[key], path, filter_list)
-            path.pop()
-        elif isinstance(obj_dict[key], list):
-            for i in range(len(obj_dict[key])):
-                path.append(str(i))
-                if isinstance(obj_dict[key][i], dict):
-                    path, filter_list = dict_to_filter(obj_dict[key][i], path, filter_list)
-                    path.pop()
-                #else:
-                #    filter_list.append(FilterElement('.'.join(path), obj_dict[key], FilterMethod.EXACT))
-                #    path.pop()
-        else:
-            filter_list.append(FilterElement('.'.join(path), obj_dict[key], FilterMethod.EXACT))
-            path.pop()  
-            
-    return path, filter_list
+from stacierl.replaybuffer.wrapper import FilterElement, FilterMethod
+#db_filter = filter_database(env, success=0.0)
+db_filter1 = [FilterElement('simulation.velocity_limits.0.0', 50.0, FilterMethod.EXACT),
+             FilterElement('simulation.velocity_limits.1.0', 1.5, FilterMethod.EXACT)]
+db_filter2 = [FilterElement('simulation.velocity_limits', (50.0, 1.5), FilterMethod.EXACT)]
 
-
-def filter_database(env: Environment, 
-                    success: Optional[float] = None,
-                    success_criterion: Optional[FilterMethod] = FilterMethod.GREATEREQUAL,
-                    episode_length: Optional[int] = None,
-                    episode_length_criterion: Optional[FilterMethod] = FilterMethod.GREATEREQUAL
-                   ):
-    
-    db_query_list = []
-    
-    if success:
-        db_query_list.append(FilterElement('success', success, success_criterion))
-    if episode_length:
-        db_query_list.append(FilterElement('episode_length', episode_length, episode_length_criterion))
-    
-    env_dict = env.to_dict()
-    equal_objects = ['simulation', 'done', 'reward', 'state']
-    
-    for key in equal_objects:
-        _, filter_elements = dict_to_filter(env_dict[key], path=[key], filter_list=[])
-        db_query_list += filter_elements
-
-    return db_query_list
-
-db_filter = filter_database(env, success=0.5)
-for i in range(len(db_filter)):
-    print(db_filter[i])
+replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
+replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
+                                                 db_filter=db_filter1, 
+                                                 wrapped_replaybuffer=replay_buffer, 
+                                                 host='127.0.1.1',
+                                                 port=65430)

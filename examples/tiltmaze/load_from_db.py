@@ -81,14 +81,12 @@ env = tiltmaze.Env(
     success=success,
     randomizer=randomizer,
 )
-#db_filter = filter_database(env, success=0.0)
-db_filter1 = [FilterElement('simulation.velocity_limits.0.0', 50.0, FilterMethod.EXACT),
-             FilterElement('simulation.velocity_limits.1.0', 1.5, FilterMethod.EXACT)]
-db_filter2 = [FilterElement('simulation.velocity_limits', (50.0, 1.5), FilterMethod.EXACT)]
-"""
+#db_filter = filter_database(env, success=0.0, episode_length=10)
+db_filter = [FilterElement('episode_length', 100, FilterMethod.EXACT)]
+
 replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
 replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
-                                                 db_filter=db_filter1, 
+                                                 db_filter=db_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
                                                  host='127.0.1.1',
                                                  port=65430)
@@ -104,8 +102,8 @@ def mongodb_query(stacierl_query) -> Dict:
 
         if path in fields:
             path = filter_elem.path
-        elif path == "episode_length":
-            path == "episode_length_INFO"
+        elif path == 'episode_length':
+            path = 'episode_length_INFO'
         else:
             path = 'env_config_INFO.' + filter_elem.path
         if isinstance(value, tuple):
@@ -120,6 +118,7 @@ def mongodb_query(stacierl_query) -> Dict:
                     mongo_dict = {updated_path: {'$lte': value[i]}}
                 elif filter_elem.method == FilterMethod.NOTEQUAL:
                     mongo_dict = {updated_path: {'$ne': value[i]}}
+
                 mongo_query.update(mongo_dict)
         else:
             if filter_elem.method == FilterMethod.EXACT:
@@ -133,6 +132,7 @@ def mongodb_query(stacierl_query) -> Dict:
             
             mongo_query.update(mongo_dict)
 
-    return mongo_query 
+    return mongo_query
 
-print(mongodb_query(db_filter1) == mongodb_query(db_filter2))                                              
+print(mongodb_query(db_filter))
+"""

@@ -5,10 +5,6 @@ import eve
 import math
 
 from stacierl.replaybuffer.wrapper import filter_database
-from stacierl.replaybuffer.wrapper import FilterElement, FilterMethod
-
-from typing import Dict
-from stacierl.replaybuffer import EpisodeSuccess
                
 eve_tree = eve.vesseltree.AorticArch(seed=1234)
 vessel_tree = tiltmaze.vesseltree.FromEve3d(
@@ -81,8 +77,7 @@ env = tiltmaze.Env(
     success=success,
     randomizer=randomizer,
 )
-#db_filter = filter_database(env, success=0.0, episode_length=10)
-db_filter = [FilterElement('episode_length', 100, FilterMethod.EXACT)]
+db_filter = filter_database(env, success=0.0, episode_length=10)
 
 replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
 replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
@@ -90,49 +85,3 @@ replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
                                                  wrapped_replaybuffer=replay_buffer, 
                                                  host='127.0.1.1',
                                                  port=65430)
-"""
-def mongodb_query(stacierl_query) -> Dict:
-    mongo_query = {}
-    stacierl_episode = EpisodeSuccess()
-    fields = list(vars(stacierl_episode).keys())
-    filter_elem:FilterElement 
-    for filter_elem in stacierl_query:
-        path = filter_elem.path
-        value = filter_elem.value
-
-        if path in fields:
-            path = filter_elem.path
-        elif path == 'episode_length':
-            path = 'episode_length_INFO'
-        else:
-            path = 'env_config_INFO.' + filter_elem.path
-        if isinstance(value, tuple):
-            for i in range(len(value)):
-                updated_path = path + '.' + str(i) + '.' + str(0)
-
-                if filter_elem.method == FilterMethod.EXACT:
-                    mongo_dict = {updated_path: value[i]}
-                elif filter_elem.method == FilterMethod.GREATEREQUAL:
-                    mongo_dict = {updated_path: {'$gte': value[i]}}
-                elif filter_elem.method == FilterMethod.LESSEQUAL:
-                    mongo_dict = {updated_path: {'$lte': value[i]}}
-                elif filter_elem.method == FilterMethod.NOTEQUAL:
-                    mongo_dict = {updated_path: {'$ne': value[i]}}
-
-                mongo_query.update(mongo_dict)
-        else:
-            if filter_elem.method == FilterMethod.EXACT:
-                mongo_dict = {path: value}
-            elif filter_elem.method == FilterMethod.GREATEREQUAL:
-                mongo_dict = {path: {'$gte': value}}
-            elif filter_elem.method == FilterMethod.LESSEQUAL:
-                mongo_dict = {path: {'$lte': value}}
-            elif filter_elem.method == FilterMethod.NOTEQUAL:
-                mongo_dict = {path: {'$ne': value}}
-            
-            mongo_query.update(mongo_dict)
-
-    return mongo_query
-
-print(mongodb_query(db_filter))
-"""

@@ -80,6 +80,15 @@ class LoadFromDB(Wrapper):
 
         print('%d episodes were successfully loaded to buffer'%len(db_episodes))
 
+    def delete_episodes(self,
+                        db_filter,
+                        nb_loaded_episodes = 0):
+        self.socket.send_init_msg(DBMethods.DELETE_EPISODES)
+        query_msg = Query_Msg(db_filter,nb_loaded_episodes)
+        self.socket.send_data(query_msg)
+        self.socket.receive_confirm_message()
+
+
     @property
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size

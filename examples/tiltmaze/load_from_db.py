@@ -2,6 +2,7 @@ import stacierl
 import tiltmaze
 import eve
 
+from bson.objectid import ObjectId
 import math
 
 from stacierl.replaybuffer.wrapper import filter_database
@@ -83,13 +84,15 @@ env = tiltmaze.Env(
 )
 #db_filter = filter_database(env, success=0.0, episode_length=10)
 db_filter = [FilterElement('episode_length', 100, FilterMethod.EXACT)]
+db_filter_delete = [FilterElement("success",1,FilterMethod.EXACT)] 
 
 replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
 replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
                                                  db_filter=db_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
-                                                 host='127.0.1.1',
+                                                 host='10.15.16.238',
                                                  port=65430)
+replay_buffer.delete_episodes(db_filter_delete)
 """
 def mongodb_query(stacierl_query) -> Dict:
     mongo_query = {}

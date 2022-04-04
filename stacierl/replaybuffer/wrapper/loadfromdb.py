@@ -44,8 +44,7 @@ def filter_database(env: Environment,
         db_query_list += [FilterElement('episode_length', episode_length, episode_length_criterion)]
     
     env_dict = env.to_dict()
-    #equal_objects = ['simulation', 'done', 'reward', 'state']
-    equal_objects = ['simulation']
+    equal_objects = ['vessel_tree', 'simulation', 'done', 'reward', 'state']
     for key in equal_objects:
         _, filter_elements = _dict_to_filter(env_dict[key], path=[key], filter_list=[])
         db_query_list += filter_elements

@@ -1,3 +1,4 @@
+from numpy import isin
 import stacierl
 import tiltmaze
 import eve
@@ -5,11 +6,9 @@ import eve
 from bson.objectid import ObjectId
 import math
 
-from stacierl.replaybuffer.wrapper import filter_database
-from stacierl.replaybuffer.wrapper import FilterElement, FilterMethod
-
-from typing import Dict
+from stacierl.replaybuffer.wrapper import filter_database, FilterElement, FilterMethod
 from stacierl.replaybuffer import EpisodeSuccess
+from typing import Dict
                
 eve_tree = eve.vesseltree.AorticArch(seed=1234)
 vessel_tree = tiltmaze.vesseltree.FromEve3d(
@@ -87,7 +86,7 @@ db_filter = [FilterElement('episode_length', 100, FilterMethod.EXACT)]
 db_filter_delete = [FilterElement("success",1,FilterMethod.EXACT)] 
 
 replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
-replay_buffer = stacierl.replaybuffer.LoadFromDB(nb_loaded_episodes=10,
+replay_buffer = stacierl.replaybuffer.wrapper.LoadFromDB(nb_loaded_episodes=10,
                                                  db_filter=db_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
                                                  host='10.15.16.238',

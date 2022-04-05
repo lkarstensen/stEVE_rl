@@ -61,13 +61,18 @@ class LoadFromDB(Wrapper):
         host='127.0.1.1',
         port=65430,
     ) -> None:
-        
+
         self.wrapped_replaybuffer = wrapped_replaybuffer
         self.host = host
         self.port = port
-        self.socket = SocketClient()
-        self.socket.start_connection(self.host, self.port)
+        if hasattr(wrapped_replaybuffer,"socket"):
+            self.socket = wrapped_replaybuffer.socket
+        else:
 
+            self.socket = SocketClient()
+            self.socket.start_connection(self.host, self.port)
+       
+        
         self.socket.send_init_msg(DBMethods.GET_EPISODES)
         query_msg = Query_Msg(db_filter, nb_loaded_episodes)
         self.socket.send_data(query_msg)
@@ -92,7 +97,8 @@ class LoadFromDB(Wrapper):
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size
     
-    def push(self, episode: EpisodeSuccess) -> None:        
+    def push(self, episode: EpisodeSuccess) -> None:  
+      
         self.wrapped_replaybuffer.push(episode)
         
     def sample(self) -> Batch:

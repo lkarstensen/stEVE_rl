@@ -1,13 +1,9 @@
-from numpy import isin
 import stacierl
 import tiltmaze
 import eve
 
 import math
-
-from stacierl.replaybuffer.wrapper import filter_database, FilterElement, FilterMethod
-from stacierl.replaybuffer import EpisodeSuccess
-from typing import Dict
+from stacierl.replaybuffer.wrapper import filter_database
                
 eve_tree = eve.vesseltree.AorticArch(seed=1234)
 vessel_tree = tiltmaze.vesseltree.FromEve3d(

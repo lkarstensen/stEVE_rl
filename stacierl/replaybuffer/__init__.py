@@ -4,4 +4,4 @@ from .vanillastep import VanillaStep
 from .vanillastep_db import VanillaStepDB
 from .vanillaepisode import VanillaEpisode
 from .vanillashared import VanillaStepShared, VanillaEpisodeShared
-from .wrapper import LoadFromDB,SavetoDB
+from . import wrapper

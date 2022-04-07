@@ -4,7 +4,7 @@ import eve
 import torch
 import math
 
-from stacierl.replaybuffer.wrapper.wrapper import FilterElement, FilterMethod
+from stacierl.replaybuffer.wrapper import filter_database, FilterElement, FilterMethod
 
 
 HOST = "10.15.16.238"
@@ -109,9 +109,9 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaStepDB(replay_buffer, batch_size)
-    query_Filter = [FilterElement("success",1,FilterMethod.EXACT),FilterElement("episode_length",10,FilterMethod.GREATEREQUAL)]
-    replay_buffer = stacierl.replaybuffer.wrapper.LoadFromDB(5e5,query_Filter,replay_buffer,host=HOST,port=PORT)
-    replay_buffer = stacierl.replaybuffer.wrapper.SavetoDB(replay_buffer, env, host=HOST,port=PORT)
+    db_filter = filter_database(env, success=0.0, episode_length=10)
+    replay_buffer = stacierl.replaybuffer.wrapper.LoadFromDB(5e5, db_filter, replay_buffer, host=HOST, port=PORT)
+    replay_buffer = stacierl.replaybuffer.wrapper.SavetoDB(replay_buffer, env, host=HOST, port=PORT)
    
    
     agent = stacierl.agent.SingleDB(

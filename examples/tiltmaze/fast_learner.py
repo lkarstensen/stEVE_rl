@@ -152,9 +152,11 @@ def sac_training(
 
         if step_counter.exploration >= next_eval_step_limt:
             agent.save_checkpoint(log_folder, f"checkpoint_{step_counter.exploration}")
-            reward, success = agent.evaluate(episodes=eval_episodes)
-            reward = sum(reward) / len(reward)
-            success = sum(success) / len(success)
+            episodes = agent.evaluate(episodes=eval_episodes)
+            rewards = [episode.episode_reward for episode in episodes]
+            successes = [episode.episode_success for episode in episodes]
+            reward = sum(rewards) / len(rewards)
+            success = sum(successes) / len(successes)
             next_eval_step_limt += steps_between_eval
 
             print(f"Steps: {step_counter.exploration}, Reward: {reward}, Success: {success}")

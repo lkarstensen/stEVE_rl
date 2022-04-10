@@ -3,6 +3,8 @@ from typing import Dict, List, Tuple
 import numpy as np
 from dataclasses import dataclass
 import torch.multiprocessing as mp
+
+from stacierl.replaybuffer.replaybuffer import Episode
 from ..util import StacieRLUserObject
 
 
@@ -120,11 +122,11 @@ class EpisodeCounterShared(EpisodeCounter):
 
 class Agent(StacieRLUserObject, ABC):
     @abstractmethod
-    def heatup(self, steps: int = None, episodes: int = None) -> Tuple[List[float], List[float]]:
+    def heatup(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...
 
     @abstractmethod
-    def explore(self, steps: int = None, episodes: int = None) -> Tuple[List[float], List[float]]:
+    def explore(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...
 
     @abstractmethod
@@ -132,7 +134,7 @@ class Agent(StacieRLUserObject, ABC):
         ...
 
     @abstractmethod
-    def evaluate(self, steps: int = None, episodes: int = None) -> Tuple[List[float], List[float]]:
+    def evaluate(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...
 
     @abstractmethod

@@ -18,15 +18,15 @@ class VanillaStep(ReplayBuffer):
     def push(self, episode: Episode):
 
         for i in range(len(episode) - 1):
-
             if len(self.buffer) < self.capacity:
                 self.buffer.append(None)
-            self.buffer[self.position] = (
-                np.array(episode.states[i : i + 2]),  # state + next_state
-                episode.actions[i],
-                episode.rewards[i],
-                episode.dones[i],
+            episode_np = (
+                np.array(episode.flat_states[i : i + 2]),  # state + next_state
+                np.array(episode.actions[i]),
+                np.array(episode.rewards[i]),
+                np.array(episode.dones[i]),
             )
+            self.buffer[self.position] = episode_np
             self.position = int((self.position + 1) % self.capacity)  # as a ring buffer
 
     def sample(self) -> Batch:
@@ -42,8 +42,8 @@ class VanillaStep(ReplayBuffer):
 
         batch = [torch.from_numpy(batch_entry) for batch_entry in batch]
         batch[1] = batch[1].unsqueeze(1)
-        batch[2] = batch[2].unsqueeze(1)
-        batch[3] = batch[3].unsqueeze(1)
+        batch[2] = batch[2].unsqueeze(1).unsqueeze(1)
+        batch[3] = batch[3].unsqueeze(1).unsqueeze(1)
 
         return Batch(*batch)
 

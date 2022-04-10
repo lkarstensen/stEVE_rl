@@ -1,5 +1,7 @@
 import logging
 from typing import Callable, List, Tuple
+
+from stacierl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
@@ -35,12 +37,11 @@ class Single(Agent):
 
     def heatup(
         self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
-    ) -> Tuple[List[float], List[float]]:
+    ) -> List[Episode]:
 
         step_limit = self._step_counter.heatup + steps
         episode_limit = self._episode_counter.heatup + episodes
-        episode_rewards = []
-        successes = []
+        episodes_data = []
 
         def random_action(*args, **kwargs):
             if custom_action_low is not None:
@@ -54,7 +55,7 @@ class Single(Agent):
         while (
             self._step_counter.heatup < step_limit and self._episode_counter.heatup < episode_limit
         ):
-            episode_transitions, episode_reward, step_counter, success = self._play_episode(
+            episode, step_counter = self._play_episode(
                 env=self.env_train,
                 action_function=random_action,
                 consecutive_actions=self.consecutive_action_steps,
@@ -62,23 +63,20 @@ class Single(Agent):
 
             self._step_counter.heatup += step_counter
             self._episode_counter.heatup += 1
-            self.replay_buffer.push(episode_transitions)
-            successes.append(success)
-            episode_rewards.append(episode_reward)
+            self.replay_buffer.push(episode)
+            episodes_data.append(episode)
+        return episodes_data
 
-        return episode_rewards, successes
-
-    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         step_limit = self._step_counter.exploration + steps
         episode_limit = self._episode_counter.exploration + episodes
-        episode_rewards = []
-        successes = []
+        episodes_data = []
 
         while (
             self._step_counter.exploration < step_limit
             and self._episode_counter.exploration < episode_limit
         ):
-            episode_transitions, episode_reward, step_counter, success = self._play_episode(
+            episode, step_counter = self._play_episode(
                 env=self.env_train,
                 action_function=self.algo.get_exploration_action,
                 consecutive_actions=self.consecutive_action_steps,
@@ -86,11 +84,9 @@ class Single(Agent):
 
             self._step_counter.exploration += step_counter
             self._episode_counter.exploration += 1
-            self.replay_buffer.push(episode_transitions)
-            successes.append(success)
-            episode_rewards.append(episode_reward)
-
-        return episode_rewards, successes
+            self.replay_buffer.push(episode)
+            episodes_data.append(episode)
+        return episodes_data
 
     def update(self, steps) -> List[List[float]]:
         step_limit = self._step_counter.update + steps
@@ -106,17 +102,16 @@ class Single(Agent):
 
         return results
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         step_limit = self._step_counter.evaluation + steps
         episode_limit = self._episode_counter.evaluation + episodes
-        episode_rewards = []
-        successes = []
+        episodes_data = []
 
         while (
             self._step_counter.evaluation < step_limit
             and self._episode_counter.evaluation < episode_limit
         ):
-            _, episode_reward, step_counter, success = self._play_episode(
+            episode, step_counter = self._play_episode(
                 env=self.env_eval,
                 action_function=self.algo.get_eval_action,
                 consecutive_actions=self.consecutive_action_steps,
@@ -124,40 +119,35 @@ class Single(Agent):
 
             self._step_counter.evaluation += step_counter
             self._episode_counter.evaluation += 1
-            successes.append(success)
-            episode_rewards.append(episode_reward)
-
-        return episode_rewards, successes
+            episodes_data.append(episode)
+        return episodes_data
 
     def _play_episode(
         self,
         env: Environment,
         action_function: Callable[[np.ndarray], np.ndarray],
         consecutive_actions: int,
-    ):
+    ) -> Tuple[Episode, int]:
         done = False
         step_counter = 0
-        episode_transitions = Episode()
-        episode_reward = 0
 
         self.algo.reset()
         state = env.reset()
         flat_state = env.observation_space.to_flat_array(state)
-        episode_transitions.add_reset_state(flat_state)
+        episode = Episode(state, flat_state)
 
         while done == False:
             action = action_function(flat_state)
             for _ in range(consecutive_actions):
-                state, reward, done, _, success = env.step(action)
-                step_counter += 1
+                state, reward, done, info, success = env.step(action)
                 flat_state = env.observation_space.to_flat_array(state)
+                step_counter += 1
                 env.render()
-                episode_transitions.add_transition(flat_state, action, reward, done)
-                episode_reward += reward
+                episode.add_transition(state, flat_state, action, reward, done, info, success)
                 if done:
                     break
 
-        return episode_transitions, episode_reward, step_counter, success
+        return episode, step_counter
 
     def to(self, device: torch.device):
         self.device = device

@@ -209,7 +209,7 @@ class SingleAgentProcess(Agent):
     def update(self, steps) -> None:
         self._task_queue.put(["update", steps])
 
-    def get_result(self) -> Any:
+    def get_result(self) -> List[Any]:
         result = self._result_queue.get()
         if isinstance(result, Exception):
             self.parent_agent.close()

@@ -1,7 +1,7 @@
 import logging
 from typing import List, Tuple
 
-from .agent import Agent
+from .agent import Agent, Episode
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
 from ..util import Environment, DummyEnvironment
@@ -9,6 +9,7 @@ from math import ceil, inf
 import torch
 import os
 from time import sleep
+
 
 class Synchron(Agent):
     def __init__(
@@ -80,7 +81,7 @@ class Synchron(Agent):
 
     def heatup(
         self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
-    ) -> Tuple[List[float], List[float]]:
+    ) -> List[Episode]:
         self.logger.debug(f"heatup: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
             steps, episodes, self.n_worker
@@ -90,7 +91,7 @@ class Synchron(Agent):
         result = self._get_worker_results()
         return result
 
-    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         self.logger.debug(f"explore: {steps} steps / {episodes} episodes")
 
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
@@ -111,7 +112,7 @@ class Synchron(Agent):
         self._set_network_states_container(new_network_states)
         return result
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[List[float], List[float]]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         self.logger.debug(f"evaluate: {steps} steps / {episodes} episodes")
 
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
@@ -125,7 +126,7 @@ class Synchron(Agent):
 
     def explore_and_update_parallel(
         self, update_steps: int, explore_steps: int = inf, explore_episodes: int = inf
-    ) -> Tuple[Tuple[List[float], List[float]], List[float]]:
+    ) -> Tuple[List[Episode], List[float]]:
         update_steps_per_agent = ceil(update_steps / self.n_trainer)
         explore_steps_per_agent, explore_episodes_per_agent = self._divide_steps_and_episodes(
             explore_steps, explore_episodes, self.n_worker
@@ -189,13 +190,10 @@ class Synchron(Agent):
         return steps, episodes
 
     def _get_worker_results(self):
-        successes = []
-        rewards = []
+        episodes = []
         for agent in self.worker:
-            reward, success = agent.get_result()
-            rewards += reward
-            successes += success
-        return rewards, successes
+            episodes += agent.get_result()
+        return episodes
 
     def _get_trainer_results(self):
         results = []

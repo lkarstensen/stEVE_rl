@@ -29,7 +29,7 @@ class VanillaSharedBase(ReplayBuffer):
 
     def push(self, episode: Episode):
         if not self._shutdown_event.is_set():
-            self._task_queue.put(["push", episode])
+            self._task_queue.put(["push", episode.to_replay()])
 
     def sample(self) -> Batch:
         self._request_lock.acquire()

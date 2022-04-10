@@ -1,61 +1,63 @@
 from abc import ABC, abstractmethod
-from typing import List, NamedTuple, Union
+from dataclasses import dataclass
+from typing import Dict, List, NamedTuple, Union
 import numpy as np
-from torch.nn.utils.rnn import PackedSequence
 
 import torch
 
-from dataclasses import dataclass
-
 from ..util import StacieRLUserObject
-
-@dataclass
-class EpisodeNumpy:
-
-    states: np.ndarray
-    actions: np.ndarray
-    rewards: np.ndarray
-    dones: np.ndarray
-
-    def __len__(self):
-        return len(self.states)
 
 
 class Episode:
-    def __init__(self) -> None:
-        self.states: List[np.ndarray] = []
+    def __init__(self, reset_state: Dict[str, np.ndarray], reset_flat_state: np.ndarray) -> None:
+        self.states: List[Dict[str, np.ndarray]] = [reset_state]
+        self.flat_states: List[np.ndarray] = [reset_flat_state]
         self.actions: List[np.ndarray] = []
-        self.rewards: List[np.ndarray] = []
-        self.dones: List[np.ndarray] = []
+        self.rewards: List[float] = []
+        self.dones: List[bool] = []
+        self.infos: List[Dict[str, np.ndarray]] = []
+        self.successes: List[float] = []
+        self.episode_reward: float = 0.0
+
+    @property
+    def episode_success(self) -> float:
+        return self.successes[-1]
 
     def add_transition(
         self,
-        state: np.ndarray,
+        state: Dict[str, np.ndarray],
+        flat_state: np.ndarray,
         action: np.ndarray,
         reward: float,
         done: bool,
+        info: Dict[str, np.ndarray],
+        success: float,
     ):
         self.states.append(state)
+        self.flat_states.append(flat_state)
         self.actions.append(action)
-        self.rewards.append(np.array([reward]))
-        self.dones.append(np.array([done]))
+        self.rewards.append(reward)
+        self.dones.append(done)
+        self.infos.append(info)
+        self.successes.append(success)
+        self.episode_reward += reward
 
-    def add_reset_state(
-        self,
-        state: np.ndarray,
-    ):
-        self.states.append(state)
+    def to_replay(self):
+        return EpisodeReplay(self.flat_states, self.actions, self.rewards, self.dones)
 
     def __len__(self):
-        return len(self.states)
+        return len(self.actions)
 
-    def to_numpy(self) -> EpisodeNumpy:
-        return EpisodeNumpy(
-            states=np.array(self.states),
-            actions=np.array(self.actions),
-            rewards=np.array(self.rewards),
-            dones=np.array(self.dones),
-        )
+
+@dataclass
+class EpisodeReplay:
+    flat_states: List[np.ndarray]
+    actions: List[np.ndarray]
+    rewards: List[float]
+    dones: List[bool]
+
+    def __len__(self):
+        return len(self.actions)
 
 
 class Batch(NamedTuple):
@@ -73,7 +75,7 @@ class ReplayBuffer(StacieRLUserObject, ABC):
         ...
 
     @abstractmethod
-    def push(self, episode: Episode) -> None:
+    def push(self, episode: Union[Episode, EpisodeReplay]) -> None:
         ...
 
     @abstractmethod

@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from .agent import Agent
+from .agent import Agent, Episode
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
 from .singelagentprocess import SingleAgentProcess
 from ..util import Environment
@@ -31,7 +31,7 @@ class Parallel(Agent):
         self.n_agents = n_agents
         self.consecutive_action_steps = consecutive_action_steps
         self.device = device
-        
+
         self.shared_model = shared_model
         self.agents: List[SingleAgentProcess] = []
         self.replay_buffer = replay_buffer
@@ -66,21 +66,21 @@ class Parallel(Agent):
 
     def heatup(
         self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
-    ) -> Tuple[float, float]:
+    ) -> List[Episode]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
         result = self._get_play_results()
         return result
 
-    def explore(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
+    def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.explore(steps_per_agent, episodes_per_agent)
         result = self._get_play_results()
         return result
 
-    def update(self, steps):
+    def update(self, steps) -> List[float]:
 
         steps_per_agent = ceil(steps / self.n_agents)
         for agent in self.agents:
@@ -102,7 +102,7 @@ class Parallel(Agent):
         result = list(result) if np.any(result) else result
         return result
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> Tuple[float, float]:
+    def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
         for agent in self.agents:
             agent.evaluate(steps_per_agent, episodes_per_agent)
@@ -123,13 +123,10 @@ class Parallel(Agent):
         return steps, episodes
 
     def _get_play_results(self):
-        successes = []
-        rewards = []
+        episodes = []
         for agent in self.agents:
-            reward, success = agent.get_result()
-            rewards += reward
-            successes += success
-        return rewards, successes
+            episodes += agent.get_result()
+        return episodes
 
     def _get_update_results(self):
         results = []

@@ -2,8 +2,9 @@ from math import inf
 import random
 from typing import List
 import torch
-from torch.nn.utils.rnn import pack_padded_sequence, pack_sequence, pad_sequence
+from torch.nn.utils.rnn import pad_sequence
 from .replaybuffer import ReplayBuffer, Episode, Batch
+import numpy as np
 
 
 class VanillaEpisode(ReplayBuffer):
@@ -18,20 +19,27 @@ class VanillaEpisode(ReplayBuffer):
         return self._batch_size
 
     def push(self, episode: Episode):
-        if len(episode.states) < 2:
+        if len(episode) < 1:
             return
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
-        self.buffer[self.position] = episode.to_numpy()
+
+        episode_np = (
+            np.array(episode.flat_states),
+            np.array(episode.actions),
+            np.array(episode.rewards),
+            np.array(episode.dones),
+        )
+        self.buffer[self.position] = episode_np
         self.position = int((self.position + 1) % self.capacity)  # as a ring buffer
 
     def sample(self) -> Batch:
         episodes = random.sample(self.buffer, self.batch_size)
 
-        state_batch = [torch.from_numpy(episode.states) for episode in episodes]
-        action_batch = [torch.from_numpy(episode.actions) for episode in episodes]
-        reward_batch = [torch.from_numpy(episode.rewards) for episode in episodes]
-        done_batch = [torch.from_numpy(episode.dones) for episode in episodes]
+        state_batch = [torch.from_numpy(episode[0]) for episode in episodes]
+        action_batch = [torch.from_numpy(episode[1]) for episode in episodes]
+        reward_batch = [torch.from_numpy(episode[2]) for episode in episodes]
+        done_batch = [torch.from_numpy(episode[3]) for episode in episodes]
 
         state_batch = pad_sequence(state_batch, batch_first=True)
         action_batch = pad_sequence(action_batch, batch_first=True)
@@ -43,9 +51,7 @@ class VanillaEpisode(ReplayBuffer):
         reward_batch[reward_batch == inf] = 0
         return Batch(state_batch, action_batch, reward_batch, done_batch, padding_mask)
 
-    def __len__(
-        self,
-    ):
+    def __len__(self):
         return len(self.buffer)
 
     def copy(self):

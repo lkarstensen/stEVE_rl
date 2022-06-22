@@ -1,5 +1,5 @@
 from .wrapper import Wrapper, FilterElement, FilterMethod
-from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
+from ..replaybuffer import Episode, ReplayBuffer, Batch
 from stacie_sockets.stacie_socketclient import SocketClient, DBMethods
 from stacie_sockets.socket_msg import Query_Msg, Init_Msg
 from tiltmaze.env import Environment
@@ -57,7 +57,7 @@ class LoadFromDB(Wrapper):
         self,
         nb_loaded_episodes: int,
         db_filter: List[FilterElement],  
-        wrapped_replaybuffer: ReplayBufferDB,
+        wrapped_replaybuffer: ReplayBuffer,
         host='127.0.1.1',
         port=65430,
     ) -> None:
@@ -83,7 +83,7 @@ class LoadFromDB(Wrapper):
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size
     
-    def push(self, episode: EpisodeSuccess) -> None:        
+    def push(self, episode: Episode) -> None:        
         self.wrapped_replaybuffer.push(episode)
         
     def sample(self) -> Batch:

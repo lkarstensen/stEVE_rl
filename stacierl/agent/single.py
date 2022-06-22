@@ -152,7 +152,7 @@ class Single(Agent):
                 step_counter += 1
                 flat_state = env.observation_space.to_flat_array(state)
                 env.render()
-                episode_transitions.add_transition(flat_state, action, reward, done)
+                episode_transitions.add_transition(flat_state, action, reward, done, success)
                 episode_reward += reward
                 if done:
                     break

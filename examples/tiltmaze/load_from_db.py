@@ -78,9 +78,9 @@ env = tiltmaze.Env(
 )
 db_filter = filter_database(env, success=0.0, episode_length=10)
 
-replay_buffer = stacierl.replaybuffer.VanillaStepDB(1e6, 64)
+replay_buffer = stacierl.replaybuffer.VanillaStep(1e6, 64)
 replay_buffer = stacierl.replaybuffer.wrapper.LoadFromDB(nb_loaded_episodes=10,
                                                  db_filter=db_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
-                                                 host='127.0.1.1',
+                                                 host='10.15.16.238',
                                                  port=65430)

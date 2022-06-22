@@ -1,5 +1,5 @@
 from abc import ABC
-from ..replaybuffer_db import ReplayBufferDB
+from ..replaybuffer import ReplayBuffer
 from enum import Enum
 from dataclasses import dataclass
 from typing import Any
@@ -16,5 +16,5 @@ class FilterElement:
     value: Any
     method: FilterMethod
 
-class Wrapper(ReplayBufferDB, ABC):
+class Wrapper(ReplayBuffer, ABC):
     ...

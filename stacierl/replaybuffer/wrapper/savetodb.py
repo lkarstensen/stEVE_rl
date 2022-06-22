@@ -1,5 +1,5 @@
 from . import Wrapper
-from ..replaybuffer_db import EpisodeSuccess, ReplayBufferDB, Batch
+from ..replaybuffer import Episode, ReplayBuffer, Batch
 from stacie_sockets.stacie_socketclient import SocketClient
 from stacie_sockets.socket_msg import Episode_Msg, Episodes_Msg, Text_Msg, Query_Msg, Length_Msg
 from tiltmaze.env import Env
@@ -7,7 +7,7 @@ from tiltmaze.env import Env
 class SavetoDB(Wrapper):
     def __init__(
         self,
-        wrapped_replaybuffer: ReplayBufferDB,
+        wrapped_replaybuffer: ReplayBuffer,
         env: Env,
         host='127.0.1.1',
         port=65430,
@@ -24,7 +24,7 @@ class SavetoDB(Wrapper):
     def batch_size(self) -> int:
         return self.wrapped_replaybuffer.batch_size
     
-    def push(self, episode: EpisodeSuccess) -> None:
+    def push(self, episode: Episode) -> None:
         self._save_to_database(episode)
         self.wrapped_replaybuffer.push(episode)
       

@@ -102,9 +102,9 @@ def sac_training(
         action_space=env.action_space,
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaStepDB(replay_buffer, batch_size)
-    replay_buffer = stacierl.replaybuffer.wrapper.SavetoDB(replay_buffer, env, host="127.0.1.1")
-    agent = stacierl.agent.SingleDB(
+    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
+    replay_buffer = stacierl.replaybuffer.wrapper.SavetoDB(replay_buffer, env, host="10.15.16.238", port=65430)
+    agent = stacierl.agent.Single(
         algo, env, env, replay_buffer, consecutive_action_steps=1, device=device
     )
     next_eval_step_limt = steps_between_eval + agent.step_counter.exploration

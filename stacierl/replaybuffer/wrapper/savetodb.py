@@ -18,7 +18,6 @@ class SavetoDB(Wrapper):
         self.host = host
         self.port = port
         self.socket = SocketClient()
-        self.socket.start_connection(host,port)
         
     @property
     def batch_size(self) -> int:
@@ -27,17 +26,20 @@ class SavetoDB(Wrapper):
     def push(self, episode: Episode) -> None:
         self._save_to_database(episode)
         self.wrapped_replaybuffer.push(episode)
-      
+     
     # episode needs to be first element of list  
     def _save_to_database(self, episode) -> None:
+        self.socket.start_connection(self.host, self.port)       
         self.socket.send_init_msg(self.socket.db_methods.SAVE)
-       
+        
         info_dict = {
             'episode_length': len(episode.dones),
             'env_config': self.env.to_dict()
             }
+
         self.socket.send_data(Episode_Msg([episode, info_dict]))
         self.socket.receive_confirm_message()
+
         
     def sample(self) -> Batch:
         return self.wrapped_replaybuffer.sample()

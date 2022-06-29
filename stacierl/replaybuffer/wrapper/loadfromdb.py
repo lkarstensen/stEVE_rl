@@ -58,7 +58,7 @@ class LoadFromDB(Wrapper):
         nb_loaded_episodes: int,
         db_filter: List[FilterElement],  
         wrapped_replaybuffer: ReplayBuffer,
-        host='127.0.1.1',
+        host='10.15.16.238',
         port=65430,
     ) -> None:
         
@@ -90,11 +90,8 @@ class LoadFromDB(Wrapper):
         return self.wrapped_replaybuffer.sample()
     
     def copy(self):
-        return self.__class__(
-            self.wrapped_replaybuffer.copy(),
-            self.host,
-            self.port)
-        
+        return self.wrapped_replaybuffer.copy()
+               
     def close(self) -> None:
         self.wrapped_replaybuffer.close()
         

@@ -2,7 +2,7 @@ import stacierl
 import eve
 import torch
 import torch.multiprocessing as mp
-from stacierl.replaybuffer.wrapper import filter_database
+from stacierl.replaybuffer.wrapper import filter_database, delete_from_database
 
 def sac_training(
     trainer_device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
@@ -95,14 +95,17 @@ def sac_training(
     )
     algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
     replay_buffer = stacierl.replaybuffer.VanillaStepShared(replay_buffer, batch_size)
-    
-    db_filter = filter_database(env, success=0.0, episode_length=200)
+
+    delete_filter = filter_database(env, success=0.0, episode_length=200)
+    delete_from_database(delete_filter)
+
+    load_filter = filter_database(env, success=1.0, episode_length=20)
     replay_buffer = stacierl.replaybuffer.wrapper.LoadFromDB(nb_loaded_episodes=10,
-                                                 db_filter=db_filter, 
+                                                 db_filter=load_filter, 
                                                  wrapped_replaybuffer=replay_buffer, 
                                                  host='10.15.16.238',
                                                  port=65430)
-       
+                                                    
     replay_buffer = stacierl.replaybuffer.wrapper.SavetoDB(replay_buffer, env, host="10.15.16.238", port=65430)
     agent = stacierl.agent.Synchron(
         algo, 

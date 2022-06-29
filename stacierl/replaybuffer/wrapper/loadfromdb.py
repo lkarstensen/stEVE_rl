@@ -29,6 +29,23 @@ def _dict_to_filter(obj_dict: Dict, path: List[str]=[], filter_list: list=[]):
     return path, filter_list
 
 
+def delete_from_database(
+    db_filter: List[FilterElement],  
+    host='10.15.16.238',
+    port=65430,
+) -> None:
+    
+    client_socket = SocketClient()
+    client_socket.start_connection(host, port)
+
+    client_socket.send_init_msg(DBMethods.DELETE_EPISODES)
+    query_msg = Query_Msg(db_filter, limit=10)
+    client_socket.send_data(query_msg)
+    client_socket.receive_confirm_message()
+    
+    return
+
+
 def filter_database(env: Environment, 
                     success: Optional[float] = None,
                     success_criterion: Optional[FilterMethod] = FilterMethod.GREATEREQUAL,

@@ -1,9 +1,8 @@
-from abc import ABC, abstractmethod
 from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from stacierl.util.stacierluserobject import StacieRLUserObject
+from staciebase import StacieUserObject, ObservationSpace, ActionSpace
 
 
 from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
@@ -14,16 +13,16 @@ import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from ...util import ObservationSpace, ActionSpace
-
 
 @dataclass
-class Embedder(StacieRLUserObject):
+class Embedder(StacieUserObject):
     network: Network
     update: bool
 
     def copy(self):
         ...
+
+
 @dataclass
 class SACEmbeddedNetworkStateContainer(NetworkStatesContainer):
     q1: Dict[str, torch.Tensor]
@@ -177,8 +176,12 @@ class InputEmbedding(Vanilla):
         self.policy = policy
         self.log_alpha = torch.zeros(1, requires_grad=True)
 
-        self.q1_common_input_embedder = self._init_common_embedder(self.q1_common_input_embedder)
-        self.q2_common_input_embedder = self._init_common_embedder(self.q2_common_input_embedder)
+        self.q1_common_input_embedder = self._init_common_embedder(
+            self.q1_common_input_embedder
+        )
+        self.q2_common_input_embedder = self._init_common_embedder(
+            self.q2_common_input_embedder
+        )
         self.policy_common_input_embedder = self._init_common_embedder(
             self.policy_common_input_embedder
         )
@@ -189,15 +192,23 @@ class InputEmbedding(Vanilla):
 
         self.q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
         self.q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
-        self.target_q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
-        self.target_q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
+        self.target_q1.set_input(
+            self.q1_common_input_embedder.network.n_outputs, n_actions
+        )
+        self.target_q2.set_input(
+            self.q2_common_input_embedder.network.n_outputs, n_actions
+        )
         self.policy.set_input(self.policy_common_input_embedder.network.n_outputs)
         self.policy.set_output(n_actions)
 
-        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+        for target_param, param in zip(
+            self.target_q1.parameters(), self.q1.parameters()
+        ):
             target_param.data.copy_(param)
 
-        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+        for target_param, param in zip(
+            self.target_q2.parameters(), self.q2.parameters()
+        ):
             target_param.data.copy_(param)
 
         self._init_optimizer()
@@ -250,11 +261,15 @@ class InputEmbedding(Vanilla):
             common_embedder = None
         else:
             if common_embedder.update:
-                optimizer = optim.Adam(common_embedder.network.parameters(), lr=self.learning_rate)
+                optimizer = optim.Adam(
+                    common_embedder.network.parameters(), lr=self.learning_rate
+                )
                 optimizers.append(optimizer)
         return optimizers
 
-    def get_play_action(self, flat_state: np.ndarray = None, evaluation=False) -> np.ndarray:
+    def get_play_action(
+        self, flat_state: np.ndarray = None, evaluation=False
+    ) -> np.ndarray:
         with torch.no_grad():
             flat_state = torch.from_numpy(flat_state).unsqueeze(0).unsqueeze(0)
             flat_state = flat_state.to(self.device)
@@ -330,7 +345,9 @@ class InputEmbedding(Vanilla):
             self.policy_common_input_embedder,
             use_hidden_state=False,
         )
-        mean_batch, log_std = self.policy.forward(embedded_state, use_hidden_state=False)
+        mean_batch, log_std = self.policy.forward(
+            embedded_state, use_hidden_state=False
+        )
 
         std_batch = log_std.exp()
         normal = Normal(mean_batch, std_batch)
@@ -415,10 +432,14 @@ class InputEmbedding(Vanilla):
         self._init_optimizer()
 
     def update_target_q(self, tau):
-        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+        for target_param, param in zip(
+            self.target_q1.parameters(), self.q1.parameters()
+        ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
-        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+        for target_param, param in zip(
+            self.target_q2.parameters(), self.q2.parameters()
+        ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
@@ -480,12 +501,18 @@ class InputEmbedding(Vanilla):
 
         return copy
 
-    def set_network_states(self, network_states_container: SACEmbeddedNetworkStateContainer):
+    def set_network_states(
+        self, network_states_container: SACEmbeddedNetworkStateContainer
+    ):
         self.q1.load_state_dict(network_states_container.q1)
-        self.q1_common_input_embedder.network.load_state_dict(network_states_container.q1_common)
+        self.q1_common_input_embedder.network.load_state_dict(
+            network_states_container.q1_common
+        )
 
         self.q2.load_state_dict(network_states_container.q2)
-        self.q2_common_input_embedder.network.load_state_dict(network_states_container.q2_common)
+        self.q2_common_input_embedder.network.load_state_dict(
+            network_states_container.q2_common
+        )
 
         self.target_q1.load_state_dict(network_states_container.target_q1)
         self.target_q2.load_state_dict(network_states_container.target_q2)
@@ -535,12 +562,20 @@ class InputEmbedding(Vanilla):
             policy_common = None
 
         optimizer_states_container = SACEmbeddedOptimizerStateContainer(
-            q1, q2, policy, q1_common, q2_common, policy_common, self.alpha_optimizer.state_dict()
+            q1,
+            q2,
+            policy,
+            q1_common,
+            q2_common,
+            policy_common,
+            self.alpha_optimizer.state_dict(),
         )
 
         return optimizer_states_container
 
-    def set_optimizer_states(self, optimizer_states_container: SACEmbeddedOptimizerStateContainer):
+    def set_optimizer_states(
+        self, optimizer_states_container: SACEmbeddedOptimizerStateContainer
+    ):
         self.q1_optimizers[0].load_state_dict(optimizer_states_container.q1)
         if optimizer_states_container.q1_common:
             self.q1_optimizers[1].load_state_dict(optimizer_states_container.q1_common)
@@ -551,7 +586,9 @@ class InputEmbedding(Vanilla):
 
         self.policy_optimizers[0].load_state_dict(optimizer_states_container.policy)
         if optimizer_states_container.policy_common:
-            self.policy_optimizers[1].load_state_dict(optimizer_states_container.policy_common)
+            self.policy_optimizers[1].load_state_dict(
+                optimizer_states_container.policy_common
+            )
 
         self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
 

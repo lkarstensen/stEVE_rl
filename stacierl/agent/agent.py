@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import torch.multiprocessing as mp
 
 from stacierl.replaybuffer.replaybuffer import Episode
-from ..util import StacieRLUserObject
 
 
 @dataclass
@@ -120,7 +119,7 @@ class EpisodeCounterShared(EpisodeCounter):
         return self
 
 
-class Agent(StacieRLUserObject, ABC):
+class Agent(ABC):
     @abstractmethod
     def heatup(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...

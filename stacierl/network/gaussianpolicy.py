@@ -7,7 +7,7 @@ from typing import List, Tuple
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 
 from .network import Network
-from ..util import ActionSpace
+from staciebase import ActionSpace
 
 
 class GaussianPolicy(Network):
@@ -58,17 +58,17 @@ class GaussianPolicy(Network):
 
     def set_output(self, n_actions):
         init_w = 3e-3
-        
+
         last_output = self.hidden_layers[-1]
-                
+
         self.mean = nn.Linear(last_output, n_actions)
         self.mean.weight.data.uniform_(-init_w, init_w)
         self.mean.bias.data.uniform_(-init_w, init_w)
-        
+
         self.log_std = nn.Linear(last_output, n_actions)
         self.log_std.weight.data.uniform_(-init_w, init_w)
         self.log_std.bias.data.uniform_(-init_w, init_w)
-        
+
     def forward(
         self, state_batch: torch.Tensor, *args, **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor]:

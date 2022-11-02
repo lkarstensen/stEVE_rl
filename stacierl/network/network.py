@@ -3,10 +3,9 @@ from abc import abstractmethod
 
 
 import torch
-from ..util import StacieRLUserObject
 
 
-class Network(StacieRLUserObject, nn.Module):
+class Network(nn.Module):
     @property
     @abstractmethod
     def input_is_set(self) -> bool:

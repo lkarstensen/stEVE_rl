@@ -1,13 +1,8 @@
 from abc import ABC, abstractmethod
-from collections import namedtuple
-from typing import List, NamedTuple, Optional, Tuple, Dict
+from typing import Dict
 import numpy as np
 import torch
 from dataclasses import dataclass
-
-from stacierl.util.stacierluserobject import StacieRLUserObject
-
-from ..network import Network
 
 
 @dataclass
@@ -36,13 +31,17 @@ class NetworkStatesContainer(ABC):
     def __add__(self, other):
         copy = self.copy()
         for copy_network, other_network in zip(copy, other):
-            for copy_tensor, other_tensor in zip(copy_network.values(), other_network.values()):
+            for copy_tensor, other_tensor in zip(
+                copy_network.values(), other_network.values()
+            ):
                 copy_tensor.data.copy_(copy_tensor + other_tensor)
         return copy
 
     def __iadd__(self, other):
         for self_network, other_network in zip(self, other):
-            for own_tensor, other_tensor in zip(self_network.values(), other_network.values()):
+            for own_tensor, other_tensor in zip(
+                self_network.values(), other_network.values()
+            ):
                 own_tensor.data.copy_(own_tensor + other_tensor)
         return self
 
@@ -97,7 +96,9 @@ class OptimizerStatesContainer(ABC):
         for optimizer in self:
             for param_nr, param in optimizer["state"].items():
                 optimizer["state"][param_nr]["exp_avg"] = param["exp_avg"].to(device)
-                optimizer["state"][param_nr]["exp_avg_sq"] = param["exp_avg_sq"].to(device)
+                optimizer["state"][param_nr]["exp_avg_sq"] = param["exp_avg_sq"].to(
+                    device
+                )
 
     def __add__(self, other):
         copy = self.copy()
@@ -159,7 +160,7 @@ class OptimizerStatesContainer(ABC):
         return self
 
 
-class Model(StacieRLUserObject, ABC):
+class Model(ABC):
     @property
     @abstractmethod
     def network_states_container(self) -> NetworkStatesContainer:
@@ -187,11 +188,15 @@ class Model(StacieRLUserObject, ABC):
         ...
 
     @abstractmethod
-    def set_network_states(self, network_states_container: NetworkStatesContainer) -> None:
+    def set_network_states(
+        self, network_states_container: NetworkStatesContainer
+    ) -> None:
         ...
 
     @abstractmethod
-    def set_optimizer_states(self, optimizer_states_container: OptimizerStatesContainer) -> None:
+    def set_optimizer_states(
+        self, optimizer_states_container: OptimizerStatesContainer
+    ) -> None:
         ...
 
     @abstractmethod

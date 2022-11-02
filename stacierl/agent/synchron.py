@@ -2,9 +2,9 @@ import logging
 from typing import List, Tuple
 
 from .agent import Agent, Episode
-from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
-from ..util import Environment, DummyEnvironment
+from staciebase import DummyEnvironment
 from math import ceil, inf
 import torch
 import os
@@ -15,8 +15,8 @@ class Synchron(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         n_worker: int,
         n_trainer: int,
@@ -80,7 +80,10 @@ class Synchron(Agent):
         self.logger.debug("Synchron Agent initialized")
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
     ) -> List[Episode]:
         self.logger.debug(f"heatup: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
@@ -128,7 +131,10 @@ class Synchron(Agent):
         self, update_steps: int, explore_steps: int = inf, explore_episodes: int = inf
     ) -> Tuple[List[Episode], List[float]]:
         update_steps_per_agent = ceil(update_steps / self.n_trainer)
-        explore_steps_per_agent, explore_episodes_per_agent = self._divide_steps_and_episodes(
+        (
+            explore_steps_per_agent,
+            explore_episodes_per_agent,
+        ) = self._divide_steps_and_episodes(
             explore_steps, explore_episodes, self.n_worker
         )
         for agent in self.trainer:
@@ -172,7 +178,9 @@ class Synchron(Agent):
 
     def _get_optimizer_states_container(self):
         if self.share_trainer_model:
-            optimizer_states_container = self.trainer[0].get_optimizer_states_container()
+            optimizer_states_container = self.trainer[
+                0
+            ].get_optimizer_states_container()
         else:
             new_optimizer_states_container = None
             for trainer in self.trainer:
@@ -201,7 +209,12 @@ class Synchron(Agent):
             results.append(agent.get_result())
         n_max = len(max(results, key=len))
         results = [result + [None] * (n_max - len(result)) for result in results]
-        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
+        results = [
+            val
+            for result_tuple in zip(*results)
+            for val in result_tuple
+            if val is not None
+        ]
         return results
 
     @property

@@ -4,10 +4,15 @@ from math import inf
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from .agent import Agent, EpisodeCounterShared, StepCounterShared, StepCounter, EpisodeCounter
-from .single import Single, Algo, ReplayBuffer
+from .agent import (
+    Agent,
+    EpisodeCounterShared,
+    StepCounterShared,
+    StepCounter,
+    EpisodeCounter,
+)
+from .single import Single, Algo, ReplayBuffer, Env
 from ..algo.model import NetworkStatesContainer, OptimizerStatesContainer
-from ..util import Environment
 from torch import multiprocessing as mp
 import torch
 
@@ -46,7 +51,11 @@ def get_logging_config_dict():
         "formatters": {},
         "handlers": {},
         "loggers": {
-            "": {"handlers": [], "level": logging.WARNING, "propagate": False},  # root logger
+            "": {
+                "handlers": [],
+                "level": logging.WARNING,
+                "propagate": False,
+            },  # root logger
         },
     }
 
@@ -64,8 +73,8 @@ def get_logging_config_dict():
 def run(
     id: int,
     algo: Algo,
-    env_train: Environment,
-    env_eval: Environment,
+    env_train: Env,
+    env_eval: Env,
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
@@ -91,7 +100,9 @@ def run(
         logging.config.dictConfig(log_config_dict)
         logger = logging.getLogger(__name__)
         logger.info("logger initialized")
-        agent = Single(algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps)
+        agent = Single(
+            algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps
+        )
         agent.step_counter = step_counter
         agent.episode_counter = episode_counter
         while not shutdown_event.is_set():
@@ -115,7 +126,9 @@ def run(
                     shutdown_event.set()
                     result = error
             elif task_name == "put_network_states_container":
-                network_states_container = deepcopy(agent.algo.model.network_states_container)
+                network_states_container = deepcopy(
+                    agent.algo.model.network_states_container
+                )
                 network_states_container.to(torch.device("cpu"))
                 model_queue.put(network_states_container)
                 continue
@@ -125,7 +138,9 @@ def run(
                 agent.algo.model.set_network_states(network_states_container)
                 continue
             elif task_name == "put_optimizer_states_container":
-                optimizer_states_container = deepcopy(agent.algo.model.optimizer_states_container)
+                optimizer_states_container = deepcopy(
+                    agent.algo.model.optimizer_states_container
+                )
                 optimizer_states_container.to(torch.device("cpu"))
                 model_queue.put(optimizer_states_container)
                 continue
@@ -151,8 +166,8 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -196,7 +211,10 @@ class SingleAgentProcess(Agent):
         self._process.start()
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
     ) -> None:
         self._task_queue.put(["heatup", steps, episodes, custom_action_low])
 

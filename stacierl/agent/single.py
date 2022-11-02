@@ -5,7 +5,7 @@ from stacierl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
-from ..util import Environment
+from eve import Env
 import torch
 from math import inf
 
@@ -17,8 +17,8 @@ class Single(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
@@ -36,7 +36,10 @@ class Single(Agent):
         self.to(device)
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
     ) -> List[Episode]:
 
         step_limit = self._step_counter.heatup + steps
@@ -45,15 +48,16 @@ class Single(Agent):
 
         def random_action(*args, **kwargs):
             if custom_action_low is not None:
-                action_low = custom_action_low
+                action_low = np.array(custom_action_low).reshape(-1)
             else:
-                action_low = self.env_train.action_space.low
-            action_high = self.env_train.action_space.high
+                action_low = self.env_train.action_space.low.reshape(-1)
+            action_high = self.env_train.action_space.high.reshape(-1)
             action = np.random.uniform(action_low, action_high)
             return action
 
         while (
-            self._step_counter.heatup < step_limit and self._episode_counter.heatup < episode_limit
+            self._step_counter.heatup < step_limit
+            and self._episode_counter.heatup < episode_limit
         ):
             episode, step_counter = self._play_episode(
                 env=self.env_train,
@@ -124,7 +128,7 @@ class Single(Agent):
 
     def _play_episode(
         self,
-        env: Environment,
+        env: Env,
         action_function: Callable[[np.ndarray], np.ndarray],
         consecutive_actions: int,
     ) -> Tuple[Episode, int]:
@@ -138,12 +142,17 @@ class Single(Agent):
 
         while done == False:
             action = action_function(flat_state)
+
             for _ in range(consecutive_actions):
-                state, reward, done, info, success = env.step(action)
+                state, reward, done, info, success = env.step(
+                    action.reshape(env.action_space.low.shape)
+                )
                 flat_state = env.observation_space.to_flat_array(state)
                 step_counter += 1
                 env.render()
-                episode.add_transition(state, flat_state, action, reward, done, info, success)
+                episode.add_transition(
+                    state, flat_state, action, reward, done, info, success
+                )
                 if done:
                     break
 

@@ -9,7 +9,7 @@ import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from ...util import ObservationSpace, ActionSpace
+from staciebase import ObservationSpace, ActionSpace
 
 
 @dataclass
@@ -22,7 +22,16 @@ class SACNetworkStateContainer(NetworkStatesContainer):
     log_alpha: Dict[str, torch.Tensor]
 
     def __iter__(self):
-        return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy, self.log_alpha])
+        return iter(
+            [
+                self.q1,
+                self.q2,
+                self.target_q1,
+                self.target_q2,
+                self.policy,
+                self.log_alpha,
+            ]
+        )
 
     def copy(self):
         return SACNetworkStateContainer(
@@ -67,7 +76,10 @@ class SACOptimizerStateContainer(OptimizerStatesContainer):
 
     def copy(self):
         return SACOptimizerStateContainer(
-            deepcopy(self.q1), deepcopy(self.q2), deepcopy(self.policy), deepcopy(self.alpha)
+            deepcopy(self.q1),
+            deepcopy(self.q2),
+            deepcopy(self.policy),
+            deepcopy(self.alpha),
         )
 
     def to_dict(self) -> Dict:
@@ -127,10 +139,14 @@ class Vanilla(SACModel):
         self.policy.set_input(n_observations)
         self.policy.set_output(n_actions)
 
-        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+        for target_param, param in zip(
+            self.target_q1.parameters(), self.q1.parameters()
+        ):
             target_param.data.copy_(param)
 
-        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+        for target_param, param in zip(
+            self.target_q2.parameters(), self.q2.parameters()
+        ):
             target_param.data.copy_(param)
 
         self._init_optimizer()
@@ -138,10 +154,14 @@ class Vanilla(SACModel):
     def _init_optimizer(self):
         self.q1_optimizer = optim.Adam(self.q1.parameters(), lr=self.learning_rate)
         self.q2_optimizer = optim.Adam(self.q2.parameters(), lr=self.learning_rate)
-        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=self.learning_rate)
+        self.policy_optimizer = optim.Adam(
+            self.policy.parameters(), lr=self.learning_rate
+        )
         self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
 
-    def get_play_action(self, flat_state: np.ndarray = None, evaluation=False) -> np.ndarray:
+    def get_play_action(
+        self, flat_state: np.ndarray = None, evaluation=False
+    ) -> np.ndarray:
         with torch.no_grad():
             flat_state = (
                 torch.as_tensor(flat_state, dtype=torch.float32, device=self.device)
@@ -241,10 +261,14 @@ class Vanilla(SACModel):
         self._init_optimizer()
 
     def update_target_q(self, tau):
-        for target_param, param in zip(self.target_q1.parameters(), self.q1.parameters()):
+        for target_param, param in zip(
+            self.target_q1.parameters(), self.q1.parameters()
+        ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
-        for target_param, param in zip(self.target_q2.parameters(), self.q2.parameters()):
+        for target_param, param in zip(
+            self.target_q2.parameters(), self.q2.parameters()
+        ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
@@ -314,7 +338,9 @@ class Vanilla(SACModel):
 
         return optimizer_states_container
 
-    def set_optimizer_states(self, optimizer_states_container: SACOptimizerStateContainer):
+    def set_optimizer_states(
+        self, optimizer_states_container: SACOptimizerStateContainer
+    ):
         self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
         self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
         self.policy_optimizer.load_state_dict(optimizer_states_container.policy)

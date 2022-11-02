@@ -1,9 +1,8 @@
 from typing import List, Tuple
 
 from .agent import Agent, Episode
-from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
-from ..util import Environment
 from torch import multiprocessing as mp
 from math import ceil, inf
 import numpy as np
@@ -15,8 +14,8 @@ class Parallel(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         n_agents: int,
         device: torch.device = torch.device("cpu"),
@@ -65,16 +64,23 @@ class Parallel(Agent):
             self.update(0)
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
     ) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
             agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
         result = self._get_play_results()
         return result
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
             agent.explore(steps_per_agent, episodes_per_agent)
         result = self._get_play_results()
@@ -90,7 +96,9 @@ class Parallel(Agent):
 
             new_network_states_container = None
             for agent in self.agents:
-                network_states_container = agent.get_network_states_container() / self.n_agents
+                network_states_container = (
+                    agent.get_network_states_container() / self.n_agents
+                )
                 if new_network_states_container is None:
                     new_network_states_container = network_states_container
                 else:
@@ -103,7 +111,9 @@ class Parallel(Agent):
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
             agent.evaluate(steps_per_agent, episodes_per_agent)
         result = self._get_play_results()
@@ -134,7 +144,12 @@ class Parallel(Agent):
             results.append(agent.get_result())
         n_max = len(max(results, key=len))
         results = [result + [None] * (n_max - len(result)) for result in results]
-        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
+        results = [
+            val
+            for result_tuple in zip(*results)
+            for val in result_tuple
+            if val is not None
+        ]
         return results
 
     @property
@@ -163,7 +178,9 @@ class Parallel(Agent):
 
         new_optimizer_states_container = None
         for agent in self.agents:
-            optimizer_states_container = agent.get_optimizer_states_container() / self.n_agents
+            optimizer_states_container = (
+                agent.get_optimizer_states_container() / self.n_agents
+            )
             if new_optimizer_states_container is None:
                 new_optimizer_states_container = optimizer_states_container
             else:
@@ -172,7 +189,9 @@ class Parallel(Agent):
 
         new_network_states_container = None
         for agent in self.agents:
-            network_states_container = agent.get_network_states_container() / self.n_agents
+            network_states_container = (
+                agent.get_network_states_container() / self.n_agents
+            )
             if new_network_states_container is None:
                 new_network_states_container = network_states_container
             else:

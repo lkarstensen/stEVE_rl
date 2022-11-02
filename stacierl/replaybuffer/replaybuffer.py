@@ -5,11 +5,11 @@ import numpy as np
 
 import torch
 
-from ..util import StacieRLUserObject
-
 
 class Episode:
-    def __init__(self, reset_state: Dict[str, np.ndarray], reset_flat_state: np.ndarray) -> None:
+    def __init__(
+        self, reset_state: Dict[str, np.ndarray], reset_flat_state: np.ndarray
+    ) -> None:
         self.states: List[Dict[str, np.ndarray]] = [reset_state]
         self.flat_states: List[np.ndarray] = [reset_flat_state]
         self.actions: List[np.ndarray] = []
@@ -68,7 +68,7 @@ class Batch(NamedTuple):
     padding_mask: torch.Tensor = None
 
 
-class ReplayBuffer(StacieRLUserObject, ABC):
+class ReplayBuffer(ABC):
     @property
     @abstractmethod
     def batch_size(self) -> int:

@@ -6,7 +6,7 @@ from .algo import Algo, NetworkStatesContainer
 from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
-from ..util import ActionSpace
+from staciebase import ActionSpace
 from stacierl.algo.sacmodel.inputembedder import Embedder
 
 
@@ -119,7 +119,9 @@ class SAC(Algo):
 
         self.model.update_target_q(self.tau)
 
-        alpha_loss = (self.model.log_alpha * (-log_pi - self.target_entropy).detach()).mean()
+        alpha_loss = (
+            self.model.log_alpha * (-log_pi - self.target_entropy).detach()
+        ).mean()
         self.model.alpha_update_zero_grad()
         alpha_loss.backward()
         self.model.alpha_update_step()

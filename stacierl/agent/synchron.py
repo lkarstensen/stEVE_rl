@@ -1,3 +1,4 @@
+from copy import deepcopy
 import logging
 from typing import List, Tuple
 
@@ -23,6 +24,7 @@ class Synchron(Agent):
         worker_device: torch.device = torch.device("cpu"),
         trainer_device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
+        normalize_actions: bool = True,
         share_trainer_model=False,
     ) -> None:
 
@@ -33,6 +35,7 @@ class Synchron(Agent):
         self.worker_device = worker_device
         self.trainer_device = trainer_device
         self.consecutive_action_steps = consecutive_action_steps
+        self.normalize_actions = normalize_actions
 
         self.logger = logging.getLogger(self.__module__)
         self.n_worker = n_worker
@@ -49,11 +52,12 @@ class Synchron(Agent):
                 SingleAgentProcess(
                     i,
                     algo.copy(),
-                    env_train.copy(),
-                    env_eval.copy(),
+                    deepcopy(env_train),
+                    deepcopy(env_eval),
                     replay_buffer.copy(),
                     worker_device,
                     consecutive_action_steps,
+                    normalize_actions,
                     name="worker_" + str(i),
                     parent_agent=self,
                 )
@@ -73,6 +77,7 @@ class Synchron(Agent):
                     replay_buffer.copy(),
                     trainer_device,
                     0,
+                    normalize_actions,
                     name="trainer_" + str(i),
                     parent_agent=self,
                 )

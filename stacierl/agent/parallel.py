@@ -20,6 +20,7 @@ class Parallel(Agent):
         n_agents: int,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
+        normalize_actions: bool = True,
         shared_model=False,
     ) -> None:
 
@@ -29,6 +30,7 @@ class Parallel(Agent):
         self.env_eval = env_eval
         self.n_agents = n_agents
         self.consecutive_action_steps = consecutive_action_steps
+        self.normalize_actions = normalize_actions
         self.device = device
 
         self.shared_model = shared_model
@@ -56,6 +58,7 @@ class Parallel(Agent):
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,
+                    normalize_actions,
                     name="agent_" + str(i),
                     parent_agent=self,
                 )

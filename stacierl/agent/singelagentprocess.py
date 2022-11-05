@@ -78,6 +78,7 @@ def run(
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
+    normalize_actions,
     log_config_dict: Dict,
     task_queue,
     result_queue,
@@ -101,7 +102,13 @@ def run(
         logger = logging.getLogger(__name__)
         logger.info("logger initialized")
         agent = Single(
-            algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps
+            algo,
+            env_train,
+            env_eval,
+            replay_buffer,
+            device,
+            consecutive_action_steps,
+            normalize_actions,
         )
         agent.step_counter = step_counter
         agent.episode_counter = episode_counter
@@ -171,6 +178,7 @@ class SingleAgentProcess(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
+        normalize_actions: bool,
         name: str,
         parent_agent: Agent,
     ) -> None:
@@ -197,6 +205,7 @@ class SingleAgentProcess(Agent):
                 replay_buffer,
                 device,
                 consecutive_action_steps,
+                normalize_actions,
                 logging_config,
                 self._task_queue,
                 self._result_queue,

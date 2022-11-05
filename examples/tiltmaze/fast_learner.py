@@ -38,7 +38,7 @@ def sac_training(
     simu = eve.simulation2d.SingleDevice(
         instrument,
         velocity_limit=(50, 1.5),
-        element_length=1,
+        element_length=1.75,
         image_frequency=7.5,
         dt_simulation=0.0002,
         friction=1.0,
@@ -47,7 +47,7 @@ def sac_training(
         body_moment=0.1,
         linear_stiffness=2.5e6,
         linear_damping=100,
-        last_segment_kp_angle=3,
+        last_segment_kp_angle=2,
         last_segment_kp_translation=5,
     )
 

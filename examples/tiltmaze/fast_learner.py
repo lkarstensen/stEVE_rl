@@ -84,7 +84,6 @@ def sac_training(
     success = eve.success.TargetReached()
     visu = eve.visualisation.VisualisationDummy()
 
-    randomizer = eve.randomizer.RandomizerDummy()
     env = eve.Env(
         vessel_tree=vessel_tree,
         state=state,
@@ -97,7 +96,6 @@ def sac_training(
         pathfinder=pathfinder,
         visualisation=visu,
         success=success,
-        randomizer=randomizer,
     )
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)

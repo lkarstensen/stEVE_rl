@@ -7,14 +7,14 @@ from typing import List, Tuple
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 
 from .network import Network
-from staciebase import ActionSpace
+from eve.env import EveActionSpace
 
 
 class GaussianPolicy(Network):
     def __init__(
         self,
         hidden_layers: List[int],
-        action_space: ActionSpace,
+        action_space: EveActionSpace,
         init_w=3e-3,
         log_std_min=-20,
         log_std_max=2,

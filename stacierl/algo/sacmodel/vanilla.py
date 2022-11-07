@@ -9,7 +9,7 @@ import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from staciebase import ObservationSpace, ActionSpace
+from eve.env import EveObservationSpace, EveActionSpace
 
 
 @dataclass
@@ -106,8 +106,8 @@ class Vanilla(SACModel):
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
         learning_rate: float,
-        obs_space: ObservationSpace,
-        action_space: ActionSpace,
+        obs_space: EveObservationSpace,
+        action_space: EveActionSpace,
     ) -> None:
         self.learning_rate = learning_rate
         self.obs_space = obs_space

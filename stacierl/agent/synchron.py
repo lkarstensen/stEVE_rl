@@ -5,7 +5,7 @@ from typing import List, Tuple
 from .agent import Agent, Episode
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
-from staciebase import DummyEnvironment
+from eve.env import DummyEnv
 from math import ceil, inf
 import torch
 import os
@@ -72,8 +72,8 @@ class Synchron(Agent):
                 SingleAgentProcess(
                     i,
                     new_algo,
-                    DummyEnvironment(),
-                    DummyEnvironment(),
+                    DummyEnv(),
+                    DummyEnv(),
                     replay_buffer.copy(),
                     trainer_device,
                     0,

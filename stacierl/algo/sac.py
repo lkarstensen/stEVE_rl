@@ -6,7 +6,7 @@ from .algo import Algo, NetworkStatesContainer
 from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
-from staciebase import ActionSpace
+from eve.env import EveActionSpace
 from stacierl.algo.sacmodel.inputembedder import Embedder
 
 
@@ -14,7 +14,7 @@ class SAC(Algo):
     def __init__(
         self,
         model: SACModel,
-        action_space: ActionSpace,
+        action_space: EveActionSpace,
         gamma: float = 0.99,
         tau: float = 0.005,
         reward_scaling: float = 1,

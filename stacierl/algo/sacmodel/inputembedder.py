@@ -2,7 +2,7 @@ from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from staciebase import StacieUserObject, ObservationSpace, ActionSpace
+from eve.env import EveObservationSpace, EveActionSpace
 
 
 from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
@@ -15,7 +15,7 @@ from copy import deepcopy
 
 
 @dataclass
-class Embedder(StacieUserObject):
+class Embedder:
     network: Network
     update: bool
 
@@ -155,8 +155,8 @@ class InputEmbedding(Vanilla):
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
         learning_rate: float,
-        obs_space: ObservationSpace,
-        action_space: ActionSpace,
+        obs_space: EveObservationSpace,
+        action_space: EveActionSpace,
         q1_common_input_embedder: Optional[Embedder] = None,
         q2_common_input_embedder: Optional[Embedder] = None,
         policy_common_input_embedder: Optional[Embedder] = None,

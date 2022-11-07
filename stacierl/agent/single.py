@@ -42,6 +42,7 @@ class Single(Agent):
         steps: int = inf,
         episodes: int = inf,
         custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> List[Episode]:
 
         step_limit = self._step_counter.heatup + steps
@@ -49,12 +50,22 @@ class Single(Agent):
         episodes_data = []
 
         def random_action(*args, **kwargs):
+            env_low = self.env_train.action_space.low.reshape(-1)
+            env_high = self.env_train.action_space.high.reshape(-1)
+
             if custom_action_low is not None:
                 action_low = np.array(custom_action_low).reshape(-1)
             else:
-                action_low = self.env_train.action_space.low.reshape(-1)
-            action_high = self.env_train.action_space.high.reshape(-1)
+                action_low = env_low.reshape(-1)
+            if custom_action_high is not None:
+                action_high = np.array(custom_action_high).reshape(-1)
+            else:
+                action_high = env_high.reshape(-1)
             action = np.random.uniform(action_low, action_high)
+
+            if self.normalize_action:
+                action = 2 * (action - env_low) / (env_high - env_low) - 1
+
             return action
 
         while (

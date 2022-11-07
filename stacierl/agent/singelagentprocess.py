@@ -120,7 +120,7 @@ def run(
 
             task_name = task[0]
             if task_name == "heatup":
-                result = agent.heatup(task[1], task[2], task[3])
+                result = agent.heatup(task[1], task[2], task[3], task[4])
             elif task_name == "explore":
                 result = agent.explore(task[1], task[2])
             elif task_name == "evaluate":
@@ -224,8 +224,11 @@ class SingleAgentProcess(Agent):
         steps: int = inf,
         episodes: int = inf,
         custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> None:
-        self._task_queue.put(["heatup", steps, episodes, custom_action_low])
+        self._task_queue.put(
+            ["heatup", steps, episodes, custom_action_low, custom_action_high]
+        )
 
     def explore(self, steps: int = inf, episodes: int = inf) -> None:
         self._task_queue.put(["explore", steps, episodes])

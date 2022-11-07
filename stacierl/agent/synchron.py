@@ -89,13 +89,19 @@ class Synchron(Agent):
         steps: int = inf,
         episodes: int = inf,
         custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> List[Episode]:
         self.logger.debug(f"heatup: {steps} steps / {episodes} episodes")
         steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
             steps, episodes, self.n_worker
         )
         for agent in self.worker:
-            agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
+            agent.heatup(
+                steps_per_agent,
+                episodes_per_agent,
+                custom_action_low,
+                custom_action_high,
+            )
         result = self._get_worker_results()
         return result
 

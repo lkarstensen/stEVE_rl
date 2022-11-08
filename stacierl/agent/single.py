@@ -45,8 +45,8 @@ class Single(Agent):
         custom_action_high: List[float] = None,
     ) -> List[Episode]:
 
-        step_limit = self._step_counter.heatup + steps
-        episode_limit = self._episode_counter.heatup + episodes
+        step_limit = self.step_counter.heatup + steps
+        episode_limit = self.episode_counter.heatup + episodes
         episodes_data = []
 
         def random_action(*args, **kwargs):
@@ -69,8 +69,8 @@ class Single(Agent):
             return action
 
         while (
-            self._step_counter.heatup < step_limit
-            and self._episode_counter.heatup < episode_limit
+            self.step_counter.heatup < step_limit
+            and self.episode_counter.heatup < episode_limit
         ):
             episode, step_counter = self._play_episode(
                 env=self.env_train,
@@ -78,20 +78,22 @@ class Single(Agent):
                 consecutive_actions=self.consecutive_action_steps,
             )
 
-            self._step_counter.heatup += step_counter
-            self._episode_counter.heatup += 1
+            with self.step_counter.lock:
+                self.step_counter.heatup += step_counter
+            with self.episode_counter.lock:
+                self.episode_counter.heatup += 1
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
         return episodes_data
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        step_limit = self._step_counter.exploration + steps
-        episode_limit = self._episode_counter.exploration + episodes
+        step_limit = self.step_counter.exploration + steps
+        episode_limit = self.episode_counter.exploration + episodes
         episodes_data = []
 
         while (
-            self._step_counter.exploration < step_limit
-            and self._episode_counter.exploration < episode_limit
+            self.step_counter.exploration < step_limit
+            and self.episode_counter.exploration < episode_limit
         ):
             episode, step_counter = self._play_episode(
                 env=self.env_train,
@@ -99,20 +101,23 @@ class Single(Agent):
                 consecutive_actions=self.consecutive_action_steps,
             )
 
-            self._step_counter.exploration += step_counter
-            self._episode_counter.exploration += 1
+            with self.step_counter.lock:
+                self.step_counter.exploration += step_counter
+            with self.episode_counter.lock:
+                self.episode_counter.exploration += 1
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
         return episodes_data
 
     def update(self, steps) -> List[List[float]]:
-        step_limit = self._step_counter.update + steps
+        step_limit = self.step_counter.update + steps
         results = []
         if len(self.replay_buffer) < self.replay_buffer.batch_size:
             return results
 
-        while self._step_counter.update < step_limit:
-            self._step_counter.update += 1
+        while self.step_counter.update < step_limit:
+            with self.step_counter.lock:
+                self.step_counter.update += 1
             batch = self.replay_buffer.sample()
             result = self.algo.update(batch)
             results.append(result)
@@ -120,13 +125,13 @@ class Single(Agent):
         return results
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        step_limit = self._step_counter.evaluation + steps
-        episode_limit = self._episode_counter.evaluation + episodes
+        step_limit = self.step_counter.evaluation + steps
+        episode_limit = self.episode_counter.evaluation + episodes
         episodes_data = []
 
         while (
-            self._step_counter.evaluation < step_limit
-            and self._episode_counter.evaluation < episode_limit
+            self.step_counter.evaluation < step_limit
+            and self.episode_counter.evaluation < episode_limit
         ):
             episode, step_counter = self._play_episode(
                 env=self.env_eval,
@@ -134,8 +139,11 @@ class Single(Agent):
                 consecutive_actions=self.consecutive_action_steps,
             )
 
-            self._step_counter.evaluation += step_counter
-            self._episode_counter.evaluation += 1
+            with self.step_counter.lock:
+                self.step_counter.evaluation += step_counter
+
+            with self.episode_counter.lock():
+                self.episode_counter.evaluation += 1
             episodes_data.append(episode)
         return episodes_data
 

@@ -2,7 +2,7 @@ from copy import deepcopy
 import logging
 from typing import List, Tuple
 
-from .agent import Agent, Episode
+from .agent import Agent, Episode, StepCounterShared, EpisodeCounterShared
 from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
 from eve.env import DummyEnv
@@ -44,8 +44,8 @@ class Synchron(Agent):
         self.worker: List[SingleAgentProcess] = []
         self.trainer: List[SingleAgentProcess] = []
         self.replay_buffer = replay_buffer
-        self._step_counter_set_point = StepCounter()
-        self._episode_counter_set_point = EpisodeCounter()
+        self._step_counter = StepCounterShared()
+        self._episode_counter = EpisodeCounterShared()
 
         for i in range(n_worker):
             self.worker.append(
@@ -60,6 +60,8 @@ class Synchron(Agent):
                     normalize_actions,
                     name="worker_" + str(i),
                     parent_agent=self,
+                    step_counter=self.step_counter,
+                    episode_counter=self.episode_counter,
                 )
             )
 
@@ -80,9 +82,19 @@ class Synchron(Agent):
                     normalize_actions,
                     name="trainer_" + str(i),
                     parent_agent=self,
+                    step_counter=self.step_counter,
+                    episode_counter=self.episode_counter,
                 )
             )
         self.logger.debug("Synchron Agent initialized")
+
+    @property
+    def step_counter(self) -> StepCounter:
+        return self._step_counter
+
+    @property
+    def episode_counter(self) -> EpisodeCounter:
+        return self._episode_counter
 
     def heatup(
         self,
@@ -97,8 +109,8 @@ class Synchron(Agent):
         )
         for agent in self.worker:
             agent.heatup(
-                steps_per_agent,
-                episodes_per_agent,
+                steps,
+                episodes,
                 custom_action_low,
                 custom_action_high,
             )
@@ -112,7 +124,7 @@ class Synchron(Agent):
             steps, episodes, self.n_worker
         )
         for agent in self.worker:
-            agent.explore(steps_per_agent, episodes_per_agent)
+            agent.explore(steps, episodes)
         result = self._get_worker_results()
         return result
 
@@ -120,7 +132,7 @@ class Synchron(Agent):
         self.logger.debug(f"update: {steps} steps")
         steps_per_agent = ceil(steps / self.n_trainer)
         for agent in self.trainer:
-            agent.update(steps_per_agent)
+            agent.update(steps)
         result = self._get_trainer_results()
         new_network_states = self._get_network_states_container()
         self._set_network_states_container(new_network_states)
@@ -133,7 +145,7 @@ class Synchron(Agent):
             steps, episodes, self.n_worker
         )
         for agent in self.worker:
-            agent.evaluate(steps_per_agent, episodes_per_agent)
+            agent.evaluate(steps, episodes)
 
         result = self._get_worker_results()
         return result
@@ -149,9 +161,9 @@ class Synchron(Agent):
             explore_steps, explore_episodes, self.n_worker
         )
         for agent in self.trainer:
-            agent.update(update_steps_per_agent)
+            agent.update(update_steps)
         for agent in self.worker:
-            agent.explore(explore_steps_per_agent, explore_episodes_per_agent)
+            agent.explore(explore_steps, explore_episodes)
         update_result = self._get_trainer_results()
         explore_result = self._get_worker_results()
         new_network_states = self._get_network_states_container()
@@ -228,26 +240,26 @@ class Synchron(Agent):
         ]
         return results
 
-    @property
-    def step_counter(self) -> StepCounter:
-        step_counter = StepCounter()
-        for agent in self.worker + self.trainer:
-            step_counter += agent.step_counter
-        step_counter.heatup = int(step_counter.heatup)
-        step_counter.exploration = int(step_counter.exploration)
-        step_counter.evaluation = int(step_counter.evaluation)
-        step_counter.update = int(step_counter.update)
-        return step_counter
+    # @property
+    # def step_counter(self) -> StepCounter:
+    #     step_counter = StepCounter()
+    #     for agent in self.worker + self.trainer:
+    #         step_counter += agent.step_counter
+    #     step_counter.heatup = int(step_counter.heatup)
+    #     step_counter.exploration = int(step_counter.exploration)
+    #     step_counter.evaluation = int(step_counter.evaluation)
+    #     step_counter.update = int(step_counter.update)
+    #     return step_counter
 
-    @property
-    def episode_counter(self) -> EpisodeCounter:
-        episode_counter = EpisodeCounter()
-        for agent in self.worker + self.trainer:
-            episode_counter += agent.episode_counter
-        episode_counter.heatup = int(episode_counter.heatup)
-        episode_counter.exploration = int(episode_counter.exploration)
-        episode_counter.evaluation = int(episode_counter.evaluation)
-        return episode_counter
+    # @property
+    # def episode_counter(self) -> EpisodeCounter:
+    #     episode_counter = EpisodeCounter()
+    #     for agent in self.worker + self.trainer:
+    #         episode_counter += agent.episode_counter
+    #     episode_counter.heatup = int(episode_counter.heatup)
+    #     episode_counter.exploration = int(episode_counter.exploration)
+    #     episode_counter.evaluation = int(episode_counter.evaluation)
+    #     return episode_counter
 
     def save_checkpoint(self, directory: str, name: str) -> None:
         path = directory + "/" + name + ".pt"
@@ -280,27 +292,18 @@ class Synchron(Agent):
         optimizer_states_container = self.trainer[0].get_optimizer_states_container()
         optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
 
-        single_worker_step_counter = StepCounter(
-            checkpoint["heatup_steps"] / self.n_worker,
-            checkpoint["exploration_steps"] / self.n_worker,
-            checkpoint["evaluation_steps"] / self.n_worker,
-            0,
-        )
-        single_trainer_step_counter = StepCounter(
-            0,
-            0,
-            0,
-            checkpoint["update_steps"] / self.n_trainer,
-        )
+        self.step_counter.heatup = checkpoint["heatup_steps"]
+        self.step_counter.exploration = checkpoint["exploration_steps"]
+        self.step_counter.evaluation = checkpoint["evaluation_steps"]
+
+        self.step_counter.update = checkpoint["update_steps"]
 
         for worker in self.worker:
             worker.set_network_states(network_states_container)
-            worker.step_counter = single_worker_step_counter
 
         for trainer in self.trainer:
             trainer.set_optimizer_states(optimizer_states_container)
             trainer.set_network_states(network_states_container)
-            trainer.step_counter = single_trainer_step_counter
 
     def copy(self):
         return self.__class__(

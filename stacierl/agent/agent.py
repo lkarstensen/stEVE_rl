@@ -12,6 +12,7 @@ class EpisodeCounter:
     heatup: int = 0
     exploration: int = 0
     evaluation: int = 0
+    lock = mp.Lock()
 
     def __iadd__(self, other):
         self.heatup += other.heatup
@@ -26,6 +27,7 @@ class StepCounter:
     exploration: int = 0
     evaluation: int = 0
     update: int = 0
+    lock = mp.Lock()
 
     def __iadd__(self, other):
         self.heatup += other.heatup

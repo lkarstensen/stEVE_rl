@@ -181,6 +181,8 @@ class SingleAgentProcess(Agent):
         normalize_actions: bool,
         name: str,
         parent_agent: Agent,
+        step_counter: StepCounterShared = None,
+        episode_counter: EpisodeCounterShared = None,
     ) -> None:
 
         self.id = id
@@ -192,8 +194,8 @@ class SingleAgentProcess(Agent):
         self.device = device
         self.parent_agent = parent_agent
 
-        self._step_counter = StepCounterShared()
-        self._episode_counter = EpisodeCounterShared()
+        self._step_counter = step_counter or StepCounterShared()
+        self._episode_counter = episode_counter or EpisodeCounterShared()
         logging_config = get_logging_config_dict()
         self._process = mp.Process(
             target=run,
@@ -210,8 +212,8 @@ class SingleAgentProcess(Agent):
                 self._task_queue,
                 self._result_queue,
                 self._model_queue,
-                self._step_counter,
-                self._episode_counter,
+                self.step_counter,
+                self.episode_counter,
                 self._shutdown_event,
                 name,
             ],

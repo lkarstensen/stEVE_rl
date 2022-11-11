@@ -1,5 +1,6 @@
 from copy import deepcopy
 import logging
+import traceback
 from math import inf
 
 from typing import Any, Dict, List, Optional, Tuple
@@ -163,6 +164,8 @@ def run(
                 continue
             result_queue.put(result)
     except Exception as e:
+        tb = "".join(traceback.format_tb(e.__traceback__))
+        logger.warning(f"Traceback:\n" + tb)
         logger.warning(e)
         result_queue.put(e)
     agent.close()
@@ -185,7 +188,9 @@ class SingleAgentProcess(Agent):
         episode_counter: EpisodeCounterShared = None,
     ) -> None:
 
+        self.logger = logging.getLogger(self.__module__)
         self.id = id
+        self.name = name
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
         self._result_queue = mp.Queue()
@@ -244,7 +249,9 @@ class SingleAgentProcess(Agent):
     def get_result(self) -> List[Any]:
         result = self._result_queue.get()
         if isinstance(result, Exception):
-            self.parent_agent.close()
+            self.logger.warn(
+                f"{self.name}: Agent Process stopped because of Exception: {result}. Closing Process."
+            )
             raise result
         return result
 
@@ -263,21 +270,29 @@ class SingleAgentProcess(Agent):
         return self._model_queue.get()
 
     def close(self) -> None:
-        self._shutdown_event.set()
-        self._task_queue.put(["shutdown"])
-        self._process.join()
-        self._clear_queues()
+        if self._process is not None and self._process.is_alive():
+            self._shutdown_event.set()
+            self._task_queue.put(["shutdown"])
+            exitcode = self._process.join(1)
+            if exitcode is None:
+                self._process.kill()
+                self._process.join()
         self._process.close()
+        self._process = None
+        self._clear_queues()
+        self._close_queues()
 
     def _clear_queues(self):
-        if self._process.is_alive():
-            return
         for queue_ in [self._result_queue, self._model_queue, self._task_queue]:
             while True:
                 try:
                     queue_.get_nowait()
                 except queue.Empty:
                     break
+
+    def _close_queues(self):
+        for queue_ in [self._result_queue, self._model_queue, self._task_queue]:
+            queue_.close()
 
     @property
     def step_counter(self) -> StepCounterShared:

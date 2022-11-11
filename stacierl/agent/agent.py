@@ -39,10 +39,10 @@ class StepCounter:
 
 class StepCounterShared(StepCounter):
     def __init__(self):
-        self._heatup: mp.Value = mp.Value("f", 0)
-        self._exploration: mp.Value = mp.Value("f", 0)
-        self._evaluation: mp.Value = mp.Value("f", 0)
-        self._update: mp.Value = mp.Value("f", 0)
+        self._heatup: mp.Value = mp.Value("i", 0)
+        self._exploration: mp.Value = mp.Value("i", 0)
+        self._evaluation: mp.Value = mp.Value("i", 0)
+        self._update: mp.Value = mp.Value("i", 0)
 
     @property
     def heatup(self) -> int:

@@ -82,6 +82,7 @@ class Single(Agent):
                 self.step_counter.heatup += step_counter
             with self.episode_counter.lock:
                 self.episode_counter.heatup += 1
+            self.logger.info(f"Heatup Steps: {int(self.step_counter.heatup)}")
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
         return episodes_data
@@ -105,6 +106,7 @@ class Single(Agent):
                 self.step_counter.exploration += step_counter
             with self.episode_counter.lock:
                 self.episode_counter.exploration += 1
+            self.logger.info(f"Explore Steps: {self.step_counter.exploration}")
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
         return episodes_data
@@ -121,6 +123,7 @@ class Single(Agent):
             batch = self.replay_buffer.sample()
             result = self.algo.update(batch)
             results.append(result)
+        self.logger.info(f"Update Steps: {self.step_counter.update}")
 
         return results
 
@@ -142,8 +145,9 @@ class Single(Agent):
             with self.step_counter.lock:
                 self.step_counter.evaluation += step_counter
 
-            with self.episode_counter.lock():
+            with self.episode_counter.lock:
                 self.episode_counter.evaluation += 1
+            self.logger.info(f"Eval Episodes: {self.episode_counter.evaluation}")
             episodes_data.append(episode)
         return episodes_data
 

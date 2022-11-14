@@ -191,7 +191,6 @@ class Single(Agent):
         self.algo.to(device)
 
     def close(self):
-        self.replay_buffer.close()
         self.env_train.close()
         self.env_eval.close()
 

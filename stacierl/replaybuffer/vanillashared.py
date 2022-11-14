@@ -39,7 +39,7 @@ class VanillaSharedBase(ReplayBuffer):
             self._request_lock.release()
             return batch
         else:
-            return Batch([], [], [], [], [], [], [])
+            return Batch([], [], [], [], [])
 
     def __len__(
         self,

@@ -59,10 +59,12 @@ class ConfigHandler:
                         if "eve" in v.__module__ and "Space" in str(type(v)):
                             dict_value.append(str(type(v)))
                             continue
-
-                        if "stacierl" in v.__module__ + str(
-                            type(v).__bases__
-                        ) or "eve" in v.__module__ + str(type(v).__bases__):
+                        search_string = v.__module__ + str(type(v).__bases__)
+                        if (
+                            "stacierl." in search_string
+                            or "eve." in search_string
+                            or "stacievesseltrees." in search_string
+                        ):
                             dict_value.append(self._to_dict(v))
                         continue
 
@@ -74,10 +76,12 @@ class ConfigHandler:
                         dict_value = str(type(value))
                         attributes_dict[attribute] = dict_value
                         continue
-
-                    if "stacierl" in value.__module__ + str(
-                        type(value).__bases__
-                    ) or "eve" in value.__module__ + str(type(value).__bases__):
+                    search_string = value.__module__ + str(type(value).__bases__)
+                    if (
+                        "stacierl." in search_string
+                        or "eve." in search_string
+                        or "stacievesseltrees." in search_string
+                    ):
                         dict_value = self._to_dict(value)
                         attributes_dict[attribute] = dict_value
                         continue

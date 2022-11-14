@@ -22,7 +22,7 @@ class Single(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
-        normalize_actions: bool = True,
+        normalize_action: bool = True,
     ) -> None:
         self.logger = logging.getLogger(self.__module__)
         self.device = device
@@ -31,7 +31,7 @@ class Single(Agent):
         self.env_eval = env_eval
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
-        self.normalize_action = normalize_actions
+        self.normalize_action = normalize_action
 
         self._step_counter = StepCounter()
         self._episode_counter = EpisodeCounter()

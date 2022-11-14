@@ -60,7 +60,9 @@ class ConfigHandler:
                             dict_value.append(str(type(v)))
                             continue
 
-                        if "stacierl" in v.__module__ or "eve" in v.__module__:
+                        if "stacierl" in v.__module__ + str(
+                            type(v).__bases__
+                        ) or "eve" in v.__module__ + str(type(v).__bases__):
                             dict_value.append(self._to_dict(v))
                         continue
 
@@ -73,7 +75,9 @@ class ConfigHandler:
                         attributes_dict[attribute] = dict_value
                         continue
 
-                    if "stacierl" in value.__module__ or "eve" in value.__module__:
+                    if "stacierl" in value.__module__ + str(
+                        type(value).__bases__
+                    ) or "eve" in value.__module__ + str(type(value).__bases__):
                         dict_value = self._to_dict(value)
                         attributes_dict[attribute] = dict_value
                         continue

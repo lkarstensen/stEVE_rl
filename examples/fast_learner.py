@@ -118,7 +118,7 @@ def sac_training(
         replay_buffer,
         consecutive_action_steps=1,
         device=device,
-        normalize_actions=True,
+        normalize_action=True,
     )
 
     while True:

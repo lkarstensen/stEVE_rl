@@ -7,6 +7,8 @@ from enum import Enum
 from enum import Enum
 import os
 
+import yaml
+
 
 class ConfigHandler:
     def __init__(self, indent: int = 4, sort_keys: bool = False):
@@ -15,16 +17,14 @@ class ConfigHandler:
 
     def save_config(self, object, filepath: str):
         config_dict = self._to_dict(object)
-        if not filepath.endswith(".json"):
-            filepath = filepath + ".json"
+        if not filepath.endswith(".yml"):
+            filepath = filepath + ".yml"
 
         self._save_dict_to_file(config_dict, filepath)
 
     def _save_dict_to_file(self, config_dict: dict, file: str):
-        with open(file, "w") as jsonfile:
-            json.dump(
-                config_dict, jsonfile, indent=self.indent, sort_keys=self.sort_keys
-            )
+        with open(file, "w") as dumpfile:
+            yaml.dump(config_dict, dumpfile, default_flow_style=False, sort_keys=False)
 
     def _to_dict(self, object) -> dict:
         attributes_dict = {}
@@ -99,12 +99,9 @@ class ConfigHandler:
 
         return init_attributes
 
-    def load_config_data(self, json_file):
-        if ".json" in json_file:
-            with open(json_file) as j_file:
-                config_dict = json.load(j_file)
-        else:
-            config_dict = json.loads(json_file)
+    def load_config_data(self, file):
+        with open(file, "r") as config:
+            config_dict = yaml.safe_load(config)
 
         obj = self._dict_to_obj(config_dict)
         return obj

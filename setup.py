@@ -5,5 +5,5 @@ setup(
     version="0.1dev",
     author="Lennar Karstensen",
     packages=find_packages(),
-    install_requires=["torch", "numpy"],
+    install_requires=["torch", "numpy", "pyyaml"],
 )

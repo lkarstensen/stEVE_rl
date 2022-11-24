@@ -68,10 +68,10 @@ class Single(Agent):
 
             return action
 
-        while (
-            self.step_counter.heatup < step_limit
-            and self.episode_counter.heatup < episode_limit
-        ):
+        while True:
+            with self.episode_counter.lock:
+                self.episode_counter.heatup += 1
+
             episode, step_counter = self._play_episode(
                 env=self.env_train,
                 action_function=random_action,
@@ -80,11 +80,15 @@ class Single(Agent):
 
             with self.step_counter.lock:
                 self.step_counter.heatup += step_counter
-            with self.episode_counter.lock:
-                self.episode_counter.heatup += 1
+
             self.logger.info(f"Heatup Steps: {int(self.step_counter.heatup)}")
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
+            if (
+                self.step_counter.heatup > step_limit
+                or self.episode_counter.heatup > episode_limit
+            ):
+                break
         return episodes_data
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
@@ -92,10 +96,10 @@ class Single(Agent):
         episode_limit = self.episode_counter.exploration + episodes
         episodes_data = []
 
-        while (
-            self.step_counter.exploration < step_limit
-            and self.episode_counter.exploration < episode_limit
-        ):
+        while True:
+            with self.episode_counter.lock:
+                self.episode_counter.exploration += 1
+
             episode, step_counter = self._play_episode(
                 env=self.env_train,
                 action_function=self.algo.get_exploration_action,
@@ -104,11 +108,15 @@ class Single(Agent):
 
             with self.step_counter.lock:
                 self.step_counter.exploration += step_counter
-            with self.episode_counter.lock:
-                self.episode_counter.exploration += 1
+
             self.logger.info(f"Explore Steps: {self.step_counter.exploration}")
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
+            if (
+                self.step_counter.exploration > step_limit
+                or self.episode_counter.exploration > episode_limit
+            ):
+                break
         return episodes_data
 
     def update(self, steps) -> List[List[float]]:
@@ -132,10 +140,10 @@ class Single(Agent):
         episode_limit = self.episode_counter.evaluation + episodes
         episodes_data = []
 
-        while (
-            self.step_counter.evaluation < step_limit
-            and self.episode_counter.evaluation < episode_limit
-        ):
+        while True:
+            with self.episode_counter.lock:
+                self.episode_counter.evaluation += 1
+
             episode, step_counter = self._play_episode(
                 env=self.env_eval,
                 action_function=self.algo.get_eval_action,
@@ -145,10 +153,13 @@ class Single(Agent):
             with self.step_counter.lock:
                 self.step_counter.evaluation += step_counter
 
-            with self.episode_counter.lock:
-                self.episode_counter.evaluation += 1
             self.logger.info(f"Eval Episodes: {self.episode_counter.evaluation}")
             episodes_data.append(episode)
+            if (
+                self.step_counter.evaluation > step_limit
+                or self.episode_counter.evaluation > episode_limit
+            ):
+                break
         return episodes_data
 
     def _play_episode(

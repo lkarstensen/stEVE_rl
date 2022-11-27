@@ -1,4 +1,5 @@
 import logging
+from time import perf_counter
 from typing import Callable, List, Tuple
 
 from stacierl.replaybuffer.replaybuffer import Episode
@@ -68,47 +69,77 @@ class Single(Agent):
 
             return action
 
+        n_episodes = 0
+        n_steps = 0
+        t_start = perf_counter()
         while (
             self.step_counter.heatup < step_limit
             and self.episode_counter.heatup < episode_limit
         ):
-            episode, step_counter = self._play_episode(
+            if n_episodes > 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.heatup += 1
+
+            episode, n_steps_episode = self._play_episode(
                 env=self.env_train,
                 action_function=random_action,
                 consecutive_actions=self.consecutive_action_steps,
             )
 
+            if n_episodes == 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.heatup += 1
             with self.step_counter.lock:
-                self.step_counter.heatup += step_counter
-            with self.episode_counter.lock:
-                self.episode_counter.heatup += 1
-            self.logger.info(f"Heatup Steps: {int(self.step_counter.heatup)}")
+                self.step_counter.heatup += n_steps_episode
+            n_steps += n_steps_episode
+            n_episodes += 1
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
+
+        t_duration = perf_counter() - t_start
+        self.logger.info(
+            f"Heatup Steps Total: {self.step_counter.heatup}, Steps this Heatup: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        )
         return episodes_data
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
         step_limit = self.step_counter.exploration + steps
         episode_limit = self.episode_counter.exploration + episodes
         episodes_data = []
+        n_episodes = 0
+        n_steps = 0
+        t_start = perf_counter()
 
         while (
             self.step_counter.exploration < step_limit
             and self.episode_counter.exploration < episode_limit
         ):
-            episode, step_counter = self._play_episode(
+            if n_episodes > 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.exploration += 1
+
+            episode, n_steps_episode = self._play_episode(
                 env=self.env_train,
                 action_function=self.algo.get_exploration_action,
                 consecutive_actions=self.consecutive_action_steps,
             )
+            if n_episodes == 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.exploration += 1
 
             with self.step_counter.lock:
-                self.step_counter.exploration += step_counter
-            with self.episode_counter.lock:
-                self.episode_counter.exploration += 1
-            self.logger.info(f"Explore Steps: {self.step_counter.exploration}")
+                self.step_counter.exploration += n_steps_episode
+
+            n_episodes += 1
+            n_steps += n_steps_episode
+
             self.replay_buffer.push(episode)
             episodes_data.append(episode)
+
+        t_duration = perf_counter() - t_start
+        self.logger.info(
+            f"Exploration Steps Total: {self.step_counter.exploration}, Steps this Exploration: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        )
         return episodes_data
 
     def update(self, steps) -> List[List[float]]:
@@ -117,13 +148,20 @@ class Single(Agent):
         if len(self.replay_buffer) < self.replay_buffer.batch_size:
             return results
 
+        n_steps = 0
+        t_start = perf_counter()
         while self.step_counter.update < step_limit:
             with self.step_counter.lock:
                 self.step_counter.update += 1
             batch = self.replay_buffer.sample()
             result = self.algo.update(batch)
             results.append(result)
-        self.logger.info(f"Update Steps: {self.step_counter.update}")
+            n_steps += 1
+
+        t_duration = perf_counter() - t_start
+        self.logger.info(
+            f"Update Steps Total: {self.step_counter.update}, Steps this update: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        )
 
         return results
 
@@ -131,24 +169,37 @@ class Single(Agent):
         step_limit = self.step_counter.evaluation + steps
         episode_limit = self.episode_counter.evaluation + episodes
         episodes_data = []
+        n_episodes = 0
+        n_steps = 0
+        t_start = perf_counter()
 
         while (
             self.step_counter.evaluation < step_limit
             and self.episode_counter.evaluation < episode_limit
         ):
-            episode, step_counter = self._play_episode(
+            if n_episodes > 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.evaluation += 1
+
+            episode, n_steps_episode = self._play_episode(
                 env=self.env_eval,
                 action_function=self.algo.get_eval_action,
                 consecutive_actions=self.consecutive_action_steps,
             )
 
+            if n_episodes == 0:
+                with self.episode_counter.lock:
+                    self.episode_counter.evaluation += 1
             with self.step_counter.lock:
-                self.step_counter.evaluation += step_counter
+                self.step_counter.evaluation += n_steps_episode
 
-            with self.episode_counter.lock:
-                self.episode_counter.evaluation += 1
-            self.logger.info(f"Eval Episodes: {self.episode_counter.evaluation}")
+            n_episodes += 1
+            n_steps += n_steps_episode
             episodes_data.append(episode)
+        t_duration = perf_counter() - t_start
+        self.logger.info(
+            f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        )
         return episodes_data
 
     def _play_episode(

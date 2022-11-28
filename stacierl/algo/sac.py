@@ -1,20 +1,18 @@
 import logging
-from typing import List, Dict
+from typing import List
 import torch
 import torch.nn.functional as F
-from .algo import Algo, NetworkStatesContainer
+from .algo import Algo
 from .sacmodel import SACModel
 import numpy as np
 from ..replaybuffer import Batch
-from eve.env import EveActionSpace
-from stacierl.algo.sacmodel.inputembedder import Embedder
 
 
 class SAC(Algo):
     def __init__(
         self,
         model: SACModel,
-        action_space: EveActionSpace,
+        n_actions: int,
         gamma: float = 0.99,
         tau: float = 0.005,
         reward_scaling: float = 1,
@@ -23,7 +21,7 @@ class SAC(Algo):
     ):
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
-        self.action_space = action_space
+        self.n_actions = n_actions
         self.gamma = gamma
         self.tau = tau
         self.exploration_action_noise = exploration_action_noise
@@ -38,11 +36,8 @@ class SAC(Algo):
 
         # ENTROPY TEMPERATURE
         self.alpha = torch.ones(1)
-        n_actions = 1
-        for dim in action_space.shape:
-            n_actions *= dim
 
-        self.target_entropy = -torch.ones(1) * n_actions
+        self.target_entropy = -torch.ones(1) * self.n_actions
 
     @property
     def model(self) -> SACModel:
@@ -138,7 +133,7 @@ class SAC(Algo):
     def copy(self):
         copy = self.__class__(
             self.model.copy(),
-            self.action_space,
+            self.n_actions,
             self.gamma,
             self.tau,
             self.reward_scaling,
@@ -150,7 +145,7 @@ class SAC(Algo):
     def copy_shared_memory(self):
         copy = self.__class__(
             self.model.copy_shared_memory(),
-            self.action_space,
+            self.n_actions,
             self.gamma,
             self.tau,
             self.reward_scaling,

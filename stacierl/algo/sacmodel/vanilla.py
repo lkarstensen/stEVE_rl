@@ -9,8 +9,6 @@ import torch
 from dataclasses import dataclass
 from copy import deepcopy
 
-from eve.env import EveObservationSpace, EveActionSpace
-
 
 @dataclass
 class SACNetworkStateContainer(NetworkStatesContainer):
@@ -106,12 +104,12 @@ class Vanilla(SACModel):
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
         learning_rate: float,
-        obs_space: EveObservationSpace,
-        action_space: EveActionSpace,
+        n_observations: int,
+        n_actions: int,
     ) -> None:
         self.learning_rate = learning_rate
-        self.obs_space = obs_space
-        self.action_space = action_space
+        self.n_observations = n_observations
+        self.n_actions = n_actions
 
         self.q1 = q1
         self.q2 = q2
@@ -119,16 +117,6 @@ class Vanilla(SACModel):
         self.target_q2 = q2.copy()
         self.policy = policy
         self.log_alpha = torch.zeros(1, requires_grad=True)
-
-        n_actions = 1
-        for dim in self.action_space.shape:
-            n_actions *= dim
-        n_observations = 0
-        for state_shape in self.obs_space.shape.values():
-            n_state_observations = 1
-            for dim in state_shape:
-                n_state_observations *= dim
-            n_observations += n_state_observations
 
         self.q1.set_input(n_observations, n_actions)
         self.q2.set_input(n_observations, n_actions)
@@ -277,8 +265,8 @@ class Vanilla(SACModel):
             self.q2.copy(),
             self.policy.copy(),
             self.learning_rate,
-            self.obs_space,
-            self.action_space,
+            self.n_observations,
+            self.n_actions,
         )
 
         return copy
@@ -290,8 +278,8 @@ class Vanilla(SACModel):
             self.q2.copy(),
             self.policy.copy(),
             self.learning_rate,
-            self.obs_space,
-            self.action_space,
+            self.n_observations,
+            self.n_actions,
         )
         self.q1.share_memory()
         self.q2.share_memory()

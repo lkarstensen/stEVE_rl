@@ -2,9 +2,6 @@ from typing import Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from eve.env import EveObservationSpace, EveActionSpace
-
-
 from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
 from ... import network
 from ...network import NetworkDummy, Network
@@ -155,15 +152,15 @@ class InputEmbedding(Vanilla):
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
         learning_rate: float,
-        obs_space: EveObservationSpace,
-        action_space: EveActionSpace,
+        n_observations: int,
+        n_actions: int,
         q1_common_input_embedder: Optional[Embedder] = None,
         q2_common_input_embedder: Optional[Embedder] = None,
         policy_common_input_embedder: Optional[Embedder] = None,
     ) -> None:
         self.learning_rate = learning_rate
-        self.obs_space = obs_space
-        self.action_space = action_space
+        self.n_observations = n_observations
+        self.n_actions = n_actions
 
         self.q1_common_input_embedder = q1_common_input_embedder
         self.q2_common_input_embedder = q2_common_input_embedder
@@ -185,10 +182,6 @@ class InputEmbedding(Vanilla):
         self.policy_common_input_embedder = self._init_common_embedder(
             self.policy_common_input_embedder
         )
-
-        n_actions = 1
-        for dim in self.action_space.shape:
-            n_actions *= dim
 
         self.q1.set_input(self.q1_common_input_embedder.network.n_outputs, n_actions)
         self.q2.set_input(self.q2_common_input_embedder.network.n_outputs, n_actions)
@@ -214,24 +207,21 @@ class InputEmbedding(Vanilla):
         self._init_optimizer()
 
     def _init_common_embedder(self, common_input_embedder: Embedder):
-        n_observations = 0
-        for observation in self.obs_space.low.values():
-            n_observations += observation.size
 
         if common_input_embedder is None:
             network = NetworkDummy()
-            network.set_input(n_observations)
+            network.set_input(self.n_observations)
             update = False
         else:
             network = common_input_embedder.network
             update = common_input_embedder.update
             if network.input_is_set:
-                if network.n_inputs != n_observations:
+                if network.n_inputs != self.n_observations:
                     raise RuntimeError(
                         f"Input Embedder assignment seems to be wrong. Input Embedders always need the same number of inputs. Common Embedder Network {network} is wrongly assigned for q1_common_embedder."
                     )
             else:
-                network.set_input(n_observations)
+                network.set_input(self.n_observations)
 
         return Embedder(network, update)
 
@@ -467,8 +457,8 @@ class InputEmbedding(Vanilla):
             self.q2.copy(),
             self.policy.copy(),
             self.learning_rate,
-            self.obs_space,
-            self.action_space,
+            self.n_observations,
+            self.n_actions,
             Embedder(q1_embed_network_copy, q1_embed_update),
             Embedder(q2_embed_network_copy, q2_embed_update),
             Embedder(policy_embed_network_copy, policy_embed_update),
@@ -490,8 +480,8 @@ class InputEmbedding(Vanilla):
             self.q2,
             self.policy,
             self.learning_rate,
-            self.obs_space,
-            self.action_space,
+            self.n_observations,
+            self.n_actions,
             self.q1_common_input_embedder,
             self.q2_common_input_embedder,
             self.policy_common_input_embedder,

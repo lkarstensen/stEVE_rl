@@ -4,24 +4,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import List, Tuple
 
-from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
-
 from .network import Network
-from eve.env import EveActionSpace
 
 
 class GaussianPolicy(Network):
     def __init__(
         self,
         hidden_layers: List[int],
-        action_space: EveActionSpace,
         init_w=3e-3,
         log_std_min=-20,
         log_std_max=2,
     ):
         super().__init__()
         self.logger = logging.getLogger(self.__module__)
-        self.action_space = action_space
         self.hidden_layers = hidden_layers
         self.init_w = init_w
         self.log_std_min = log_std_min
@@ -88,7 +83,6 @@ class GaussianPolicy(Network):
 
         copy = self.__class__(
             self.hidden_layers,
-            self.action_space,
             self.init_w,
             self.log_std_min,
             self.log_std_max,

@@ -89,7 +89,7 @@ def sac_training(
         state=state,
         reward=reward,
         done=done,
-        simulation=simu,
+        intervention=simu,
         start=start,
         target=target,
         imaging=imaging,
@@ -100,16 +100,18 @@ def sac_training(
 
     q_net_1 = stacierl.network.QNetwork(hidden_layers)
     q_net_2 = stacierl.network.QNetwork(hidden_layers)
-    policy_net = stacierl.network.GaussianPolicy(hidden_layers, env.action_space)
+    policy_net = stacierl.network.GaussianPolicy(hidden_layers)
     sac_model = stacierl.algo.sacmodel.Vanilla(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
         learning_rate=lr,
-        obs_space=env.observation_space,
-        action_space=env.action_space,
+        n_observations=env.observation_space.n_observations,
+        n_actions=env.action_space.n_actions,
     )
-    algo = stacierl.algo.SAC(sac_model, action_space=env.action_space, gamma=gamma)
+    algo = stacierl.algo.SAC(
+        sac_model, n_actions=env.action_space.n_actions, gamma=gamma
+    )
     replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
     agent = stacierl.agent.Single(
         algo,

@@ -9,7 +9,7 @@ from ..model import NetworkStatesContainer, OptimizerStatesContainer
 
 class SACModel(Model, ABC):
     @abstractmethod
-    def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
+    def get_play_action(self, flat_state: np.ndarray, evaluation: bool) -> np.ndarray:
         ...
 
     @abstractmethod

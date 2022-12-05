@@ -598,3 +598,15 @@ class InputEmbedding(Vanilla):
             self.policy_common_input_embedder.network,
         ]
         return iter(nets)
+
+    def close(self):
+        del self.q1
+        del self.q1_optimizers
+        del self.q2
+        del self.q2_optimizers
+        del self.policy
+        del self.policy_optimizers
+        del self.q1_common_input_embedder
+        del self.q2_common_input_embedder
+        del self.policy_common_input_embedder
+        del self.alpha_optimizer

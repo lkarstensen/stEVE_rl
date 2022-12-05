@@ -202,3 +202,7 @@ class Model(ABC):
     @abstractmethod
     def reset(self) -> None:
         ...
+
+    @abstractmethod
+    def close(self):
+        ...

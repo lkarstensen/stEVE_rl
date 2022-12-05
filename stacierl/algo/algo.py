@@ -48,3 +48,7 @@ class Algo(ABC):
     @abstractmethod
     def to(self, device: torch.device):
         ...
+
+    @abstractmethod
+    def close(self):
+        ...

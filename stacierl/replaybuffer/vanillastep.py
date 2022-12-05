@@ -60,4 +60,4 @@ class VanillaStep(ReplayBuffer):
         return copy
 
     def close(self):
-        ...
+        del self.buffer

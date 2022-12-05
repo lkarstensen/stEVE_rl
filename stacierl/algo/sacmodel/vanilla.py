@@ -340,3 +340,12 @@ class Vanilla(SACModel):
 
     def __iter__(self) -> Iterator[network.Network]:
         return iter([self.q1, self.q2, self.target_q1, self.target_q2, self.policy])
+
+    def close(self):
+        del self.q1
+        del self.q1_optimizer
+        del self.q2
+        del self.q2_optimizer
+        del self.policy
+        del self.policy_optimizer
+        del self.alpha_optimizer

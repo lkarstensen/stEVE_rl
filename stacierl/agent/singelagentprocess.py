@@ -273,7 +273,7 @@ class SingleAgentProcess(Agent):
         if self._process is not None and self._process.is_alive():
             self._shutdown_event.set()
             self._task_queue.put(["shutdown"])
-            exitcode = self._process.join(1)
+            exitcode = self._process.join(5)
             if exitcode is None:
                 self._process.kill()
                 self._process.join()

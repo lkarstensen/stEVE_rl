@@ -64,4 +64,4 @@ class VanillaEpisode(ReplayBuffer):
         return copy
 
     def close(self):
-        ...
+        del self.buffer

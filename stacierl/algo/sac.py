@@ -162,3 +162,6 @@ class SAC(Algo):
 
     def reset(self) -> None:
         self.model.reset()
+
+    def close(self):
+        self.model.close()

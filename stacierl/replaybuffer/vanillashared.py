@@ -65,7 +65,9 @@ class VanillaSharedBase(ReplayBuffer):
 
 class VanillaStepShared(VanillaSharedBase):
     def __init__(self, capacity, batch_size):
-        super().__init__(mp.SimpleQueue(), mp.SimpleQueue(), mp.Lock(), mp.Event(), batch_size)
+        super().__init__(
+            mp.SimpleQueue(), mp.SimpleQueue(), mp.Lock(), mp.Event(), batch_size
+        )
         self.capacity = capacity
         self._process = mp.Process(target=self.run)
         self._process.start()
@@ -83,6 +85,7 @@ class VanillaStepShared(VanillaSharedBase):
                 self._result_queue.put(len(self._internal_replay_buffer))
             elif task[0] == "shutdown":
                 break
+        self._internal_replay_buffer.close()
 
     def copy(self):
         return VanillaSharedBase(
@@ -97,6 +100,8 @@ class VanillaStepShared(VanillaSharedBase):
         super().close()
         self._process.join()
         self._process.close()
+        self._task_queue.close()
+        self._result_queue.close()
 
 
 class VanillaEpisodeShared(VanillaStepShared):
@@ -113,3 +118,4 @@ class VanillaEpisodeShared(VanillaStepShared):
                 self._result_queue.put(len(self._internal_replay_buffer))
             elif task[0] == "shutdown":
                 break
+        self._internal_replay_buffer.close()

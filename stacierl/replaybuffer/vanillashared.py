@@ -100,8 +100,6 @@ class VanillaStepShared(VanillaSharedBase):
         super().close()
         self._process.join()
         self._process.close()
-        self._task_queue.close()
-        self._result_queue.close()
 
 
 class VanillaEpisodeShared(VanillaStepShared):

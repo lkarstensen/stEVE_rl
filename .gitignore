@@ -9,3 +9,5 @@
 test*
 
 .vscode
+
+.DS_Store

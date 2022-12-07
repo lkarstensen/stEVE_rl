@@ -21,6 +21,7 @@ import queue
 
 import logging.config
 from random import randint
+import os
 
 
 def file_handler_callback(handler: logging.FileHandler):
@@ -95,9 +96,13 @@ def run(
             if "filename" in handler_config.keys():
                 filename = handler_config["filename"]
                 if ".log" in filename:
-                    filename = filename.replace(".log", f"-{name}.log")
+                    path = filename[:-4]
+
                 else:
-                    filename += f"-{name}"
+                    path = filename
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                filename = os.path.join(path, f"{name}.log")
                 log_config_dict["handlers"][handler_name]["filename"] = filename
         logging.config.dictConfig(log_config_dict)
         logger = logging.getLogger(__name__)

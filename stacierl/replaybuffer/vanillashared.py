@@ -16,6 +16,8 @@ class VanillaSharedBase(ReplayBuffer):
         request_lock: mp_lock,
         shutdown_event: mp_event,
         batch_size: int,
+        counter_lock: mp_lock,
+        counter: mp.Value,
     ):
         self._task_queue = task_queue
         self._result_queue = result_queue
@@ -23,15 +25,28 @@ class VanillaSharedBase(ReplayBuffer):
         self._shutdown_event = shutdown_event
         self._batch_size = batch_size
 
+        self._added_self_to_counter = False
+        self._counter_lock = counter_lock
+        self.access_counter = counter
+
     @property
     def batch_size(self) -> int:
         return self._batch_size
 
     def push(self, episode: Episode):
+        if not self._added_self_to_counter:
+            with self._counter_lock:
+                self.access_counter.value += 1
+            self._added_self_to_counter = True
+
         if not self._shutdown_event.is_set():
             self._task_queue.put(["push", episode.to_replay()])
 
     def sample(self) -> Batch:
+        if not self._added_self_to_counter:
+            with self._counter_lock:
+                self.access_counter.value += 1
+            self._added_self_to_counter = True
         self._request_lock.acquire()
         if not self._shutdown_event.is_set():
             self._task_queue.put(["sample"])
@@ -54,6 +69,15 @@ class VanillaSharedBase(ReplayBuffer):
             return 0
 
     def copy(self):
+        copy = VanillaSharedBase(
+            self._task_queue,
+            self._result_queue,
+            self._request_lock,
+            self._shutdown_event,
+            self.batch_size,
+            self._counter_lock,
+            self.access_counter,
+        )
         return self
 
     def close(self):
@@ -66,7 +90,13 @@ class VanillaSharedBase(ReplayBuffer):
 class VanillaStepShared(VanillaSharedBase):
     def __init__(self, capacity, batch_size):
         super().__init__(
-            mp.SimpleQueue(), mp.SimpleQueue(), mp.Lock(), mp.Event(), batch_size
+            mp.SimpleQueue(),
+            mp.SimpleQueue(),
+            mp.Lock(),
+            mp.Event(),
+            batch_size,
+            mp.Lock(),
+            mp.Value("i", 0),
         )
         self.capacity = capacity
         self._process = mp.Process(target=self.run)
@@ -94,6 +124,8 @@ class VanillaStepShared(VanillaSharedBase):
             self._request_lock,
             self._shutdown_event,
             self.batch_size,
+            self._counter_lock,
+            self.access_counter,
         )
 
     def close(self):

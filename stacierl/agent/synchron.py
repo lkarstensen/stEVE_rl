@@ -259,8 +259,7 @@ class Synchron(Agent):
     #     episode_counter.evaluation = int(episode_counter.evaluation)
     #     return episode_counter
 
-    def save_checkpoint(self, directory: str, name: str) -> None:
-        path = directory + "/" + name + ".pt"
+    def save_checkpoint(self, file_path: str) -> None:
         new_optimizer_states_container = self._get_optimizer_states_container()
         new_network_states_container = self._get_network_states_container()
         optimizer_state_dicts = new_optimizer_states_container.to_dict()
@@ -277,12 +276,10 @@ class Synchron(Agent):
             "evaluation_steps": step_counter.evaluation,
         }
 
-        torch.save(checkpoint_dict, path)
+        torch.save(checkpoint_dict, file_path)
 
-    def load_checkpoint(self, directory: str, name: str) -> None:
-        name, _ = os.path.splitext(name)
-        path = os.path.join(directory, name + ".pt")
-        checkpoint = torch.load(path)
+    def load_checkpoint(self, file_path: str) -> None:
+        checkpoint = torch.load(file_path)
 
         network_states_container = self.trainer[0].get_network_states_container()
         network_states_container.from_dict(checkpoint["network_state_dicts"])

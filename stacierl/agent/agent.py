@@ -153,11 +153,11 @@ class Agent(ABC):
         ...
 
     @abstractmethod
-    def save_checkpoint(self, directory: str, name: str) -> None:
+    def save_checkpoint(self, file_path: str) -> None:
         ...
 
     @abstractmethod
-    def load_checkpoint(self, directory: str, name: str) -> None:
+    def load_checkpoint(self, file_path: str) -> None:
         ...
 
     @abstractmethod

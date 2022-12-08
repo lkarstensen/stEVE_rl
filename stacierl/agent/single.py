@@ -245,8 +245,7 @@ class Single(Agent):
         self.env_train.close()
         self.env_eval.close()
 
-    def save_checkpoint(self, directory: str, name: str) -> None:
-        path = directory + "/" + name + ".pt"
+    def save_checkpoint(self, file_path) -> None:
 
         optimizer_state_dicts = self.algo.model.optimizer_states_container.to_dict()
         network_state_dicts = self.algo.model.network_states_container.to_dict()
@@ -260,12 +259,10 @@ class Single(Agent):
             "evaluation_steps": self.step_counter.evaluation,
         }
 
-        torch.save(checkpoint_dict, path)
+        torch.save(checkpoint_dict, file_path)
 
-    def load_checkpoint(self, directory: str, name: str) -> None:
-        name, _ = os.path.splitext(name)
-        path = os.path.join(directory, name + ".pt")
-        checkpoint = torch.load(path, map_location=self.device)
+    def load_checkpoint(self, file_path: str) -> None:
+        checkpoint = torch.load(file_path, map_location=self.device)
 
         network_states_container = self.algo.model.network_states_container
         network_states_container.from_dict(checkpoint["network_state_dicts"])

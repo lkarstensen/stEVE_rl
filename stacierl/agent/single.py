@@ -5,7 +5,7 @@ from typing import Callable, List, Tuple
 from stacierl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
-from ..replaybuffer import ReplayBuffer, Episode
+from ..replaybuffer import ReplayBuffer, Episode, ReplayBufferShared
 from eve import Env
 import torch
 from math import inf
@@ -243,7 +243,11 @@ class Single(Agent):
 
     def close(self):
         self.env_train.close()
-        self.env_eval.close()
+        if id(self.env_train) != id(self.env_eval):
+            self.env_eval.close()
+        if isinstance(self.replay_buffer, ReplayBufferShared):
+            if self.replay_buffer.access_counter.value <= 1:
+                self.replay_buffer.close()
 
     def save_checkpoint(self, file_path) -> None:
 

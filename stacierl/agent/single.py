@@ -23,7 +23,7 @@ class Single(Agent):
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
-        normalize_action: bool = True,
+        normalize_actions: bool = True,
     ) -> None:
         self.logger = logging.getLogger(self.__module__)
         self.device = device
@@ -32,7 +32,7 @@ class Single(Agent):
         self.env_eval = env_eval
         self.replay_buffer = replay_buffer
         self.consecutive_action_steps = consecutive_action_steps
-        self.normalize_action = normalize_action
+        self.normalize_actions = normalize_actions
 
         self._step_counter = StepCounter()
         self._episode_counter = EpisodeCounter()
@@ -64,7 +64,7 @@ class Single(Agent):
                 action_high = env_high.reshape(-1)
             action = np.random.uniform(action_low, action_high)
 
-            if self.normalize_action:
+            if self.normalize_actions:
                 action = 2 * (action - env_low) / (env_high - env_low) - 1
 
             return action
@@ -221,7 +221,7 @@ class Single(Agent):
 
             for _ in range(consecutive_actions):
                 env_action = action.reshape(env.action_space.low.shape)
-                if self.normalize_action:
+                if self.normalize_actions:
                     env_action = (env_action + 1) / 2 * (
                         env.action_space.high - env.action_space.low
                     ) + env.action_space.low

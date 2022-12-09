@@ -50,7 +50,7 @@ class Synchron(Agent):
             self.worker.append(self._create_worker_agent(i))
 
         for i in range(n_trainer):
-            self.trainer.append()
+            self.trainer.append(self._create_trainer_agent(i))
         self.logger.debug("Synchron Agent initialized")
 
     @property

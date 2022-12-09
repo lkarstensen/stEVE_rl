@@ -50,26 +50,7 @@ class Synchron(Agent):
             self.worker.append(self._create_worker_agent(i))
 
         for i in range(n_trainer):
-            if share_trainer_model:
-                new_algo = algo.copy_shared_memory()
-            else:
-                new_algo = algo.copy()
-            self.trainer.append(
-                SingleAgentProcess(
-                    i,
-                    new_algo,
-                    DummyEnv(),
-                    DummyEnv(),
-                    replay_buffer.copy(),
-                    trainer_device,
-                    0,
-                    normalize_actions,
-                    name="trainer_" + str(i),
-                    parent_agent=self,
-                    step_counter=self.step_counter,
-                    episode_counter=self.episode_counter,
-                )
-            )
+            self.trainer.append()
         self.logger.debug("Synchron Agent initialized")
 
     @property
@@ -210,8 +191,18 @@ class Synchron(Agent):
 
     def _get_trainer_results(self):
         results = []
-        for agent in self.trainer:
-            results.append(agent.get_result())
+        for i, agent in enumerate(self.trainer):
+            try:
+                results.append(agent.get_result())
+            except Exception as e:
+                self.logger.warning(
+                    f"Restaring Agent {agent.name} because of Exception {e}"
+                )
+                agent.close()
+                new_agent = self._create_trainer_agent(i)
+                self.trainer[i] = new_agent
+                continue
+
         n_max = len(max(results, key=len))
         results = [result + [None] * (n_max - len(result)) for result in results]
         results = [
@@ -238,26 +229,25 @@ class Synchron(Agent):
             episode_counter=self.episode_counter,
         )
 
-    # @property
-    # def step_counter(self) -> StepCounter:
-    #     step_counter = StepCounter()
-    #     for agent in self.worker + self.trainer:
-    #         step_counter += agent.step_counter
-    #     step_counter.heatup = int(step_counter.heatup)
-    #     step_counter.exploration = int(step_counter.exploration)
-    #     step_counter.evaluation = int(step_counter.evaluation)
-    #     step_counter.update = int(step_counter.update)
-    #     return step_counter
-
-    # @property
-    # def episode_counter(self) -> EpisodeCounter:
-    #     episode_counter = EpisodeCounter()
-    #     for agent in self.worker + self.trainer:
-    #         episode_counter += agent.episode_counter
-    #     episode_counter.heatup = int(episode_counter.heatup)
-    #     episode_counter.exploration = int(episode_counter.exploration)
-    #     episode_counter.evaluation = int(episode_counter.evaluation)
-    #     return episode_counter
+    def _create_trainer_agent(self, i):
+        if self.share_trainer_model:
+            new_algo = self.algo.copy_shared_memory()
+        else:
+            new_algo = self.algo.copy()
+        return SingleAgentProcess(
+            i,
+            new_algo,
+            DummyEnv(),
+            DummyEnv(),
+            self.replay_buffer.copy(),
+            self.trainer_device,
+            0,
+            self.normalize_actions,
+            name="trainer_" + str(i),
+            parent_agent=self,
+            step_counter=self.step_counter,
+            episode_counter=self.episode_counter,
+        )
 
     def save_checkpoint(self, file_path: str) -> None:
         new_optimizer_states_container = self._get_optimizer_states_container()

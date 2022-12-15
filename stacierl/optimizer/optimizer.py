@@ -18,6 +18,8 @@ class Adam(optim.Adam):
         eps: float = 1e-8,
         weight_decay: float = 0,
         amsgrad: bool = False,
+        *args,
+        **kwargs
     ) -> None:
         super().__init__(network.parameters(), lr, betas, eps, weight_decay, amsgrad)
         self.network = network

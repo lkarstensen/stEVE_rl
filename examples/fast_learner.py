@@ -4,6 +4,7 @@ import torch
 from datetime import datetime
 import csv
 import os
+import torch.optim as optim
 
 
 def sac_training(
@@ -28,14 +29,15 @@ def sac_training(
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
-    vessel_tree = eve.vesseltree.AorticArch(seed=1234)
-    vessel_tree.rotate(z_deg=20, x_deg=-5)
-    vessel_tree.to_2d(axis_to_remove="y")
+    vessel_tree = eve.vesseltree.AorticArch(
+        seed=1234, rotate_z=20, rotate_x=-5, omit_y_axis=True
+    )
     vessel_tree.scale(1, 1, 1, 0.5)
 
     instrument = eve.simulation2d.device.JWire()
 
     simu = eve.simulation2d.SingleDevice(
+        vessel_tree,
         instrument,
         velocity_limit=(50, 1.5),
         element_length=1.75,
@@ -52,6 +54,8 @@ def sac_training(
     )
 
     target = eve.target.CenterlineRandom(
+        vessel_tree,
+        simu,
         5,
         branches=[
             "right subclavian artery",
@@ -61,27 +65,27 @@ def sac_training(
             "brachiocephalic trunk",
         ],
     )
-    pathfinder = eve.pathfinder.BruteForceBFS()
-    start = eve.start.InsertionPoint()
+    pathfinder = eve.pathfinder.BruteForceBFS(vessel_tree, simu, target)
+    start = eve.start.InsertionPoint(simu)
     imaging = eve.imaging.ImagingDummy((500, 500))
 
-    pos = eve.state.Tracking(n_points=6, resolution=1)
+    pos = eve.state.Tracking(simu, n_points=6, resolution=1)
     pos = eve.state.wrapper.Normalize(pos)
-    target_state = eve.state.Target()
+    target_state = eve.state.Target(target)
     target_state = eve.state.wrapper.Normalize(target_state)
-    rot = eve.state.Rotation()
+    rot = eve.state.Rotations(simu)
     state = eve.state.Combination([pos, target_state, rot])
 
-    target_reward = eve.reward.TargetReached(1.0)
+    target_reward = eve.reward.TargetReached(target, 1.0)
     step_reward = eve.reward.Step(-0.005)
-    path_length_reward = eve.reward.PathLengthDelta(0.001)
+    path_length_reward = eve.reward.PathLengthDelta(pathfinder, 0.001)
     reward = eve.reward.Combination([target_reward, step_reward, path_length_reward])
 
-    done_target = eve.done.TargetReached()
+    done_target = eve.done.TargetReached(target)
     done_steps = eve.done.MaxSteps(100)
     done = eve.done.Combination([done_target, done_steps])
 
-    success = eve.success.TargetReached()
+    success = eve.success.TargetReached(target)
     visu = eve.visualisation.VisualisationDummy()
 
     env = eve.Env(
@@ -98,14 +102,39 @@ def sac_training(
         success=success,
     )
 
-    q_net_1 = stacierl.network.QNetwork(hidden_layers)
-    q_net_2 = stacierl.network.QNetwork(hidden_layers)
-    policy_net = stacierl.network.GaussianPolicy(hidden_layers)
+    n_observations = env.observation_space.n_observations
+    n_actions = env.action_space.n_actions
+    q_net_1 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
+    q1_optimizer = optim.Adam(q_net_1.parameters(), 2e-4)
+    q1_scheduler = optim.lr_scheduler.LinearLR(
+        q1_optimizer, end_factor=5e-5, total_iters=1e5
+    )
+
+    q_net_2 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
+    q2_optimizer = optim.Adam(q_net_2.parameters(), 2e-4)
+    q2_scheduler = optim.lr_scheduler.LinearLR(
+        q2_optimizer, end_factor=5e-5, total_iters=1e5
+    )
+
+    policy_net = stacierl.network.GaussianPolicy(
+        n_observations, n_actions, hidden_layers
+    )
+    policy_optimizer = optim.Adam(policy_net.parameters(), 2e-4)
+    policy_scheduler = optim.lr_scheduler.LinearLR(
+        policy_optimizer, end_factor=5e-5, total_iters=1e5
+    )
+
     sac_model = stacierl.algo.sacmodel.Vanilla(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
-        learning_rate=lr,
+        q1_optimizer=q1_optimizer,
+        q2_optimizer=q2_optimizer,
+        policy_optimizer=policy_optimizer,
+        q1_scheduler=q1_scheduler,
+        q2_scheduler=q2_scheduler,
+        policy_scheduler=policy_scheduler,
+        lr_alpha=lr,
         n_observations=env.observation_space.n_observations,
         n_actions=env.action_space.n_actions,
     )

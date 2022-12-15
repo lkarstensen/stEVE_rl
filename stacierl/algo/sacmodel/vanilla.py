@@ -4,6 +4,7 @@ from torch.distributions.normal import Normal
 
 from .sacmodel import SACModel, NetworkStatesContainer, OptimizerStatesContainer
 from ... import network
+from ...optimizer import Optimizer
 import torch.optim as optim
 import torch
 from dataclasses import dataclass
@@ -100,52 +101,40 @@ class SACOptimizerStateContainer(OptimizerStatesContainer):
 class Vanilla(SACModel):
     def __init__(
         self,
+        n_observations: int,
+        n_actions: int,
+        lr_alpha: float,
         q1: network.QNetwork,
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
-        learning_rate: float,
-        n_observations: int,
-        n_actions: int,
+        q1_optimizer: Optimizer,
+        q2_optimizer: Optimizer,
+        policy_optimizer: Optimizer,
+        q1_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+        q2_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+        policy_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
     ) -> None:
-        self.learning_rate = learning_rate
+        self.lr_alpha = lr_alpha
         self.n_observations = n_observations
         self.n_actions = n_actions
 
         self.q1 = q1
         self.q2 = q2
-        self.target_q1 = q1.copy()
-        self.target_q2 = q2.copy()
         self.policy = policy
+
+        self.q1_optimizer = q1_optimizer
+        self.q2_optimizer = q2_optimizer
+        self.policy_optimizer = policy_optimizer
+
+        self.q1_scheduler = q1_scheduler
+        self.q2_scheduler = q2_scheduler
+        self.policy_scheduler = policy_scheduler
+
+        self.target_q1 = deepcopy(self.q1)
+        self.target_q2 = deepcopy(self.q2)
+
         self.log_alpha = torch.zeros(1, requires_grad=True)
-
-        self.q1.set_input(n_observations, n_actions)
-        self.q2.set_input(n_observations, n_actions)
-
-        self.target_q1.set_input(n_observations, n_actions)
-        self.target_q2.set_input(n_observations, n_actions)
-
-        self.policy.set_input(n_observations)
-        self.policy.set_output(n_actions)
-
-        for target_param, param in zip(
-            self.target_q1.parameters(), self.q1.parameters()
-        ):
-            target_param.data.copy_(param)
-
-        for target_param, param in zip(
-            self.target_q2.parameters(), self.q2.parameters()
-        ):
-            target_param.data.copy_(param)
-
-        self._init_optimizer()
-
-    def _init_optimizer(self):
-        self.q1_optimizer = optim.Adam(self.q1.parameters(), lr=self.learning_rate)
-        self.q2_optimizer = optim.Adam(self.q2.parameters(), lr=self.learning_rate)
-        self.policy_optimizer = optim.Adam(
-            self.policy.parameters(), lr=self.learning_rate
-        )
-        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
+        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.lr_alpha)
 
     def get_play_action(
         self, flat_state: np.ndarray = None, evaluation=False
@@ -238,15 +227,38 @@ class Vanilla(SACModel):
     def alpha_update_step(self):
         self.alpha_optimizer.step()
 
+    def q1_scheduler_step(self):
+        if self.q1_scheduler is not None:
+            self.q1_scheduler.step()
+
+    def q2_scheduler_step(self):
+        if self.q2_scheduler is not None:
+            self.q2_scheduler.step()
+
+    def policy_scheduler_step(self):
+        if self.policy_scheduler is not None:
+            self.policy_scheduler.step()
+
     def to(self, device: torch.device):
         self.device = device
+
         self.q1.to(device)
-        self.q2.to(device)
         self.target_q1.to(device)
+        self.q1_optimizer.param_groups = []
+        self.q1_optimizer.add_param_group({"params": self.q1.parameters()})
+
+        self.q2.to(device)
         self.target_q2.to(device)
+        self.q2_optimizer.param_groups = []
+        self.q2_optimizer.add_param_group({"params": self.q2.parameters()})
+
         self.policy.to(device)
+        self.policy_optimizer.param_groups = []
+        self.policy_optimizer.add_param_group({"params": self.policy.parameters()})
+
         self.log_alpha = self.log_alpha.detach().to(device=device).requires_grad_()
-        self._init_optimizer()
+        self.alpha_optimizer.param_groups = []
+        self.alpha_optimizer.add_param_group({"params": [self.log_alpha]})
 
     def update_target_q(self, tau):
         for target_param, param in zip(
@@ -260,38 +272,105 @@ class Vanilla(SACModel):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
     def copy(self):
+        q1 = self.q1.copy()
+        q1_optimizer = self.q1_optimizer.__class__(
+            q1,
+            **self.q1_optimizer.defaults,
+        )
+        q1_optimizer.load_state_dict(self.q1_optimizer.state_dict())
+        q1_scheduler = deepcopy(self.q1_scheduler)
+        if q1_scheduler is not None:
+            q1_scheduler.optimizer = q1_optimizer
+
+        q2 = self.q2.copy()
+        q2_optimizer = self.q2_optimizer.__class__(
+            q2,
+            **self.q2_optimizer.defaults,
+        )
+        q2_optimizer.load_state_dict(self.q2_optimizer.state_dict())
+        q2_scheduler = deepcopy(self.q2_scheduler)
+        if q2_scheduler is not None:
+            q2_scheduler.optimizer = q2_optimizer
+
+        policy = self.policy.copy()
+        policy_optimizer = self.policy_optimizer.__class__(
+            policy,
+            **self.policy_optimizer.defaults,
+        )
+        policy_optimizer.load_state_dict(self.policy_optimizer.state_dict())
+        policy_scheduler = deepcopy(self.policy_scheduler)
+        if policy_scheduler is not None:
+            policy_scheduler.optimizer = policy_optimizer
+
         copy = self.__class__(
-            self.q1.copy(),
-            self.q2.copy(),
-            self.policy.copy(),
-            self.learning_rate,
             self.n_observations,
             self.n_actions,
+            self.lr_alpha,
+            q1,
+            q2,
+            policy,
+            q1_optimizer,
+            q2_optimizer,
+            policy_optimizer,
+            q1_scheduler,
+            q2_scheduler,
+            policy_scheduler,
         )
 
         return copy
 
     def copy_shared_memory(self):
 
-        copy = self.__class__(
-            self.q1.copy(),
-            self.q2.copy(),
-            self.policy.copy(),
-            self.learning_rate,
-            self.n_observations,
-            self.n_actions,
-        )
         self.q1.share_memory()
         self.q2.share_memory()
         self.target_q1.share_memory()
         self.target_q2.share_memory()
         self.policy.share_memory()
-        copy.q1 = self.q1
-        copy.q2 = self.q2
-        copy.policy = self.policy
-        copy.target_q1 = self.target_q1
-        copy.target_q2 = self.target_q2
-        copy._init_optimizer()
+
+        q1 = self.q1
+        q1_optimizer = self.q1_optimizer.__class__(
+            q1,
+            **self.q1_optimizer.defaults,
+        )
+        q1_optimizer.load_state_dict(self.q1_optimizer.state_dict())
+        q1_scheduler = deepcopy(self.q1_scheduler)
+        if q1_scheduler is not None:
+            q1_scheduler.optimizer = q1_optimizer
+
+        q2 = self.q2
+        q2_optimizer = self.q2_optimizer.__class__(
+            q2,
+            **self.q2_optimizer.defaults,
+        )
+        q2_optimizer.load_state_dict(self.q2_optimizer.state_dict())
+        q2_scheduler = deepcopy(self.q2_scheduler)
+        if q2_scheduler is not None:
+            q2_scheduler.optimizer = q2_optimizer
+
+        policy = self.policy
+        policy_optimizer = self.policy_optimizer.__class__(
+            policy,
+            **self.policy_optimizer.defaults,
+        )
+        policy_optimizer.load_state_dict(self.policy_optimizer.state_dict())
+        policy_scheduler = deepcopy(self.policy_scheduler)
+        if policy_scheduler is not None:
+            policy_scheduler.optimizer = policy_optimizer
+
+        copy = self.__class__(
+            self.n_observations,
+            self.n_actions,
+            self.lr_alpha,
+            q1,
+            q2,
+            policy,
+            q1_optimizer,
+            q2_optimizer,
+            policy_optimizer,
+            q1_scheduler,
+            q2_scheduler,
+            policy_scheduler,
+        )
 
         return copy
 

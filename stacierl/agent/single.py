@@ -157,6 +157,8 @@ class Single(Agent):
             result = self.algo.update(batch)
             results.append(result)
             n_steps += 1
+            while self.algo.lr_scheduler_step_counter < self.step_counter.exploration:
+                self.algo.lr_scheduler_step()
 
         t_duration = perf_counter() - t_start
         self.logger.info(

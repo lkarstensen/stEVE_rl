@@ -6,11 +6,7 @@ import torch
 
 
 class Network(nn.Module):
-    @property
-    @abstractmethod
-    def input_is_set(self) -> bool:
-        ...
-
+    
     @property
     @abstractmethod
     def n_inputs(self) -> int:
@@ -27,10 +23,6 @@ class Network(nn.Module):
 
     @abstractmethod
     def copy(self):
-        ...
-
-    @abstractmethod
-    def set_input(self, n_inputs: int):
         ...
 
     @abstractmethod

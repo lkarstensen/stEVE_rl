@@ -19,6 +19,7 @@ class SAC(Algo):
         action_scaling: float = 1,
         exploration_action_noise: float = 0.25,
     ):
+        super().__init__()
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
         self.n_actions = n_actions
@@ -129,6 +130,12 @@ class SAC(Algo):
             q2_loss.detach().cpu().numpy(),
             policy_loss.detach().cpu().numpy(),
         ]
+
+    def lr_scheduler_step(self) -> None:
+        super().lr_scheduler_step()
+        self.model.q1_scheduler_step()
+        self.model.q2_scheduler_step()
+        self.model.policy_scheduler_step()
 
     def copy(self):
         copy = self.__class__(

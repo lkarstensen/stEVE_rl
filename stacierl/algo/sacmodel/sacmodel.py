@@ -68,5 +68,17 @@ class SACModel(Model, ABC):
         ...
 
     @abstractmethod
+    def q1_scheduler_step(self):
+        ...
+
+    @abstractmethod
+    def q2_scheduler_step(self):
+        ...
+
+    @abstractmethod
+    def policy_scheduler_step(self):
+        ...
+
+    @abstractmethod
     def update_target_q(self, tau):
         ...

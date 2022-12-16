@@ -1,3 +1,4 @@
+from copy import deepcopy
 import logging
 from typing import List
 import torch
@@ -137,17 +138,7 @@ class SAC(Algo):
         self.model.q2_scheduler_step()
         self.model.policy_scheduler_step()
 
-    def copy(self):
-        copy = self.__class__(
-            self.model.copy(),
-            self.n_actions,
-            self.gamma,
-            self.tau,
-            self.reward_scaling,
-            self.action_scaling,
-            self.exploration_action_noise,
-        )
-        return copy
+    
 
     def copy_shared_memory(self):
         copy = self.__class__(

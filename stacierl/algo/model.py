@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Dict
 import numpy as np
 import torch
@@ -179,9 +180,9 @@ class Model(ABC):
     def to(self, device: torch.device):
         ...
 
-    @abstractmethod
     def copy(self):
-        ...
+        copy = deepcopy(self)
+        return copy
 
     @abstractmethod
     def copy_shared_memory(self):

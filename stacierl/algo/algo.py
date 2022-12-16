@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
@@ -42,9 +43,9 @@ class Algo(ABC):
     def reset(self) -> None:
         ...
 
-    @abstractmethod
     def copy(self):
-        ...
+        copy = deepcopy(self)
+        return copy
 
     @abstractmethod
     def copy_shared_memory(self):

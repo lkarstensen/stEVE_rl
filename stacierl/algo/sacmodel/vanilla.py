@@ -271,53 +271,6 @@ class Vanilla(SACModel):
         ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
-    def copy(self):
-        q1 = self.q1.copy()
-        q1_optimizer = self.q1_optimizer.__class__(
-            q1,
-            **self.q1_optimizer.defaults,
-        )
-        q1_optimizer.load_state_dict(self.q1_optimizer.state_dict())
-        q1_scheduler = deepcopy(self.q1_scheduler)
-        if q1_scheduler is not None:
-            q1_scheduler.optimizer = q1_optimizer
-
-        q2 = self.q2.copy()
-        q2_optimizer = self.q2_optimizer.__class__(
-            q2,
-            **self.q2_optimizer.defaults,
-        )
-        q2_optimizer.load_state_dict(self.q2_optimizer.state_dict())
-        q2_scheduler = deepcopy(self.q2_scheduler)
-        if q2_scheduler is not None:
-            q2_scheduler.optimizer = q2_optimizer
-
-        policy = self.policy.copy()
-        policy_optimizer = self.policy_optimizer.__class__(
-            policy,
-            **self.policy_optimizer.defaults,
-        )
-        policy_optimizer.load_state_dict(self.policy_optimizer.state_dict())
-        policy_scheduler = deepcopy(self.policy_scheduler)
-        if policy_scheduler is not None:
-            policy_scheduler.optimizer = policy_optimizer
-
-        copy = self.__class__(
-            self.n_observations,
-            self.n_actions,
-            self.lr_alpha,
-            q1,
-            q2,
-            policy,
-            q1_optimizer,
-            q2_optimizer,
-            policy_optimizer,
-            q1_scheduler,
-            q2_scheduler,
-            policy_scheduler,
-        )
-
-        return copy
 
     def copy_shared_memory(self):
 

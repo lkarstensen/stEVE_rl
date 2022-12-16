@@ -154,8 +154,6 @@ class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
 class InputEmbedding(Vanilla):
     def __init__(
         self,
-        n_observations: int,
-        n_actions: int,
         lr_alpha: float,
         q1: network.QNetwork,
         q2: network.QNetwork,
@@ -171,8 +169,6 @@ class InputEmbedding(Vanilla):
         policy_common_input_embedder: Optional[Embedder] = None,
     ) -> None:
         self.lr_alpha = lr_alpha
-        self.n_observations = n_observations
-        self.n_actions = n_actions
 
         self.q1 = q1
         self.q2 = q2
@@ -209,7 +205,7 @@ class InputEmbedding(Vanilla):
     def _init_common_embedder(self, common_input_embedder: Embedder):
 
         if common_input_embedder is None:
-            network = NetworkDummy(self.n_observations)
+            network = NetworkDummy(self.policy.n_observations)
             update = False
             embedder = Embedder(network, update)
         else:
@@ -555,8 +551,6 @@ class InputEmbedding(Vanilla):
             policy_embed_scheduler.optimizer = policy_embed_optimizer_copy
 
         copy = self.__class__(
-            self.n_observations,
-            self.n_actions,
             self.lr_alpha,
             q1,
             q2,

@@ -2,7 +2,12 @@ from typing import Dict, Iterator, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from .sacmodel import SACModel, NetworkStatesContainer, OptimizerStatesContainer
+from .sacmodel import (
+    SACModel,
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 from ... import network
 from ...optimizer import Optimizer
 import torch.optim as optim
@@ -270,7 +275,6 @@ class Vanilla(SACModel):
             self.target_q2.parameters(), self.q2.parameters()
         ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
-
 
     def copy_shared_memory(self):
 

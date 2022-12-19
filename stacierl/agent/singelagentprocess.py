@@ -13,7 +13,11 @@ from .agent import (
     EpisodeCounter,
 )
 from .single import Single, Algo, ReplayBuffer, Env
-from ..algo.model import NetworkStatesContainer, OptimizerStatesContainer
+from ..algo.model import (
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 from torch import multiprocessing as mp
 import torch
 
@@ -162,6 +166,14 @@ def run(
                 optimizer_states_container.to(device)
                 agent.algo.model.set_optimizer_states(optimizer_states_container)
                 continue
+            elif task_name == "put_scheduler_states_container":
+                states_container = deepcopy(agent.algo.model.scheduler_states_container)
+                model_queue.put(states_container)
+                continue
+            elif task_name == "set_scheduler_states_container":
+                states_container = task[1]
+                agent.algo.model.set_scheduler_states(states_container)
+                continue
             elif task_name == "shutdown":
                 agent.close()
                 continue
@@ -272,6 +284,13 @@ class SingleAgentProcess(Agent):
 
     def get_optimizer_states_container(self) -> OptimizerStatesContainer:
         self._task_queue.put(["put_optimizer_states_container"])
+        return self._model_queue.get()
+
+    def set_scheduler_states(self, states_container: SchedulerStatesContainer):
+        self._task_queue.put(["set_scheduler_states_container", states_container])
+
+    def get_scheduler_states_container(self) -> SchedulerStatesContainer:
+        self._task_queue.put(["put_scheduler_states_container"])
         return self._model_queue.get()
 
     def close(self) -> None:

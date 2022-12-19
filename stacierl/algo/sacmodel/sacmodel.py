@@ -4,7 +4,11 @@ import numpy as np
 from ..model import Model
 import torch
 
-from ..model import NetworkStatesContainer, OptimizerStatesContainer
+from ..model import (
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 
 
 class SACModel(Model, ABC):

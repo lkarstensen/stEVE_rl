@@ -161,6 +161,21 @@ class OptimizerStatesContainer(ABC):
         return self
 
 
+@dataclass
+class SchedulerStatesContainer(ABC):
+    @abstractmethod
+    def __iter__(self):
+        ...
+
+    @abstractmethod
+    def to_dict(self):
+        ...
+
+    @abstractmethod
+    def from_dict(self, state_dict: Dict):
+        ...
+
+
 class Model(ABC):
     @property
     @abstractmethod
@@ -170,6 +185,11 @@ class Model(ABC):
     @property
     @abstractmethod
     def optimizer_states_container(self) -> OptimizerStatesContainer:
+        ...
+
+    @property
+    @abstractmethod
+    def scheduler_states_container(self) -> SchedulerStatesContainer:
         ...
 
     @abstractmethod
@@ -197,6 +217,12 @@ class Model(ABC):
     @abstractmethod
     def set_optimizer_states(
         self, optimizer_states_container: OptimizerStatesContainer
+    ) -> None:
+        ...
+
+    @abstractmethod
+    def set_scheduler_states(
+        self, scheduler_states_container: SchedulerStatesContainer
     ) -> None:
         ...
 

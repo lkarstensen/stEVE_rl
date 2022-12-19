@@ -254,10 +254,12 @@ class Synchron(Agent):
         new_network_states_container = self._get_network_states_container()
         optimizer_state_dicts = new_optimizer_states_container.to_dict()
         network_state_dicts = new_network_states_container.to_dict()
+        scheduler_states = self.trainer[0].get_scheduler_states_container()
 
         step_counter = self.step_counter
 
         checkpoint_dict = {
+            "scheduler_state_dicts": scheduler_states,
             "optimizer_state_dicts": optimizer_state_dicts,
             "network_state_dicts": network_state_dicts,
             "heatup_steps": step_counter.heatup,
@@ -277,10 +279,12 @@ class Synchron(Agent):
         optimizer_states_container = self.trainer[0].get_optimizer_states_container()
         optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
 
+        scheduler_states_container = self.trainer[0].get_scheduler_states_container()
+        scheduler_states_container.from_dict(checkpoint["scheduler_state_dicts"])
+
         self.step_counter.heatup = checkpoint["heatup_steps"]
         self.step_counter.exploration = checkpoint["exploration_steps"]
         self.step_counter.evaluation = checkpoint["evaluation_steps"]
-
         self.step_counter.update = checkpoint["update_steps"]
 
         for worker in self.worker:
@@ -289,6 +293,7 @@ class Synchron(Agent):
         for trainer in self.trainer:
             trainer.set_optimizer_states(optimizer_states_container)
             trainer.set_network_states(network_states_container)
+            trainer.set_scheduler_states(scheduler_states_container)
 
     def copy(self):
         return self.__class__(

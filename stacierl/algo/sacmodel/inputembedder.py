@@ -1,8 +1,13 @@
-from typing import Dict, Iterator, Optional, Tuple
+from typing import Any, Dict, Iterator, Optional, Tuple
 import numpy as np
 from torch.distributions.normal import Normal
 
-from .vanilla import Vanilla, NetworkStatesContainer, OptimizerStatesContainer
+from .vanilla import (
+    Vanilla,
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 from ... import network
 from ...network import NetworkDummy, Network
 from ...optimizer import Optimizer
@@ -127,6 +132,56 @@ class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
             deepcopy(self.policy_common),
             deepcopy(self.alpha),
         )
+
+    def to_dict(self) -> Dict:
+        model_state_dict = {
+            "q1": self.q1,
+            "q2": self.q2,
+            "policy": self.policy,
+            "q1_common": self.q1_common,
+            "q2_common": self.q2_common,
+            "policy_common": self.policy_common,
+            "alpha": self.alpha,
+        }
+
+        return model_state_dict
+
+    def from_dict(self, optimizer_state_dict: Dict):
+        self.q1 = optimizer_state_dict["q1"]
+        self.q2 = optimizer_state_dict["q2"]
+        self.policy = optimizer_state_dict["policy"]
+        self.q1_common = optimizer_state_dict["q1_common"]
+        self.q2_common = optimizer_state_dict["q2_common"]
+        self.policy_common = optimizer_state_dict["policy_common"]
+        self.alpha = optimizer_state_dict["alpha"]
+
+
+@dataclass
+class SACEmbeddedSchedulerStateContainer(OptimizerStatesContainer):
+    q1: Dict[str, Any]
+    q2: Dict[str, Any]
+    policy: Dict[str, Any]
+    q1_common: Dict[str, Any] or None
+    q2_common: Dict[str, Any] or None
+    policy_common: Dict[str, Any] or None
+
+    def __iter__(self):
+        iter_list = [
+            self.q1,
+            self.q2,
+            self.policy,
+            self.alpha,
+        ]
+        if self.q1_common is not None:
+            iter_list.append(self.q1_common)
+        if self.q2_common is not None:
+            iter_list.append(self.q2_common)
+        if self.policy_common is not None:
+            iter_list.append(self.policy_common)
+        return iter(iter_list)
+
+    def copy(self):
+        return deepcopy(self)
 
     def to_dict(self) -> Dict:
         model_state_dict = {
@@ -678,6 +733,72 @@ class InputEmbedding(Vanilla):
             )
 
         self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
+
+    @property
+    def scheduler_states_container(self) -> SACEmbeddedSchedulerStateContainer:
+        if self.q1_scheduler is not None:
+            q1 = self.q1_scheduler.state_dict()
+        else:
+            q1 = None
+
+        if self.q1_common_input_embedder.scheduler is not None:
+            q1_common = self.q1_common_input_embedder.scheduler.state_dict()
+        else:
+            q1_common = None
+
+        if self.q2_scheduler is not None:
+            q2 = self.q2_scheduler.state_dict()
+        else:
+            q2 = None
+
+        if self.q2_common_input_embedder.scheduler is not None:
+            q2_common = self.q2_common_input_embedder.scheduler.state_dict()
+        else:
+            q2_common = None
+
+        if self.policy_scheduler is not None:
+            policy = self.policy_scheduler.state_dict()
+        else:
+            policy = None
+
+        if self.policy_common_input_embedder.scheduler is not None:
+            policy_common = self.policy_common_input_embedder.scheduler.state_dict()
+        else:
+            policy_common = None
+
+        scheduler_states_container = SACEmbeddedSchedulerStateContainer(
+            q1,
+            q2,
+            policy,
+            q1_common,
+            q2_common,
+            policy_common,
+        )
+
+        return scheduler_states_container
+
+    def set_scheduler_states(
+        self, scheduler_states_container: SACEmbeddedSchedulerStateContainer
+    ):
+        if scheduler_states_container.q1 is not None:
+            self.q1_scheduler.load_state_dict(scheduler_states_container.q1)
+        if scheduler_states_container.q1_common is not None:
+            self.q1_common_input_embedder.scheduler.load_state_dict(
+                scheduler_states_container.q1_common
+            )
+
+        if scheduler_states_container.q2 is not None:
+            self.q2_scheduler.load_state_dict(scheduler_states_container.q2)
+        if scheduler_states_container.q2_common is not None:
+            self.q2_common_input_embedder.scheduler.load_state_dict(
+                scheduler_states_container.q2_common
+            )
+        if scheduler_states_container.policy is not None:
+            self.policy_scheduler.load_state_dict(scheduler_states_container.policy)
+        if scheduler_states_container.policy_common is not None:
+            self.policy_common_input_embedder.scheduler.load_state_dict(
+                scheduler_states_container.policy_common
+            )
 
     def reset(self) -> None:
         for net in self:

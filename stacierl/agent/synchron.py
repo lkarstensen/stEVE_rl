@@ -255,12 +255,11 @@ class Synchron(Agent):
         optimizer_state_dicts = new_optimizer_states_container.to_dict()
         network_state_dicts = new_network_states_container.to_dict()
         scheduler_states = self.trainer[0].get_scheduler_states_container()
-        scheduler_states_dict = scheduler_states.to_dict()
 
         step_counter = self.step_counter
 
         checkpoint_dict = {
-            "scheduler_state_dicts": scheduler_states_dict,
+            "scheduler_state_dicts": scheduler_states,
             "optimizer_state_dicts": optimizer_state_dicts,
             "network_state_dicts": network_state_dicts,
             "heatup_steps": step_counter.heatup,

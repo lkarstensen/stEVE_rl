@@ -3,15 +3,10 @@ from abc import abstractmethod
 
 
 import torch
-from ..util import StacieRLUserObject
 
 
-class Network(StacieRLUserObject, nn.Module):
-    @property
-    @abstractmethod
-    def input_is_set(self) -> bool:
-        ...
-
+class Network(nn.Module):
+    
     @property
     @abstractmethod
     def n_inputs(self) -> int:
@@ -28,10 +23,6 @@ class Network(StacieRLUserObject, nn.Module):
 
     @abstractmethod
     def copy(self):
-        ...
-
-    @abstractmethod
-    def set_input(self, n_inputs: int):
         ...
 
     @abstractmethod

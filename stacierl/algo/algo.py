@@ -1,16 +1,17 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import List, Dict
 import numpy as np
 from ..replaybuffer import Batch
-from ..util import StacieRLUserObject
 from .model import Model, NetworkStatesContainer
 import torch
 
 
-class Algo(StacieRLUserObject, ABC):
+class Algo(ABC):
     @abstractmethod
     def __init__(self) -> None:
-        self._device: torch.device = torch.device()
+        self._device: torch.device = torch.device("cpu")
+        self.lr_scheduler_step_counter = 0
 
     @property
     @abstractmethod
@@ -27,6 +28,10 @@ class Algo(StacieRLUserObject, ABC):
         ...
 
     @abstractmethod
+    def lr_scheduler_step(self) -> None:
+        self.lr_scheduler_step_counter += 1
+
+    @abstractmethod
     def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
         ...
 
@@ -38,9 +43,9 @@ class Algo(StacieRLUserObject, ABC):
     def reset(self) -> None:
         ...
 
-    @abstractmethod
     def copy(self):
-        ...
+        copy = deepcopy(self)
+        return copy
 
     @abstractmethod
     def copy_shared_memory(self):
@@ -48,4 +53,8 @@ class Algo(StacieRLUserObject, ABC):
 
     @abstractmethod
     def to(self, device: torch.device):
+        ...
+
+    @abstractmethod
+    def close(self):
         ...

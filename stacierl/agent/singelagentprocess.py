@@ -1,13 +1,23 @@
 from copy import deepcopy
 import logging
+import traceback
 from math import inf
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from .agent import Agent, EpisodeCounterShared, StepCounterShared, StepCounter, EpisodeCounter
-from .single import Single, Algo, ReplayBuffer
-from ..algo.model import NetworkStatesContainer, OptimizerStatesContainer
-from ..util import Environment
+from .agent import (
+    Agent,
+    EpisodeCounterShared,
+    StepCounterShared,
+    StepCounter,
+    EpisodeCounter,
+)
+from .single import Single, Algo, ReplayBuffer, Env
+from ..algo.model import (
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 from torch import multiprocessing as mp
 import torch
 
@@ -15,6 +25,7 @@ import queue
 
 import logging.config
 from random import randint
+import os
 
 
 def file_handler_callback(handler: logging.FileHandler):
@@ -46,7 +57,11 @@ def get_logging_config_dict():
         "formatters": {},
         "handlers": {},
         "loggers": {
-            "": {"handlers": [], "level": logging.WARNING, "propagate": False},  # root logger
+            "": {
+                "handlers": [],
+                "level": logging.WARNING,
+                "propagate": False,
+            },  # root logger
         },
     }
 
@@ -64,11 +79,12 @@ def get_logging_config_dict():
 def run(
     id: int,
     algo: Algo,
-    env_train: Environment,
-    env_eval: Environment,
+    env_train: Env,
+    env_eval: Env,
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
+    normalize_actions,
     log_config_dict: Dict,
     task_queue,
     result_queue,
@@ -84,14 +100,26 @@ def run(
             if "filename" in handler_config.keys():
                 filename = handler_config["filename"]
                 if ".log" in filename:
-                    filename = filename.replace(".log", f"-{name}.log")
+                    path = filename[:-4]
+
                 else:
-                    filename += f"-{name}"
+                    path = filename
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+                filename = os.path.join(path, f"{name}.log")
                 log_config_dict["handlers"][handler_name]["filename"] = filename
         logging.config.dictConfig(log_config_dict)
         logger = logging.getLogger(__name__)
         logger.info("logger initialized")
-        agent = Single(algo, env_train, env_eval, replay_buffer, device, consecutive_action_steps)
+        agent = Single(
+            algo,
+            env_train,
+            env_eval,
+            replay_buffer,
+            device,
+            consecutive_action_steps,
+            normalize_actions,
+        )
         agent.step_counter = step_counter
         agent.episode_counter = episode_counter
         while not shutdown_event.is_set():
@@ -102,7 +130,7 @@ def run(
 
             task_name = task[0]
             if task_name == "heatup":
-                result = agent.heatup(task[1], task[2], task[3])
+                result = agent.heatup(task[1], task[2], task[3], task[4])
             elif task_name == "explore":
                 result = agent.explore(task[1], task[2])
             elif task_name == "evaluate":
@@ -115,7 +143,9 @@ def run(
                     shutdown_event.set()
                     result = error
             elif task_name == "put_network_states_container":
-                network_states_container = deepcopy(agent.algo.model.network_states_container)
+                network_states_container = deepcopy(
+                    agent.algo.model.network_states_container
+                )
                 network_states_container.to(torch.device("cpu"))
                 model_queue.put(network_states_container)
                 continue
@@ -125,7 +155,9 @@ def run(
                 agent.algo.model.set_network_states(network_states_container)
                 continue
             elif task_name == "put_optimizer_states_container":
-                optimizer_states_container = deepcopy(agent.algo.model.optimizer_states_container)
+                optimizer_states_container = deepcopy(
+                    agent.algo.model.optimizer_states_container
+                )
                 optimizer_states_container.to(torch.device("cpu"))
                 model_queue.put(optimizer_states_container)
                 continue
@@ -134,6 +166,14 @@ def run(
                 optimizer_states_container.to(device)
                 agent.algo.model.set_optimizer_states(optimizer_states_container)
                 continue
+            elif task_name == "put_scheduler_states_container":
+                states_container = deepcopy(agent.algo.model.scheduler_states_container)
+                model_queue.put(states_container)
+                continue
+            elif task_name == "set_scheduler_states_container":
+                states_container = task[1]
+                agent.algo.model.set_scheduler_states(states_container)
+                continue
             elif task_name == "shutdown":
                 agent.close()
                 continue
@@ -141,6 +181,8 @@ def run(
                 continue
             result_queue.put(result)
     except Exception as e:
+        tb = "".join(traceback.format_tb(e.__traceback__))
+        logger.warning(f"Traceback:\n" + tb)
         logger.warning(e)
         result_queue.put(e)
     agent.close()
@@ -151,16 +193,21 @@ class SingleAgentProcess(Agent):
         self,
         id: int,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
+        normalize_actions: bool,
         name: str,
         parent_agent: Agent,
+        step_counter: StepCounterShared = None,
+        episode_counter: EpisodeCounterShared = None,
     ) -> None:
 
+        self.logger = logging.getLogger(self.__module__)
         self.id = id
+        self.name = name
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
         self._result_queue = mp.Queue()
@@ -169,8 +216,8 @@ class SingleAgentProcess(Agent):
         self.device = device
         self.parent_agent = parent_agent
 
-        self._step_counter = StepCounterShared()
-        self._episode_counter = EpisodeCounterShared()
+        self._step_counter = step_counter or StepCounterShared()
+        self._episode_counter = episode_counter or EpisodeCounterShared()
         logging_config = get_logging_config_dict()
         self._process = mp.Process(
             target=run,
@@ -182,12 +229,13 @@ class SingleAgentProcess(Agent):
                 replay_buffer,
                 device,
                 consecutive_action_steps,
+                normalize_actions,
                 logging_config,
                 self._task_queue,
                 self._result_queue,
                 self._model_queue,
-                self._step_counter,
-                self._episode_counter,
+                self.step_counter,
+                self.episode_counter,
                 self._shutdown_event,
                 name,
             ],
@@ -196,9 +244,15 @@ class SingleAgentProcess(Agent):
         self._process.start()
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> None:
-        self._task_queue.put(["heatup", steps, episodes, custom_action_low])
+        self._task_queue.put(
+            ["heatup", steps, episodes, custom_action_low, custom_action_high]
+        )
 
     def explore(self, steps: int = inf, episodes: int = inf) -> None:
         self._task_queue.put(["explore", steps, episodes])
@@ -212,7 +266,9 @@ class SingleAgentProcess(Agent):
     def get_result(self) -> List[Any]:
         result = self._result_queue.get()
         if isinstance(result, Exception):
-            self.parent_agent.close()
+            self.logger.warn(
+                f"{self.name}: Agent Process stopped because of Exception: {result}. Closing Process."
+            )
             raise result
         return result
 
@@ -230,22 +286,37 @@ class SingleAgentProcess(Agent):
         self._task_queue.put(["put_optimizer_states_container"])
         return self._model_queue.get()
 
+    def set_scheduler_states(self, states_container: SchedulerStatesContainer):
+        self._task_queue.put(["set_scheduler_states_container", states_container])
+
+    def get_scheduler_states_container(self) -> SchedulerStatesContainer:
+        self._task_queue.put(["put_scheduler_states_container"])
+        return self._model_queue.get()
+
     def close(self) -> None:
-        self._shutdown_event.set()
-        self._task_queue.put(["shutdown"])
-        self._process.join()
-        self._clear_queues()
+        if self._process is not None and self._process.is_alive():
+            self._shutdown_event.set()
+            self._task_queue.put(["shutdown"])
+            exitcode = self._process.join(5)
+            if exitcode is None:
+                self._process.kill()
+                self._process.join()
         self._process.close()
+        self._process = None
+        self._clear_queues()
+        self._close_queues()
 
     def _clear_queues(self):
-        if self._process.is_alive():
-            return
         for queue_ in [self._result_queue, self._model_queue, self._task_queue]:
             while True:
                 try:
                     queue_.get_nowait()
                 except queue.Empty:
                     break
+
+    def _close_queues(self):
+        for queue_ in [self._result_queue, self._model_queue, self._task_queue]:
+            queue_.close()
 
     @property
     def step_counter(self) -> StepCounterShared:

@@ -4,12 +4,16 @@ import numpy as np
 from ..model import Model
 import torch
 
-from ..model import NetworkStatesContainer, OptimizerStatesContainer
+from ..model import (
+    NetworkStatesContainer,
+    OptimizerStatesContainer,
+    SchedulerStatesContainer,
+)
 
 
 class SACModel(Model, ABC):
     @abstractmethod
-    def get_play_action(self, flat_state: np.ndarray = None) -> np.ndarray:
+    def get_play_action(self, flat_state: np.ndarray, evaluation: bool) -> np.ndarray:
         ...
 
     @abstractmethod
@@ -65,6 +69,18 @@ class SACModel(Model, ABC):
 
     @abstractmethod
     def alpha_update_step(self):
+        ...
+
+    @abstractmethod
+    def q1_scheduler_step(self):
+        ...
+
+    @abstractmethod
+    def q2_scheduler_step(self):
+        ...
+
+    @abstractmethod
+    def policy_scheduler_step(self):
         ...
 
     @abstractmethod

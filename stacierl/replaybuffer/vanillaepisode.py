@@ -38,8 +38,10 @@ class VanillaEpisode(ReplayBuffer):
 
         state_batch = [torch.from_numpy(episode[0]) for episode in episodes]
         action_batch = [torch.from_numpy(episode[1]) for episode in episodes]
-        reward_batch = [torch.from_numpy(episode[2]) for episode in episodes]
-        done_batch = [torch.from_numpy(episode[3]) for episode in episodes]
+        reward_batch = [
+            torch.from_numpy(episode[2]).unsqueeze(1) for episode in episodes
+        ]
+        done_batch = [torch.from_numpy(episode[3]).unsqueeze(1) for episode in episodes]
 
         state_batch = pad_sequence(state_batch, batch_first=True)
         action_batch = pad_sequence(action_batch, batch_first=True)
@@ -62,4 +64,4 @@ class VanillaEpisode(ReplayBuffer):
         return copy
 
     def close(self):
-        ...
+        del self.buffer

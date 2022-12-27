@@ -1,28 +1,29 @@
+from copy import deepcopy
 import logging
 from typing import List, Tuple
 
-from .agent import Agent, Episode
-from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .agent import Agent, Episode, StepCounterShared, EpisodeCounterShared
+from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
-from ..util import Environment, DummyEnvironment
+from eve.env import DummyEnv
 from math import ceil, inf
 import torch
 import os
-from time import sleep
 
 
 class Synchron(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         n_worker: int,
         n_trainer: int,
         worker_device: torch.device = torch.device("cpu"),
         trainer_device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
+        normalize_actions: bool = True,
         share_trainer_model=False,
     ) -> None:
 
@@ -33,6 +34,7 @@ class Synchron(Agent):
         self.worker_device = worker_device
         self.trainer_device = trainer_device
         self.consecutive_action_steps = consecutive_action_steps
+        self.normalize_actions = normalize_actions
 
         self.logger = logging.getLogger(self.__module__)
         self.n_worker = n_worker
@@ -41,85 +43,64 @@ class Synchron(Agent):
         self.worker: List[SingleAgentProcess] = []
         self.trainer: List[SingleAgentProcess] = []
         self.replay_buffer = replay_buffer
-        self._step_counter_set_point = StepCounter()
-        self._episode_counter_set_point = EpisodeCounter()
+        self._step_counter = StepCounterShared()
+        self._episode_counter = EpisodeCounterShared()
 
         for i in range(n_worker):
-            self.worker.append(
-                SingleAgentProcess(
-                    i,
-                    algo.copy(),
-                    env_train.copy(),
-                    env_eval.copy(),
-                    replay_buffer.copy(),
-                    worker_device,
-                    consecutive_action_steps,
-                    name="worker_" + str(i),
-                    parent_agent=self,
-                )
-            )
+            self.worker.append(self._create_worker_agent(i))
 
         for i in range(n_trainer):
-            if share_trainer_model:
-                new_algo = algo.copy_shared_memory()
-            else:
-                new_algo = algo.copy()
-            self.trainer.append(
-                SingleAgentProcess(
-                    i,
-                    new_algo,
-                    DummyEnvironment(),
-                    DummyEnvironment(),
-                    replay_buffer.copy(),
-                    trainer_device,
-                    0,
-                    name="trainer_" + str(i),
-                    parent_agent=self,
-                )
-            )
+            self.trainer.append(self._create_trainer_agent(i))
         self.logger.debug("Synchron Agent initialized")
 
+    @property
+    def step_counter(self) -> StepCounter:
+        return self._step_counter
+
+    @property
+    def episode_counter(self) -> EpisodeCounter:
+        return self._episode_counter
+
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> List[Episode]:
-        self.logger.debug(f"heatup: {steps} steps / {episodes} episodes")
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
-            steps, episodes, self.n_worker
-        )
+        self.logger.info(f"heatup: {steps} steps / {episodes} episodes")
         for agent in self.worker:
-            agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
+            agent.heatup(
+                steps,
+                episodes,
+                custom_action_low,
+                custom_action_high,
+            )
         result = self._get_worker_results()
         return result
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        self.logger.debug(f"explore: {steps} steps / {episodes} episodes")
+        self.logger.info(f"explore: {steps} steps / {episodes} episodes")
 
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
-            steps, episodes, self.n_worker
-        )
         for agent in self.worker:
-            agent.explore(steps_per_agent, episodes_per_agent)
+            agent.explore(steps, episodes)
         result = self._get_worker_results()
         return result
 
     def update(self, steps) -> List[float]:
-        self.logger.debug(f"update: {steps} steps")
-        steps_per_agent = ceil(steps / self.n_trainer)
+        self.logger.info(f"update: {steps} steps")
         for agent in self.trainer:
-            agent.update(steps_per_agent)
+            agent.update(steps)
         result = self._get_trainer_results()
         new_network_states = self._get_network_states_container()
         self._set_network_states_container(new_network_states)
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        self.logger.debug(f"evaluate: {steps} steps / {episodes} episodes")
+        self.logger.info(f"evaluate: {steps} steps / {episodes} episodes")
 
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
-            steps, episodes, self.n_worker
-        )
         for agent in self.worker:
-            agent.evaluate(steps_per_agent, episodes_per_agent)
+            agent.evaluate(steps, episodes)
 
         result = self._get_worker_results()
         return result
@@ -127,18 +108,18 @@ class Synchron(Agent):
     def explore_and_update_parallel(
         self, update_steps: int, explore_steps: int = inf, explore_episodes: int = inf
     ) -> Tuple[List[Episode], List[float]]:
-        update_steps_per_agent = ceil(update_steps / self.n_trainer)
-        explore_steps_per_agent, explore_episodes_per_agent = self._divide_steps_and_episodes(
-            explore_steps, explore_episodes, self.n_worker
+        self.logger.info(
+            f"explore: {explore_steps} steps / {explore_episodes} episodes, update: {update_steps} steps "
         )
+
         for agent in self.trainer:
-            agent.update(update_steps_per_agent)
+            agent.update(update_steps)
         for agent in self.worker:
-            agent.explore(explore_steps_per_agent, explore_episodes_per_agent)
+            agent.explore(explore_steps, explore_episodes)
         update_result = self._get_trainer_results()
         explore_result = self._get_worker_results()
-        new_network_states = self._get_network_states_container()
-        self._set_network_states_container(new_network_states)
+        self.latest_network_states = self._get_network_states_container()
+        self._set_network_states_container(self.latest_network_states)
 
         return explore_result, update_result
 
@@ -172,7 +153,9 @@ class Synchron(Agent):
 
     def _get_optimizer_states_container(self):
         if self.share_trainer_model:
-            optimizer_states_container = self.trainer[0].get_optimizer_states_container()
+            optimizer_states_container = self.trainer[
+                0
+            ].get_optimizer_states_container()
         else:
             new_optimizer_states_container = None
             for trainer in self.trainer:
@@ -191,50 +174,92 @@ class Synchron(Agent):
 
     def _get_worker_results(self):
         episodes = []
-        for agent in self.worker:
-            episodes += agent.get_result()
+        for i, agent in enumerate(self.worker):
+            try:
+                episodes += agent.get_result()
+            except Exception as e:
+                self.logger.warning(
+                    f"Restaring Agent {agent.name} because of Exception {e}"
+                )
+                agent.close()
+                new_agent = self._create_worker_agent(i)
+                new_agent.set_network_states(self.latest_network_states)
+                self.worker[i] = new_agent
+                continue
+
         return episodes
 
     def _get_trainer_results(self):
         results = []
-        for agent in self.trainer:
-            results.append(agent.get_result())
+        for i, agent in enumerate(self.trainer):
+            try:
+                results.append(agent.get_result())
+            except Exception as e:
+                self.logger.warning(
+                    f"Restaring Agent {agent.name} because of Exception {e}"
+                )
+                agent.close()
+                new_agent = self._create_trainer_agent(i)
+                self.trainer[i] = new_agent
+                continue
+
         n_max = len(max(results, key=len))
         results = [result + [None] * (n_max - len(result)) for result in results]
-        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
+        results = [
+            val
+            for result_tuple in zip(*results)
+            for val in result_tuple
+            if val is not None
+        ]
         return results
 
-    @property
-    def step_counter(self) -> StepCounter:
-        step_counter = StepCounter()
-        for agent in self.worker + self.trainer:
-            step_counter += agent.step_counter
-        step_counter.heatup = int(step_counter.heatup)
-        step_counter.exploration = int(step_counter.exploration)
-        step_counter.evaluation = int(step_counter.evaluation)
-        step_counter.update = int(step_counter.update)
-        return step_counter
+    def _create_worker_agent(self, i):
+        return SingleAgentProcess(
+            i,
+            self.algo.copy(),
+            deepcopy(self.env_train),
+            deepcopy(self.env_eval),
+            self.replay_buffer.copy(),
+            self.worker_device,
+            self.consecutive_action_steps,
+            self.normalize_actions,
+            name="worker_" + str(i),
+            parent_agent=self,
+            step_counter=self.step_counter,
+            episode_counter=self.episode_counter,
+        )
 
-    @property
-    def episode_counter(self) -> EpisodeCounter:
-        episode_counter = EpisodeCounter()
-        for agent in self.worker + self.trainer:
-            episode_counter += agent.episode_counter
-        episode_counter.heatup = int(episode_counter.heatup)
-        episode_counter.exploration = int(episode_counter.exploration)
-        episode_counter.evaluation = int(episode_counter.evaluation)
-        return episode_counter
+    def _create_trainer_agent(self, i):
+        if self.share_trainer_model:
+            new_algo = self.algo.copy_shared_memory()
+        else:
+            new_algo = self.algo.copy()
+        return SingleAgentProcess(
+            i,
+            new_algo,
+            DummyEnv(),
+            DummyEnv(),
+            self.replay_buffer.copy(),
+            self.trainer_device,
+            0,
+            self.normalize_actions,
+            name="trainer_" + str(i),
+            parent_agent=self,
+            step_counter=self.step_counter,
+            episode_counter=self.episode_counter,
+        )
 
-    def save_checkpoint(self, directory: str, name: str) -> None:
-        path = directory + "/" + name + ".pt"
+    def save_checkpoint(self, file_path: str) -> None:
         new_optimizer_states_container = self._get_optimizer_states_container()
         new_network_states_container = self._get_network_states_container()
         optimizer_state_dicts = new_optimizer_states_container.to_dict()
         network_state_dicts = new_network_states_container.to_dict()
+        scheduler_states = self.trainer[0].get_scheduler_states_container()
 
         step_counter = self.step_counter
 
         checkpoint_dict = {
+            "scheduler_state_dicts": scheduler_states,
             "optimizer_state_dicts": optimizer_state_dicts,
             "network_state_dicts": network_state_dicts,
             "heatup_steps": step_counter.heatup,
@@ -243,12 +268,10 @@ class Synchron(Agent):
             "evaluation_steps": step_counter.evaluation,
         }
 
-        torch.save(checkpoint_dict, path)
+        torch.save(checkpoint_dict, file_path)
 
-    def load_checkpoint(self, directory: str, name: str) -> None:
-        name, _ = os.path.splitext(name)
-        path = os.path.join(directory, name + ".pt")
-        checkpoint = torch.load(path)
+    def load_checkpoint(self, file_path: str) -> None:
+        checkpoint = torch.load(file_path)
 
         network_states_container = self.trainer[0].get_network_states_container()
         network_states_container.from_dict(checkpoint["network_state_dicts"])
@@ -256,27 +279,22 @@ class Synchron(Agent):
         optimizer_states_container = self.trainer[0].get_optimizer_states_container()
         optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
 
-        single_worker_step_counter = StepCounter(
-            checkpoint["heatup_steps"] / self.n_worker,
-            checkpoint["exploration_steps"] / self.n_worker,
-            checkpoint["evaluation_steps"] / self.n_worker,
-            0,
-        )
-        single_trainer_step_counter = StepCounter(
-            0,
-            0,
-            0,
-            checkpoint["update_steps"] / self.n_trainer,
-        )
+        scheduler_states_container = checkpoint["scheduler_state_dicts"]
+        # self.trainer[0].get_scheduler_states_container()
+        # scheduler_states_container.from_dict(checkpoint["scheduler_state_dicts"])
+
+        self.step_counter.heatup = checkpoint["heatup_steps"]
+        self.step_counter.exploration = checkpoint["exploration_steps"]
+        self.step_counter.evaluation = checkpoint["evaluation_steps"]
+        self.step_counter.update = checkpoint["update_steps"]
 
         for worker in self.worker:
             worker.set_network_states(network_states_container)
-            worker.step_counter = single_worker_step_counter
 
         for trainer in self.trainer:
             trainer.set_optimizer_states(optimizer_states_container)
             trainer.set_network_states(network_states_container)
-            trainer.step_counter = single_trainer_step_counter
+            trainer.set_scheduler_states(scheduler_states_container)
 
     def copy(self):
         return self.__class__(

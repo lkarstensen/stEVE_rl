@@ -1,9 +1,8 @@
 from typing import List, Tuple
 
 from .agent import Agent, Episode
-from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer
+from .single import EpisodeCounter, StepCounter, Algo, ReplayBuffer, Env
 from .singelagentprocess import SingleAgentProcess
-from ..util import Environment
 from torch import multiprocessing as mp
 from math import ceil, inf
 import numpy as np
@@ -15,12 +14,13 @@ class Parallel(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Environment,
-        env_eval: Environment,
+        env_train: Env,
+        env_eval: Env,
         replay_buffer: ReplayBuffer,
         n_agents: int,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
+        normalize_actions: bool = True,
         shared_model=False,
     ) -> None:
 
@@ -30,6 +30,7 @@ class Parallel(Agent):
         self.env_eval = env_eval
         self.n_agents = n_agents
         self.consecutive_action_steps = consecutive_action_steps
+        self.normalize_actions = normalize_actions
         self.device = device
 
         self.shared_model = shared_model
@@ -57,6 +58,7 @@ class Parallel(Agent):
                     replay_buffer.copy(),
                     device,
                     consecutive_action_steps,
+                    normalize_actions,
                     name="agent_" + str(i),
                     parent_agent=self,
                 )
@@ -65,16 +67,29 @@ class Parallel(Agent):
             self.update(0)
 
     def heatup(
-        self, steps: int = inf, episodes: int = inf, custom_action_low: List[float] = None
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        custom_action_low: List[float] = None,
+        custom_action_high: List[float] = None,
     ) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
-            agent.heatup(steps_per_agent, episodes_per_agent, custom_action_low)
+            agent.heatup(
+                steps_per_agent,
+                episodes_per_agent,
+                custom_action_low,
+                custom_action_high,
+            )
         result = self._get_play_results()
         return result
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
             agent.explore(steps_per_agent, episodes_per_agent)
         result = self._get_play_results()
@@ -90,7 +105,9 @@ class Parallel(Agent):
 
             new_network_states_container = None
             for agent in self.agents:
-                network_states_container = agent.get_network_states_container() / self.n_agents
+                network_states_container = (
+                    agent.get_network_states_container() / self.n_agents
+                )
                 if new_network_states_container is None:
                     new_network_states_container = network_states_container
                 else:
@@ -103,7 +120,9 @@ class Parallel(Agent):
         return result
 
     def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(steps, episodes)
+        steps_per_agent, episodes_per_agent = self._divide_steps_and_episodes(
+            steps, episodes
+        )
         for agent in self.agents:
             agent.evaluate(steps_per_agent, episodes_per_agent)
         result = self._get_play_results()
@@ -134,7 +153,12 @@ class Parallel(Agent):
             results.append(agent.get_result())
         n_max = len(max(results, key=len))
         results = [result + [None] * (n_max - len(result)) for result in results]
-        results = [val for result_tuple in zip(*results) for val in result_tuple if val is not None]
+        results = [
+            val
+            for result_tuple in zip(*results)
+            for val in result_tuple
+            if val is not None
+        ]
         return results
 
     @property
@@ -158,12 +182,13 @@ class Parallel(Agent):
         episode_counter.evaluation = int(episode_counter.evaluation)
         return episode_counter
 
-    def save_checkpoint(self, directory: str, name: str) -> None:
-        path = directory + "/" + name + ".pt"
+    def save_checkpoint(self, file_path) -> None:
 
         new_optimizer_states_container = None
         for agent in self.agents:
-            optimizer_states_container = agent.get_optimizer_states_container() / self.n_agents
+            optimizer_states_container = (
+                agent.get_optimizer_states_container() / self.n_agents
+            )
             if new_optimizer_states_container is None:
                 new_optimizer_states_container = optimizer_states_container
             else:
@@ -172,7 +197,9 @@ class Parallel(Agent):
 
         new_network_states_container = None
         for agent in self.agents:
-            network_states_container = agent.get_network_states_container() / self.n_agents
+            network_states_container = (
+                agent.get_network_states_container() / self.n_agents
+            )
             if new_network_states_container is None:
                 new_network_states_container = network_states_container
             else:
@@ -190,12 +217,10 @@ class Parallel(Agent):
             "evaluation_steps": step_counter.evaluation,
         }
 
-        torch.save(checkpoint_dict, path)
+        torch.save(checkpoint_dict, file_path)
 
-    def load_checkpoint(self, directory: str, name: str) -> None:
-        name, _ = os.path.splitext(name)
-        path = os.path.join(directory, name + ".pt")
-        checkpoint = torch.load(path)
+    def load_checkpoint(self, file_path) -> None:
+        checkpoint = torch.load(file_path)
 
         network_states_container = self.agents[0].get_network_states_container()
         network_states_container.from_dict(checkpoint["network_state_dicts"])

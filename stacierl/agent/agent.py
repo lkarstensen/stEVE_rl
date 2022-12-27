@@ -5,7 +5,6 @@ from dataclasses import dataclass
 import torch.multiprocessing as mp
 
 from stacierl.replaybuffer.replaybuffer import Episode
-from ..util import StacieRLUserObject
 
 
 @dataclass
@@ -13,6 +12,7 @@ class EpisodeCounter:
     heatup: int = 0
     exploration: int = 0
     evaluation: int = 0
+    lock = mp.Lock()
 
     def __iadd__(self, other):
         self.heatup += other.heatup
@@ -27,6 +27,7 @@ class StepCounter:
     exploration: int = 0
     evaluation: int = 0
     update: int = 0
+    lock = mp.Lock()
 
     def __iadd__(self, other):
         self.heatup += other.heatup
@@ -38,10 +39,10 @@ class StepCounter:
 
 class StepCounterShared(StepCounter):
     def __init__(self):
-        self._heatup: mp.Value = mp.Value("f", 0)
-        self._exploration: mp.Value = mp.Value("f", 0)
-        self._evaluation: mp.Value = mp.Value("f", 0)
-        self._update: mp.Value = mp.Value("f", 0)
+        self._heatup: mp.Value = mp.Value("i", 0)
+        self._exploration: mp.Value = mp.Value("i", 0)
+        self._evaluation: mp.Value = mp.Value("i", 0)
+        self._update: mp.Value = mp.Value("i", 0)
 
     @property
     def heatup(self) -> int:
@@ -120,7 +121,7 @@ class EpisodeCounterShared(EpisodeCounter):
         return self
 
 
-class Agent(StacieRLUserObject, ABC):
+class Agent(ABC):
     @abstractmethod
     def heatup(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...
@@ -152,11 +153,11 @@ class Agent(StacieRLUserObject, ABC):
         ...
 
     @abstractmethod
-    def save_checkpoint(self, directory: str, name: str) -> None:
+    def save_checkpoint(self, file_path: str) -> None:
         ...
 
     @abstractmethod
-    def load_checkpoint(self, directory: str, name: str) -> None:
+    def load_checkpoint(self, file_path: str) -> None:
         ...
 
     @abstractmethod

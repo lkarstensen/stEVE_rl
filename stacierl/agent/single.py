@@ -278,12 +278,11 @@ class Single(Agent):
         optimizer_states_container = self.algo.model.optimizer_states_container
         optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
 
-        scheduler_states_container = self.algo.model.scheduler_states_container
-        scheduler_states_container.from_dict(checkpoint["scheduler_state_dicts"])
+        # scheduler_states_container = checkpoint["scheduler_state_dicts"]
 
         self.algo.model.set_network_states(network_states_container)
         self.algo.model.set_optimizer_states(optimizer_states_container)
-        self.algo.model.set_scheduler_states(scheduler_states_container)
+        # self.algo.model.set_scheduler_states(scheduler_states_container)
 
         self.step_counter = StepCounter(
             checkpoint["heatup_steps"],

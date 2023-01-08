@@ -8,7 +8,7 @@ from .singelagentprocess import SingleAgentProcess
 from eve.env import DummyEnv
 from math import ceil, inf
 import torch
-import os
+from time import sleep
 
 
 class Synchron(Agent):
@@ -290,6 +290,7 @@ class Synchron(Agent):
 
         for worker in self.worker:
             worker.set_network_states(network_states_container)
+            sleep(0.5)
 
         for trainer in self.trainer:
             trainer.set_optimizer_states(optimizer_states_container)

@@ -1,14 +1,8 @@
 from abc import abstractmethod, ABC
 from typing import Tuple
 import numpy as np
-from ..model import Model
 import torch
-
-from ..model import (
-    NetworkStatesContainer,
-    OptimizerStatesContainer,
-    SchedulerStatesContainer,
-)
+from ..model import Model
 
 
 class SACModel(Model, ABC):

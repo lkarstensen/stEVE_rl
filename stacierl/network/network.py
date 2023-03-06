@@ -6,7 +6,6 @@ import torch
 
 
 class Network(nn.Module):
-    
     @property
     @abstractmethod
     def n_inputs(self) -> int:
@@ -15,6 +14,11 @@ class Network(nn.Module):
     @property
     @abstractmethod
     def n_outputs(self) -> int:
+        ...
+
+    @property
+    @abstractmethod
+    def device(self) -> torch.device:
         ...
 
     @abstractmethod

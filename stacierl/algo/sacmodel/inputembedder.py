@@ -1,19 +1,16 @@
+from dataclasses import dataclass
+from copy import deepcopy
 from typing import Any, Dict, Iterator, Optional, Tuple
 import numpy as np
-from torch.distributions.normal import Normal
 
-from .vanilla import (
-    Vanilla,
-    NetworkStatesContainer,
-    OptimizerStatesContainer,
-    SchedulerStatesContainer,
-)
+from torch.distributions.normal import Normal
+import torch
+
+
+from .vanilla import Vanilla
 from ... import network
 from ...network import NetworkDummy, Network
 from ...optimizer import Optimizer
-import torch
-from dataclasses import dataclass
-from copy import deepcopy
 
 
 @dataclass
@@ -29,181 +26,6 @@ class Embedder:
 
     def copy(self):
         ...
-
-
-@dataclass
-class SACEmbeddedNetworkStateContainer(NetworkStatesContainer):
-    q1: Dict[str, torch.Tensor]
-    q2: Dict[str, torch.Tensor]
-    target_q1: Dict[str, torch.Tensor]
-    target_q2: Dict[str, torch.Tensor]
-    policy: Dict[str, torch.Tensor]
-    q1_common: Dict[str, torch.Tensor]
-    q2_common: Dict[str, torch.Tensor]
-    policy_common: Dict[str, torch.Tensor]
-    log_alpha: Dict[str, torch.Tensor]
-
-    def __iter__(self):
-        iter_list = [
-            self.q1,
-            self.q2,
-            self.target_q1,
-            self.target_q2,
-            self.policy,
-            self.q1_common,
-            self.q2_common,
-            self.policy_common,
-            self.log_alpha,
-        ]
-        return iter(iter_list)
-
-    def copy(self):
-        return SACEmbeddedNetworkStateContainer(
-            deepcopy(self.q1),
-            deepcopy(self.q2),
-            deepcopy(self.target_q1),
-            deepcopy(self.target_q2),
-            deepcopy(self.policy),
-            deepcopy(self.q1_common),
-            deepcopy(self.q2_common),
-            deepcopy(self.policy_common),
-            deepcopy(self.log_alpha),
-        )
-
-    def to_dict(self) -> Dict:
-        model_state_dict = {
-            "q1": self.q1,
-            "q2": self.q2,
-            "target_q1": self.target_q1,
-            "target_q2": self.target_q2,
-            "policy": self.policy,
-            "q1_common": self.q1_common,
-            "q2_common": self.q2_common,
-            "policy_common": self.policy_common,
-            "log_alpha": self.log_alpha,
-        }
-
-        return model_state_dict
-
-    def from_dict(self, model_state_dict: Dict):
-        self.q1 = model_state_dict["q1"]
-        self.q2 = model_state_dict["q2"]
-        self.target_q1 = model_state_dict["target_q1"]
-        self.target_q2 = model_state_dict["target_q2"]
-        self.policy = model_state_dict["policy"]
-        self.q1_common = model_state_dict["q1_common"]
-        self.q2_common = model_state_dict["q2_common"]
-        self.policy_common = model_state_dict["policy_common"]
-        self.log_alpha = model_state_dict["log_alpha"]
-
-
-@dataclass
-class SACEmbeddedOptimizerStateContainer(OptimizerStatesContainer):
-    q1: Dict[str, torch.Tensor]
-    q2: Dict[str, torch.Tensor]
-    policy: Dict[str, torch.Tensor]
-    q1_common: Dict[str, torch.Tensor] or None
-    q2_common: Dict[str, torch.Tensor] or None
-    policy_common: Dict[str, torch.Tensor] or None
-    alpha: Dict[str, torch.Tensor]
-
-    def __iter__(self):
-        iter_list = [
-            self.q1,
-            self.q2,
-            self.policy,
-            self.alpha,
-        ]
-        if self.q1_common is not None:
-            iter_list.append(self.q1_common)
-        if self.q2_common is not None:
-            iter_list.append(self.q2_common)
-        if self.policy_common is not None:
-            iter_list.append(self.policy_common)
-        return iter(iter_list)
-
-    def copy(self):
-        return SACEmbeddedOptimizerStateContainer(
-            deepcopy(self.q1),
-            deepcopy(self.q2),
-            deepcopy(self.policy),
-            deepcopy(self.q1_common),
-            deepcopy(self.q2_common),
-            deepcopy(self.policy_common),
-            deepcopy(self.alpha),
-        )
-
-    def to_dict(self) -> Dict:
-        model_state_dict = {
-            "q1": self.q1,
-            "q2": self.q2,
-            "policy": self.policy,
-            "q1_common": self.q1_common,
-            "q2_common": self.q2_common,
-            "policy_common": self.policy_common,
-            "alpha": self.alpha,
-        }
-
-        return model_state_dict
-
-    def from_dict(self, optimizer_state_dict: Dict):
-        self.q1 = optimizer_state_dict["q1"]
-        self.q2 = optimizer_state_dict["q2"]
-        self.policy = optimizer_state_dict["policy"]
-        self.q1_common = optimizer_state_dict["q1_common"]
-        self.q2_common = optimizer_state_dict["q2_common"]
-        self.policy_common = optimizer_state_dict["policy_common"]
-        self.alpha = optimizer_state_dict["alpha"]
-
-
-@dataclass
-class SACEmbeddedSchedulerStateContainer(OptimizerStatesContainer):
-    q1: Dict[str, Any]
-    q2: Dict[str, Any]
-    policy: Dict[str, Any]
-    q1_common: Dict[str, Any] or None
-    q2_common: Dict[str, Any] or None
-    policy_common: Dict[str, Any] or None
-
-    def __iter__(self):
-        iter_list = [
-            self.q1,
-            self.q2,
-            self.policy,
-            self.alpha,
-        ]
-        if self.q1_common is not None:
-            iter_list.append(self.q1_common)
-        if self.q2_common is not None:
-            iter_list.append(self.q2_common)
-        if self.policy_common is not None:
-            iter_list.append(self.policy_common)
-        return iter(iter_list)
-
-    def copy(self):
-        return deepcopy(self)
-
-    def to_dict(self) -> Dict:
-        model_state_dict = {
-            "q1": self.q1,
-            "q2": self.q2,
-            "policy": self.policy,
-            "q1_common": self.q1_common,
-            "q2_common": self.q2_common,
-            "policy_common": self.policy_common,
-            "alpha": self.alpha,
-        }
-
-        return model_state_dict
-
-    def from_dict(self, optimizer_state_dict: Dict):
-        self.q1 = optimizer_state_dict["q1"]
-        self.q2 = optimizer_state_dict["q2"]
-        self.policy = optimizer_state_dict["policy"]
-        self.q1_common = optimizer_state_dict["q1_common"]
-        self.q2_common = optimizer_state_dict["q2_common"]
-        self.policy_common = optimizer_state_dict["policy_common"]
-        self.alpha = optimizer_state_dict["alpha"]
 
 
 class InputEmbedding(Vanilla):
@@ -274,7 +96,7 @@ class InputEmbedding(Vanilla):
     ) -> np.ndarray:
         with torch.no_grad():
             flat_state = torch.from_numpy(flat_state).unsqueeze(0).unsqueeze(0)
-            flat_state = flat_state.to(self.device)
+            flat_state = flat_state.to(self.policy.device)
             embedded_state = self._get_embedded_state(
                 flat_state,
                 self.policy_common_input_embedder,
@@ -444,8 +266,7 @@ class InputEmbedding(Vanilla):
             self.policy_common_input_embedder.scheduler.step()
 
     def to(self, device: torch.device):
-        self.device = device
-
+        super().to(device)
         self.q1.to(device)
         self.target_q1.to(device)
         self.q1_optimizer.param_groups = []
@@ -496,310 +317,6 @@ class InputEmbedding(Vanilla):
         ):
             target_param.data.copy_(tau * param + (1 - tau) * target_param)
 
-    def copy_shared_memory(self):
-        self.q1.share_memory()
-        self.q2.share_memory()
-        self.target_q1.share_memory()
-        self.target_q2.share_memory()
-        self.policy.share_memory()
-        self.q1_common_input_embedder.network.share_memory()
-        self.q2_common_input_embedder.network.share_memory()
-        self.policy_common_input_embedder.network.share_memory()
-
-        # Copy Q1, Q2 and Policy
-        q1 = self.q1
-        q1_optimizer = self.q1_optimizer.__class__(
-            q1,
-            **self.q1_optimizer.defaults,
-        )
-        q1_optimizer.load_state_dict(self.q1_optimizer.state_dict())
-        q1_scheduler = deepcopy(self.q1_scheduler)
-        if q1_scheduler is not None:
-            q1_scheduler.optimizer = q1_optimizer
-
-        q2 = self.q2
-        q2_optimizer = self.q2_optimizer.__class__(
-            q2,
-            **self.q2_optimizer.defaults,
-        )
-        q2_optimizer.load_state_dict(self.q2_optimizer.state_dict())
-        q2_scheduler = deepcopy(self.q2_scheduler)
-        if q2_scheduler is not None:
-            q2_scheduler.optimizer = q2_optimizer
-
-        policy = self.policy
-        policy_optimizer = self.policy_optimizer.__class__(
-            policy,
-            **self.policy_optimizer.defaults,
-        )
-        policy_optimizer.load_state_dict(self.policy_optimizer.state_dict())
-        policy_scheduler = deepcopy(self.policy_scheduler)
-        if policy_scheduler is not None:
-            policy_scheduler.optimizer = policy_optimizer
-
-        # Copy Q1 Embedder
-        q1_embed_network_current = self.q1_common_input_embedder.network
-        q1_embed_update = self.q1_common_input_embedder.update
-        q1_embed_optimizer_current = self.q1_common_input_embedder.optimizer
-        q1_embed_network_copy = q1_embed_network_current
-        if q1_embed_update:
-            q1_embed_optimizer_copy = q1_embed_optimizer_current.__class__(
-                q1_embed_network_copy,
-                **q1_embed_optimizer_current.defaults,
-            )
-            q1_embed_optimizer_copy.load_state_dict(
-                q1_embed_optimizer_current.state_dict()
-            )
-        else:
-            q1_embed_optimizer_copy = None
-        q1_embed_scheduler = deepcopy(self.q1_common_input_embedder.scheduler)
-        if q1_embed_scheduler is not None and q1_embed_optimizer_copy is not None:
-            q1_embed_scheduler.optimizer = q1_embed_optimizer_copy
-
-        # Copy Q2 Embedder
-        q2_embed_network_current = self.q2_common_input_embedder.network
-        q2_embed_update = self.q2_common_input_embedder.update
-        q2_embed_optimizer_current = self.q2_common_input_embedder.optimizer
-        if q2_embed_network_current is q1_embed_network_current:
-            q2_embed_network_copy = q1_embed_network_copy
-        else:
-            q2_embed_network_copy = q2_embed_network_current
-        if q2_embed_update:
-            q2_embed_optimizer_copy = q2_embed_optimizer_current.__class__(
-                q2_embed_network_copy,
-                **q2_embed_optimizer_current.defaults,
-            )
-            q2_embed_optimizer_copy.load_state_dict(
-                q2_embed_optimizer_current.state_dict()
-            )
-        else:
-            q2_embed_optimizer_copy = None
-        q2_embed_scheduler = deepcopy(self.q2_common_input_embedder.scheduler)
-        if q2_embed_scheduler is not None and q2_embed_optimizer_copy is not None:
-            q2_embed_scheduler.optimizer = q2_embed_optimizer_copy
-
-        # Copy Policy
-        policy_embed_network_current = self.policy_common_input_embedder.network
-        policy_embed_update = self.policy_common_input_embedder.update
-        policy_embed_optimizer_current = self.policy_common_input_embedder.optimizer
-        if policy_embed_network_current is q1_embed_network_current:
-            policy_embed_network_copy = q1_embed_network_copy
-        elif policy_embed_network_current is q2_embed_network_current:
-            policy_embed_network_copy = q2_embed_network_copy
-        else:
-            policy_embed_network_copy = policy_embed_network_current
-        if policy_embed_update:
-            policy_embed_optimizer_copy = policy_embed_optimizer_current.__class__(
-                policy_embed_network_copy,
-                **policy_embed_optimizer_current.defaults,
-            )
-            policy_embed_optimizer_copy.load_state_dict(
-                policy_embed_optimizer_current.state_dict()
-            )
-        else:
-            policy_embed_optimizer_copy = None
-        policy_embed_scheduler = deepcopy(self.policy_common_input_embedder.scheduler)
-        if (
-            policy_embed_scheduler is not None
-            and policy_embed_optimizer_copy is not None
-        ):
-            policy_embed_scheduler.optimizer = policy_embed_optimizer_copy
-
-        copy = self.__class__(
-            self.lr_alpha,
-            q1,
-            q2,
-            policy,
-            q1_optimizer,
-            q2_optimizer,
-            policy_optimizer,
-            q1_scheduler,
-            q2_scheduler,
-            policy_scheduler,
-            Embedder(
-                q1_embed_network_copy,
-                q1_embed_update,
-                q1_embed_optimizer_copy,
-                q1_embed_scheduler,
-            ),
-            Embedder(
-                q2_embed_network_copy,
-                q2_embed_update,
-                q2_embed_optimizer_copy,
-                q2_embed_scheduler,
-            ),
-            Embedder(
-                policy_embed_network_copy,
-                policy_embed_update,
-                policy_embed_optimizer_copy,
-                policy_embed_scheduler,
-            ),
-        )
-        copy.target_q1 = self.target_q1
-        copy.target_q2 = self.target_q2
-
-        return copy
-
-    def set_network_states(
-        self, network_states_container: SACEmbeddedNetworkStateContainer
-    ):
-        self.q1.load_state_dict(network_states_container.q1)
-        self.q1_common_input_embedder.network.load_state_dict(
-            network_states_container.q1_common
-        )
-
-        self.q2.load_state_dict(network_states_container.q2)
-        self.q2_common_input_embedder.network.load_state_dict(
-            network_states_container.q2_common
-        )
-
-        self.target_q1.load_state_dict(network_states_container.target_q1)
-        self.target_q2.load_state_dict(network_states_container.target_q2)
-
-        self.policy.load_state_dict(network_states_container.policy)
-        self.policy_common_input_embedder.network.load_state_dict(
-            network_states_container.policy_common
-        )
-
-        self.log_alpha.data.copy_(network_states_container.log_alpha["log_alpha"])
-
-    @property
-    def network_states_container(self) -> SACEmbeddedNetworkStateContainer:
-        network_states_container = SACEmbeddedNetworkStateContainer(
-            self.q1.state_dict(),
-            self.q2.state_dict(),
-            self.target_q1.state_dict(),
-            self.target_q2.state_dict(),
-            self.policy.state_dict(),
-            self.q1_common_input_embedder.network.state_dict(),
-            self.q2_common_input_embedder.network.state_dict(),
-            self.policy_common_input_embedder.network.state_dict(),
-            {"log_alpha": self.log_alpha.detach()},
-        )
-        return network_states_container
-
-    @property
-    def optimizer_states_container(self) -> SACEmbeddedOptimizerStateContainer:
-
-        q1 = self.q1_optimizer.state_dict()
-        if self.q1_common_input_embedder.update:
-            q1_common = self.q1_common_input_embedder.optimizer.state_dict()
-        else:
-            q1_common = None
-
-        q2 = self.q2_optimizer.state_dict()
-        if self.q2_common_input_embedder.update:
-            q2_common = self.q2_common_input_embedder.optimizer.state_dict()
-        else:
-            q2_common = None
-
-        policy = self.policy_optimizer.state_dict()
-        if self.policy_common_input_embedder.update:
-            policy_common = self.policy_common_input_embedder.optimizer.state_dict()
-        else:
-            policy_common = None
-
-        optimizer_states_container = SACEmbeddedOptimizerStateContainer(
-            q1,
-            q2,
-            policy,
-            q1_common,
-            q2_common,
-            policy_common,
-            self.alpha_optimizer.state_dict(),
-        )
-
-        return optimizer_states_container
-
-    def set_optimizer_states(
-        self, optimizer_states_container: SACEmbeddedOptimizerStateContainer
-    ):
-        self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
-        if optimizer_states_container.q1_common is not None:
-            self.q1_common_input_embedder.optimizer.load_state_dict(
-                optimizer_states_container.q1_common
-            )
-
-        self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
-        if optimizer_states_container.q2_common is not None:
-            self.q2_common_input_embedder.optimizer.load_state_dict(
-                optimizer_states_container.q2_common
-            )
-
-        self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
-        if optimizer_states_container.policy_common is not None:
-            self.policy_common_input_embedder.optimizer.load_state_dict(
-                optimizer_states_container.policy_common
-            )
-
-        self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
-
-    @property
-    def scheduler_states_container(self) -> SACEmbeddedSchedulerStateContainer:
-        if self.q1_scheduler is not None:
-            q1 = self.q1_scheduler.state_dict()
-        else:
-            q1 = None
-
-        if self.q1_common_input_embedder.scheduler is not None:
-            q1_common = self.q1_common_input_embedder.scheduler.state_dict()
-        else:
-            q1_common = None
-
-        if self.q2_scheduler is not None:
-            q2 = self.q2_scheduler.state_dict()
-        else:
-            q2 = None
-
-        if self.q2_common_input_embedder.scheduler is not None:
-            q2_common = self.q2_common_input_embedder.scheduler.state_dict()
-        else:
-            q2_common = None
-
-        if self.policy_scheduler is not None:
-            policy = self.policy_scheduler.state_dict()
-        else:
-            policy = None
-
-        if self.policy_common_input_embedder.scheduler is not None:
-            policy_common = self.policy_common_input_embedder.scheduler.state_dict()
-        else:
-            policy_common = None
-
-        scheduler_states_container = SACEmbeddedSchedulerStateContainer(
-            q1,
-            q2,
-            policy,
-            q1_common,
-            q2_common,
-            policy_common,
-        )
-
-        return scheduler_states_container
-
-    def set_scheduler_states(
-        self, scheduler_states_container: SACEmbeddedSchedulerStateContainer
-    ):
-        if scheduler_states_container.q1 is not None:
-            self.q1_scheduler.load_state_dict(scheduler_states_container.q1)
-        if scheduler_states_container.q1_common is not None:
-            self.q1_common_input_embedder.scheduler.load_state_dict(
-                scheduler_states_container.q1_common
-            )
-
-        if scheduler_states_container.q2 is not None:
-            self.q2_scheduler.load_state_dict(scheduler_states_container.q2)
-        if scheduler_states_container.q2_common is not None:
-            self.q2_common_input_embedder.scheduler.load_state_dict(
-                scheduler_states_container.q2_common
-            )
-        if scheduler_states_container.policy is not None:
-            self.policy_scheduler.load_state_dict(scheduler_states_container.policy)
-        if scheduler_states_container.policy_common is not None:
-            self.policy_common_input_embedder.scheduler.load_state_dict(
-                scheduler_states_container.policy_common
-            )
-
     def reset(self) -> None:
         for net in self:
             net.reset()
@@ -828,3 +345,178 @@ class InputEmbedding(Vanilla):
         del self.q2_common_input_embedder
         del self.policy_common_input_embedder
         del self.alpha_optimizer
+
+    def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
+        ret = state_dicts = {
+            "q1": self.q1.state_dict(),
+            "q2": self.q2.state_dict(),
+            "target_q1": self.target_q1.state_dict(),
+            "target_q2": self.target_q2.state_dict(),
+            "policy": self.policy.state_dict(),
+            "q1_common": self.q1_common_input_embedder.network.state_dict(),
+            "q2_common": self.q2_common_input_embedder.network.state_dict(),
+            "policy_common": self.policy_common_input_embedder.network.state_dict(),
+            "log_alpha": self.log_alpha.detach(),
+        }
+
+        if destination is not None:
+
+            for net in [
+                "q1",
+                "q2",
+                "target_q1",
+                "target_q2",
+                "policy",
+                "q1_common",
+                "q2_common",
+                "policy_common",
+            ]:
+                state_dict = state_dicts[net]
+                dest = destination[net]
+
+                for tensor, dest_tensor in zip(state_dict.values(), dest.values()):
+                    dest_tensor.copy_(tensor)
+
+            destination["log_alpha"].copy_(state_dicts["log_alpha"])
+            ret = destination
+
+        return ret
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+        self.q1.load_state_dict(state_dicts["q1"])
+        self.q1_common_input_embedder.network.load_state_dict(state_dicts["q1_common"])
+
+        self.q2.load_state_dict(state_dicts["q2"])
+        self.q2_common_input_embedder.network.load_state_dict(state_dicts["q2_common"])
+
+        self.target_q1.load_state_dict(state_dicts["target_q1"])
+        self.target_q2.load_state_dict(state_dicts["target_q2"])
+
+        self.policy.load_state_dict(state_dicts["policy"])
+        self.policy_common_input_embedder.network.load_state_dict(
+            state_dicts["policy_common"]
+        )
+
+        self.log_alpha.data.copy_(state_dicts["log_alpha"])
+
+    # @property
+    # def optimizer_states_container(self) -> SACEmbeddedOptimizerStateContainer:
+
+    #     q1 = self.q1_optimizer.state_dict()
+    #     if self.q1_common_input_embedder.update:
+    #         q1_common = self.q1_common_input_embedder.optimizer.state_dict()
+    #     else:
+    #         q1_common = None
+
+    #     q2 = self.q2_optimizer.state_dict()
+    #     if self.q2_common_input_embedder.update:
+    #         q2_common = self.q2_common_input_embedder.optimizer.state_dict()
+    #     else:
+    #         q2_common = None
+
+    #     policy = self.policy_optimizer.state_dict()
+    #     if self.policy_common_input_embedder.update:
+    #         policy_common = self.policy_common_input_embedder.optimizer.state_dict()
+    #     else:
+    #         policy_common = None
+
+    #     optimizer_states_container = SACEmbeddedOptimizerStateContainer(
+    #         q1,
+    #         q2,
+    #         policy,
+    #         q1_common,
+    #         q2_common,
+    #         policy_common,
+    #         self.alpha_optimizer.state_dict(),
+    #     )
+
+    #     return optimizer_states_container
+
+    # def set_optimizer_states(
+    #     self, optimizer_states_container: SACEmbeddedOptimizerStateContainer
+    # ):
+    #     self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
+    #     if optimizer_states_container.q1_common is not None:
+    #         self.q1_common_input_embedder.optimizer.load_state_dict(
+    #             optimizer_states_container.q1_common
+    #         )
+
+    #     self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
+    #     if optimizer_states_container.q2_common is not None:
+    #         self.q2_common_input_embedder.optimizer.load_state_dict(
+    #             optimizer_states_container.q2_common
+    #         )
+
+    #     self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
+    #     if optimizer_states_container.policy_common is not None:
+    #         self.policy_common_input_embedder.optimizer.load_state_dict(
+    #             optimizer_states_container.policy_common
+    #         )
+
+    #     self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
+
+    # @property
+    # def scheduler_states_container(self) -> SACEmbeddedSchedulerStateContainer:
+    #     if self.q1_scheduler is not None:
+    #         q1 = self.q1_scheduler.state_dict()
+    #     else:
+    #         q1 = None
+
+    #     if self.q1_common_input_embedder.scheduler is not None:
+    #         q1_common = self.q1_common_input_embedder.scheduler.state_dict()
+    #     else:
+    #         q1_common = None
+
+    #     if self.q2_scheduler is not None:
+    #         q2 = self.q2_scheduler.state_dict()
+    #     else:
+    #         q2 = None
+
+    #     if self.q2_common_input_embedder.scheduler is not None:
+    #         q2_common = self.q2_common_input_embedder.scheduler.state_dict()
+    #     else:
+    #         q2_common = None
+
+    #     if self.policy_scheduler is not None:
+    #         policy = self.policy_scheduler.state_dict()
+    #     else:
+    #         policy = None
+
+    #     if self.policy_common_input_embedder.scheduler is not None:
+    #         policy_common = self.policy_common_input_embedder.scheduler.state_dict()
+    #     else:
+    #         policy_common = None
+
+    #     scheduler_states_container = SACEmbeddedSchedulerStateContainer(
+    #         q1,
+    #         q2,
+    #         policy,
+    #         q1_common,
+    #         q2_common,
+    #         policy_common,
+    #     )
+
+    #     return scheduler_states_container
+
+    # def set_scheduler_states(
+    #     self, scheduler_states_container: SACEmbeddedSchedulerStateContainer
+    # ):
+    #     if scheduler_states_container.q1 is not None:
+    #         self.q1_scheduler.load_state_dict(scheduler_states_container.q1)
+    #     if scheduler_states_container.q1_common is not None:
+    #         self.q1_common_input_embedder.scheduler.load_state_dict(
+    #             scheduler_states_container.q1_common
+    #         )
+
+    #     if scheduler_states_container.q2 is not None:
+    #         self.q2_scheduler.load_state_dict(scheduler_states_container.q2)
+    #     if scheduler_states_container.q2_common is not None:
+    #         self.q2_common_input_embedder.scheduler.load_state_dict(
+    #             scheduler_states_container.q2_common
+    #         )
+    #     if scheduler_states_container.policy is not None:
+    #         self.policy_scheduler.load_state_dict(scheduler_states_container.policy)
+    #     if scheduler_states_container.policy_common is not None:
+    #         self.policy_common_input_embedder.scheduler.load_state_dict(
+    #             scheduler_states_container.policy_common
+    #         )

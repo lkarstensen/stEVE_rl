@@ -14,14 +14,10 @@ class Episode:
         self.flat_states: List[np.ndarray] = [reset_flat_state]
         self.actions: List[np.ndarray] = []
         self.rewards: List[float] = []
-        self.dones: List[bool] = []
+        self.terminals: List[bool] = []
+        self.truncations: List[bool] = []
         self.infos: List[Dict[str, np.ndarray]] = []
-        self.successes: List[float] = []
         self.episode_reward: float = 0.0
-
-    @property
-    def episode_success(self) -> float:
-        return self.successes[-1]
 
     def add_transition(
         self,
@@ -29,21 +25,23 @@ class Episode:
         flat_state: np.ndarray,
         action: np.ndarray,
         reward: float,
-        done: bool,
+        terminal: bool,
+        truncation: bool,
         info: Dict[str, np.ndarray],
-        success: float,
     ):
         self.states.append(state)
         self.flat_states.append(flat_state)
         self.actions.append(action)
         self.rewards.append(reward)
-        self.dones.append(done)
+        self.terminals.append(terminal)
+        self.truncations.append(truncation)
         self.infos.append(info)
-        self.successes.append(success)
         self.episode_reward += reward
 
     def to_replay(self):
-        return EpisodeReplay(self.flat_states, self.actions, self.rewards, self.dones)
+        return EpisodeReplay(
+            self.flat_states, self.actions, self.rewards, self.terminals
+        )
 
     def __len__(self):
         return len(self.actions)
@@ -54,7 +52,7 @@ class EpisodeReplay:
     flat_states: List[np.ndarray]
     actions: List[np.ndarray]
     rewards: List[float]
-    dones: List[bool]
+    terminals: List[bool]
 
     def __len__(self):
         return len(self.actions)
@@ -64,7 +62,7 @@ class Batch(NamedTuple):
     states: torch.Tensor
     actions: torch.Tensor
     rewards: torch.Tensor
-    dones: torch.Tensor
+    terminals: torch.Tensor
     padding_mask: torch.Tensor = None
 
 

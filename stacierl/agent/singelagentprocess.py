@@ -1,9 +1,14 @@
-from copy import deepcopy
-import logging
-import traceback
 from math import inf
+from typing import Any, Dict, List
+from random import randint
+import logging
+import logging.config
+import os
+import traceback
+import queue
 
-from typing import Any, Dict, List, Optional, Tuple
+from torch import multiprocessing as mp
+import torch
 
 from .agent import (
     Agent,
@@ -12,20 +17,7 @@ from .agent import (
     StepCounter,
     EpisodeCounter,
 )
-from .single import Single, Algo, ReplayBuffer, Env
-from ..algo.model import (
-    NetworkStatesContainer,
-    OptimizerStatesContainer,
-    SchedulerStatesContainer,
-)
-from torch import multiprocessing as mp
-import torch
-
-import queue
-
-import logging.config
-from random import randint
-import os
+from .single import Single, Algo, ReplayBuffer, gym
 
 
 def file_handler_callback(handler: logging.FileHandler):
@@ -40,6 +32,7 @@ def file_handler_callback(handler: logging.FileHandler):
     if handler.formatter is not None:
         formatter_name = handler.name or randint(1, 99999)
         handler_dict[handler.name]["formatter"] = str(formatter_name)
+        # pylint: disable=protected-access
         formatter_dict = {str(formatter_name): {"format": handler.formatter._fmt}}
     else:
         formatter_dict = None
@@ -77,10 +70,9 @@ def get_logging_config_dict():
 
 
 def run(
-    id: int,
     algo: Algo,
-    env_train: Env,
-    env_eval: Env,
+    env_train: gym.Env,
+    env_eval: gym.Env,
     replay_buffer: ReplayBuffer,
     device: torch.device,
     consecutive_action_steps: int,
@@ -139,62 +131,62 @@ def run(
                 try:
                     result = agent.update(task[1])
                 except ValueError as error:
-                    logger.warning(f"Update Error: {error}")
+                    log_warning = f"Update Error: {error}"
+                    logger.warning(log_warning)
                     shutdown_event.set()
                     result = error
-            elif task_name == "put_network_states_container":
-                network_states_container = deepcopy(
-                    agent.algo.model.network_states_container
-                )
-                network_states_container.to(torch.device("cpu"))
-                model_queue.put(network_states_container)
+            elif task_name == "state_dicts_network":
+                state_dicts = task[1]
+                state_dicts = agent.algo.state_dicts_network(state_dicts)
+                model_queue.put(state_dicts)
+                del state_dicts
                 continue
-            elif task_name == "set_network_states_container":
-                network_states_container = task[1]
-                network_states_container.to(device)
-                agent.algo.model.set_network_states(network_states_container)
+            elif task_name == "load_state_dicts_network":
+                state_dicts = task[1]
+                agent.algo.load_state_dicts_network(state_dicts)
+                del state_dicts
                 continue
-            elif task_name == "put_optimizer_states_container":
-                optimizer_states_container = deepcopy(
-                    agent.algo.model.optimizer_states_container
-                )
-                optimizer_states_container.to(torch.device("cpu"))
-                model_queue.put(optimizer_states_container)
-                continue
-            elif task_name == "set_optmizer_states_container":
-                optimizer_states_container = task[1]
-                optimizer_states_container.to(device)
-                agent.algo.model.set_optimizer_states(optimizer_states_container)
-                continue
-            elif task_name == "put_scheduler_states_container":
-                states_container = deepcopy(agent.algo.model.scheduler_states_container)
-                model_queue.put(states_container)
-                continue
-            elif task_name == "set_scheduler_states_container":
-                states_container = task[1]
-                agent.algo.model.set_scheduler_states(states_container)
-                continue
+                # elif task_name == "put_optimizer_states_container":
+                #     optimizer_states_container = deepcopy(
+                #         agent.algo.model.optimizer_states_container
+                #     )
+                #     optimizer_states_container.to(torch.device("cpu"))
+                #     model_queue.put(optimizer_states_container)
+                #     continue
+                # elif task_name == "set_optmizer_states_container":
+                #     optimizer_states_container = task[1]
+                #     optimizer_states_container.to(device)
+                #     agent.algo.model.set_optimizer_states(optimizer_states_container)
+                #     continue
+                # elif task_name == "put_scheduler_states_container":
+                #     states_container = deepcopy(agent.algo.model.scheduler_states_container)
+                #     model_queue.put(states_container)
+                #     continue
+                # elif task_name == "set_scheduler_states_container":
+                #     states_container = task[1]
+                #     agent.algo.model.set_scheduler_states(states_container)
+                # continue
             elif task_name == "shutdown":
                 agent.close()
                 continue
             else:
                 continue
             result_queue.put(result)
-    except Exception as e:
-        tb = "".join(traceback.format_tb(e.__traceback__))
-        logger.warning(f"Traceback:\n" + tb)
-        logger.warning(e)
-        result_queue.put(e)
+    except Exception as exception:  # pylint: disable=broad-exception-caught
+        exception_traceback = "".join(traceback.format_tb(exception.__traceback__))
+        logger.warning("Traceback:\n" + exception_traceback)
+        logger.warning(exception)
+        result_queue.put(exception)
     agent.close()
 
 
-class SingleAgentProcess(Agent):
+class SingleAgentProcess:
     def __init__(
         self,
-        id: int,
+        agent_id: int,
         algo: Algo,
-        env_train: Env,
-        env_eval: Env,
+        env_train: gym.Env,
+        env_eval: gym.Env,
         replay_buffer: ReplayBuffer,
         device: torch.device,
         consecutive_action_steps: int,
@@ -206,7 +198,7 @@ class SingleAgentProcess(Agent):
     ) -> None:
 
         self.logger = logging.getLogger(self.__module__)
-        self.id = id
+        self.agent_id = agent_id
         self.name = name
         self._shutdown_event = mp.Event()
         self._task_queue = mp.Queue()
@@ -222,7 +214,6 @@ class SingleAgentProcess(Agent):
         self._process = mp.Process(
             target=run,
             args=[
-                id,
                 algo,
                 env_train,
                 env_eval,
@@ -266,38 +257,38 @@ class SingleAgentProcess(Agent):
     def get_result(self) -> List[Any]:
         result = self._result_queue.get()
         if isinstance(result, Exception):
-            self.logger.warn(
-                f"{self.name}: Agent Process stopped because of Exception: {result}. Closing Process."
-            )
+            log_warn = f"{self.name}: Agent Process stopped because of Exception: {result}. Closing Process."
+            self.logger.warning(log_warn)
             raise result
         return result
 
-    def set_network_states(self, states_container: NetworkStatesContainer):
-        self._task_queue.put(["set_network_states_container", states_container])
+    def load_state_dicts_network(self, states_container: Dict[str, Any]):
+        self._task_queue.put(["load_state_dicts_network", states_container])
 
-    def get_network_states_container(self) -> NetworkStatesContainer:
-        self._task_queue.put(["put_network_states_container"])
+    def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
+        self._task_queue.put(["state_dicts_network", destination])
         return self._model_queue.get()
 
-    def set_optimizer_states(self, states_container: OptimizerStatesContainer):
-        self._task_queue.put(["set_optimizer_states_container", states_container])
+    # def set_optimizer_states(self, states_container: OptimizerStatesContainer):
+    #     self._task_queue.put(["set_optimizer_states_container", states_container])
 
-    def get_optimizer_states_container(self) -> OptimizerStatesContainer:
-        self._task_queue.put(["put_optimizer_states_container"])
-        return self._model_queue.get()
+    # def get_optimizer_states_container(self) -> OptimizerStatesContainer:
+    #     self._task_queue.put(["put_optimizer_states_container"])
+    #     return self._model_queue.get()
 
-    def set_scheduler_states(self, states_container: SchedulerStatesContainer):
-        self._task_queue.put(["set_scheduler_states_container", states_container])
+    # def set_scheduler_states(self, states_container: SchedulerStatesContainer):
+    #     self._task_queue.put(["set_scheduler_states_container", states_container])
 
-    def get_scheduler_states_container(self) -> SchedulerStatesContainer:
-        self._task_queue.put(["put_scheduler_states_container"])
-        return self._model_queue.get()
+    # def get_scheduler_states_container(self) -> SchedulerStatesContainer:
+    #     self._task_queue.put(["put_scheduler_states_container"])
+    #     return self._model_queue.get()
 
     def close(self) -> None:
         if self._process is not None and self._process.is_alive():
             self._shutdown_event.set()
             self._task_queue.put(["shutdown"])
-            exitcode = self._process.join(5)
+            self._process.join(5)
+            exitcode = self._process.exitcode
             if exitcode is None:
                 self._process.kill()
                 self._process.join()
@@ -338,12 +329,3 @@ class SingleAgentProcess(Agent):
         self._episode_counter.heatup = new_counter.heatup
         self._episode_counter.exploration = new_counter.exploration
         self._episode_counter.evaluation = new_counter.evaluation
-
-    def load_checkpoint(self, directory: str, name: str) -> None:
-        ...
-
-    def save_checkpoint(self, directory: str, name: str) -> None:
-        ...
-
-    def copy(self):
-        ...

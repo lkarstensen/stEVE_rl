@@ -16,6 +16,10 @@ class Dummy(Network):
     def n_outputs(self) -> int:
         return self._n_inputs
 
+    @property
+    def device(self) -> torch.device:
+        return torch.device("cpu")
+
     def forward(self, input_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
 
         return input_batch

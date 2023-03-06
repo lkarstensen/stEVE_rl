@@ -1,11 +1,10 @@
-from copy import deepcopy
-import logging
 from typing import List
+import logging
+import numpy as np
 import torch
 import torch.nn.functional as F
 from .algo import Algo
 from .sacmodel import SACModel
-import numpy as np
 from ..replaybuffer import Batch
 
 
@@ -33,21 +32,17 @@ class SAC(Algo):
         # REST
         self.reward_scaling = reward_scaling
         self.action_scaling = action_scaling
-        self._device = torch.device("cpu")
+
+        self.device = torch.device("cpu")
         self.update_step = 0
 
         # ENTROPY TEMPERATURE
         self.alpha = torch.ones(1)
-
-        self.target_entropy = -torch.ones(1) * self.n_actions
+        self.target_entropy = -torch.ones(1) * n_actions
 
     @property
     def model(self) -> SACModel:
         return self._model
-
-    @property
-    def device(self) -> torch.device:
-        return self._device
 
     def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
         action = self.model.get_play_action(flat_state, evaluation=False)
@@ -63,13 +58,13 @@ class SAC(Algo):
         (all_states, actions, rewards, dones, padding_mask) = batch
         # actions /= self.action_scaling
 
-        all_states = all_states.to(dtype=torch.float32, device=self._device)
-        actions = actions.to(dtype=torch.float32, device=self._device)
-        rewards = rewards.to(dtype=torch.float32, device=self._device)
-        dones = dones.to(dtype=torch.float32, device=self._device)
+        all_states = all_states.to(dtype=torch.float32, device=self.device)
+        actions = actions.to(dtype=torch.float32, device=self.device)
+        rewards = rewards.to(dtype=torch.float32, device=self.device)
+        dones = dones.to(dtype=torch.float32, device=self.device)
 
         if padding_mask is not None:
-            padding_mask = padding_mask.to(dtype=torch.float32, device=self._device)
+            padding_mask = padding_mask.to(dtype=torch.float32, device=self.device)
 
         seq_length = actions.shape[1]
         states = torch.narrow(all_states, dim=1, start=0, length=seq_length)
@@ -138,22 +133,8 @@ class SAC(Algo):
         self.model.q2_scheduler_step()
         self.model.policy_scheduler_step()
 
-    
-
-    def copy_shared_memory(self):
-        copy = self.__class__(
-            self.model.copy_shared_memory(),
-            self.n_actions,
-            self.gamma,
-            self.tau,
-            self.reward_scaling,
-            self.action_scaling,
-            self.exploration_action_noise,
-        )
-        return copy
-
     def to(self, device: torch.device):
-        self._device = device
+        super().to(device)
         self.alpha = self.alpha.to(device)
         self.target_entropy = self.target_entropy.to(device)
         self.model.to(device)

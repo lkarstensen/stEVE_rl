@@ -42,6 +42,10 @@ class LSTM(Network):
     def n_outputs(self) -> int:
         return self.lstm.hidden_size
 
+    @property
+    def device(self) -> torch.device:
+        return self.lstm.all_weights[0][0].device
+
     def forward(
         self, input_batch: torch.Tensor, use_hidden_state, *args, **kwargs
     ) -> torch.Tensor:

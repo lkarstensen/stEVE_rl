@@ -1,1 +1,1 @@
-from eve.util import ConfigHandler
+from .confighandler import ConfigHandler

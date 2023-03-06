@@ -1,10 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple
-import numpy as np
+from typing import List
 from dataclasses import dataclass
 import torch.multiprocessing as mp
+import gymnasium as gym
+import torch
 
-from stacierl.replaybuffer.replaybuffer import Episode
+from ..replaybuffer.replaybuffer import Episode
+from ..util import ConfigHandler
+from ..algo import Algo
+from ..replaybuffer import ReplayBuffer
 
 
 @dataclass
@@ -38,6 +42,7 @@ class StepCounter:
 
 
 class StepCounterShared(StepCounter):
+    # pylint: disable=super-init-not-called
     def __init__(self):
         self._heatup: mp.Value = mp.Value("i", 0)
         self._exploration: mp.Value = mp.Value("i", 0)
@@ -85,6 +90,7 @@ class StepCounterShared(StepCounter):
 
 
 class EpisodeCounterShared(EpisodeCounter):
+    # pylint: disable=super-init-not-called
     def __init__(self):
         self._heatup: mp.Value = mp.Value("i", 0)
         self._exploration: mp.Value = mp.Value("i", 0)
@@ -122,6 +128,13 @@ class EpisodeCounterShared(EpisodeCounter):
 
 
 class Agent(ABC):
+    step_counter: StepCounter
+    episode_counter: EpisodeCounter
+    algo: Algo
+    env_train: gym.Env
+    env_eval: gym.Env
+    replay_buffer: ReplayBuffer
+
     @abstractmethod
     def heatup(self, steps: int = None, episodes: int = None) -> List[Episode]:
         ...
@@ -142,24 +155,46 @@ class Agent(ABC):
     def close(self) -> None:
         ...
 
-    @property
-    @abstractmethod
-    def step_counter(self) -> StepCounter:
-        ...
+    def save_config(self, file_path: str):
+        confighandler = ConfigHandler()
+        confighandler.save_config(self, file_path)
 
-    @property
-    @abstractmethod
-    def episode_counter(self) -> EpisodeCounter:
-        ...
+    def save_checkpoint(self, file_path) -> None:
+        confighandler = ConfigHandler()
+        algo_dict = confighandler.object_to_config_dict(self.algo)
+        replay_dict = confighandler.object_to_config_dict(self.replay_buffer)
+        checkpoint_dict = {
+            "algo": {
+                "network": self.algo.state_dicts_network(),
+                "config": algo_dict,
+            },
+            "replay_buffer": {"config": replay_dict},
+            "steps": {
+                "heatup": self.step_counter.heatup,
+                "exploration": self.step_counter.exploration,
+                "update": self.step_counter.update,
+                "evaluation": self.step_counter.evaluation,
+            },
+            "episodes": {
+                "heatup": self.episode_counter.heatup,
+                "exploration": self.episode_counter.exploration,
+                "evaluation": self.episode_counter.evaluation,
+            },
+        }
 
-    @abstractmethod
-    def save_checkpoint(self, file_path: str) -> None:
-        ...
+        torch.save(checkpoint_dict, file_path)
 
-    @abstractmethod
     def load_checkpoint(self, file_path: str) -> None:
-        ...
+        checkpoint = torch.load(file_path)
 
-    @abstractmethod
-    def copy(self):
-        ...
+        state_dicts_network = checkpoint["algo"]["network"]
+        self.algo.load_state_dicts_network(state_dicts_network)
+
+        self.step_counter.heatup = checkpoint["steps"]["heatup"]
+        self.step_counter.exploration = checkpoint["steps"]["exploration"]
+        self.step_counter.evaluation = checkpoint["steps"]["evaluation"]
+        self.step_counter.update = checkpoint["steps"]["update"]
+
+        self.episode_counter.heatup = checkpoint["episodes"]["heatup"]
+        self.episode_counter.exploration = checkpoint["episodes"]["exploration"]
+        self.episode_counter.evaluation = checkpoint["episodes"]["evaluation"]

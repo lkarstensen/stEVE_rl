@@ -1,27 +1,26 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import List, Dict
+from typing import Any, List, Dict, Optional
 import numpy as np
-from ..replaybuffer import Batch
-from .model import Model, NetworkStatesContainer
 import torch
+from ..replaybuffer import Batch
+from .model import Model
+from ..util import ConfigHandler
 
 
 class Algo(ABC):
-    @abstractmethod
-    def __init__(self) -> None:
-        self._device: torch.device = torch.device("cpu")
-        self.lr_scheduler_step_counter = 0
+    model: Model
+    device: torch.device
 
-    @property
-    @abstractmethod
-    def model(self) -> Model:
-        ...
+    lr_scheduler_step_counter = 0
 
-    @property
-    @abstractmethod
-    def device(self) -> torch.device:
-        ...
+    def state_dicts_network(
+        self, destination: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        return self.model.state_dicts_network(destination)
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+        return self.model.load_state_dicts_network(state_dicts)
 
     @abstractmethod
     def update(self, batch: Batch) -> List[float]:
@@ -47,14 +46,13 @@ class Algo(ABC):
         copy = deepcopy(self)
         return copy
 
-    @abstractmethod
-    def copy_shared_memory(self):
-        ...
-
-    @abstractmethod
     def to(self, device: torch.device):
-        ...
+        self.device = device
 
     @abstractmethod
     def close(self):
         ...
+
+    def save_config(self, file_path: str):
+        confighandler = ConfigHandler()
+        confighandler.save_config(self, file_path)

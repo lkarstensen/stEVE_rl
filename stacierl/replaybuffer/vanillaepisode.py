@@ -28,7 +28,7 @@ class VanillaEpisode(ReplayBuffer):
             np.array(episode.flat_states),
             np.array(episode.actions),
             np.array(episode.rewards),
-            np.array(episode.dones),
+            np.array(episode.terminals),
         )
         self.buffer[self.position] = episode_np
         self.position = int((self.position + 1) % self.capacity)  # as a ring buffer

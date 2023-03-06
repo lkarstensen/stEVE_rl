@@ -24,7 +24,7 @@ class VanillaStep(ReplayBuffer):
                 np.array(episode.flat_states[i : i + 2]),  # state + next_state
                 np.array(episode.actions[i]),
                 np.array(episode.rewards[i]),
-                np.array(episode.dones[i]),
+                np.array(episode.terminals[i]),
             )
             self.buffer[self.position] = episode_np
             self.position = int((self.position + 1) % self.capacity)  # as a ring buffer

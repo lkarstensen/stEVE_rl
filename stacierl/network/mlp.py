@@ -1,14 +1,10 @@
 from copy import deepcopy
+from typing import List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
 
-from torch.nn.utils.rnn import (
-    PackedSequence,
-    pack_padded_sequence,
-    pad_packed_sequence,
-)
 from .network import Network
 
 
@@ -42,6 +38,10 @@ class MLP(Network):
     @property
     def n_outputs(self) -> int:
         return self.layers[-1].out_features
+
+    @property
+    def device(self) -> torch.device:
+        return self.layers[0].weight.device
 
     def forward(self, input_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         input = input_batch

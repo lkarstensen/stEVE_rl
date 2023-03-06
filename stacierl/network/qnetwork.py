@@ -1,10 +1,9 @@
 from copy import deepcopy
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Tuple, Optional
 
-from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence, pad_packed_sequence
 from .network import Network
 
 
@@ -32,16 +31,16 @@ class QNetwork(Network):
         self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
 
     @property
-    def input_is_set(self) -> bool:
-        return self._n_observations is not None
-
-    @property
     def n_inputs(self) -> Tuple[int, int]:
         return self.n_observations, self.n_actions
 
     @property
     def n_outputs(self) -> int:
         return 1
+
+    @property
+    def device(self) -> torch.device:
+        return self.layers[0].weight.device
 
     def forward(
         self, state_batch: torch.Tensor, action_batch: torch.Tensor, *args, **kwargs

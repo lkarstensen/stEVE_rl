@@ -10,16 +10,16 @@ import stacierl
 
 def sac_training(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    lr=0.001991743536437494,
+    lr=0.003,
     hidden_layers=[255, 255, 255],
     gamma=0.99,
     replay_buffer=1e6,
-    training_steps=1e5,
+    training_steps=1e6,
     consecutive_explore_steps=1,
-    steps_between_eval=1e4,
+    steps_between_eval=5e4,
     eval_episodes=100,
-    batch_size=164,
-    heatup=1e3,
+    batch_size=256,
+    heatup=1e5,
     log_folder: str = os.getcwd() + "/fast_learner_example_results/",
     id_training=0,
     name="fast_learner",
@@ -72,16 +72,16 @@ def sac_training(
         lr_alpha=lr,
     )
     algo = stacierl.algo.SAC(sac_model, n_actions=n_actions, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
-    agent = stacierl.agent.Single(
+    replay_buffer = stacierl.replaybuffer.VanillaStepShared(replay_buffer, batch_size)
+    agent = stacierl.agent.Synchron(
         algo,
         env,
         env,
         replay_buffer,
         consecutive_action_steps=1,
-        device=device,
         normalize_actions=True,
-        # n_worker=5,
+        n_worker=6,
+        trainer_device=device,
     )
     agent.save_config("/Users/lennartkarstensen/stacie/stacierl/test.yml")
 

@@ -54,6 +54,10 @@ class GaussianPolicy(Network):
     def n_outputs(self) -> Tuple[int, int]:
         return self.n_actions, self.n_actions
 
+    @property
+    def device(self) -> torch.device:
+        return self.layers[0].weight.device
+
     def forward(
         self, state_batch: torch.Tensor, *args, **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor]:

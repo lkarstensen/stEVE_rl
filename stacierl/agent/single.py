@@ -1,25 +1,23 @@
-import logging
 from time import perf_counter
-from typing import Callable, List, Tuple
+from typing import Callable, Dict, List, Tuple
+from math import inf
+import logging
+import torch
+import numpy as np
+import gymnasium as gym
 
 from stacierl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode, ReplayBufferShared
-from eve import Env
-import torch
-from math import inf
-
-import numpy as np
-import os
 
 
 class Single(Agent):
     def __init__(
         self,
         algo: Algo,
-        env_train: Env,
-        env_eval: Env,
+        env_train: gym.Env,
+        env_eval: gym.Env,
         replay_buffer: ReplayBuffer,
         device: torch.device = torch.device("cpu"),
         consecutive_action_steps: int = 1,
@@ -34,8 +32,8 @@ class Single(Agent):
         self.consecutive_action_steps = consecutive_action_steps
         self.normalize_actions = normalize_actions
 
-        self._step_counter = StepCounter()
-        self._episode_counter = EpisodeCounter()
+        self.step_counter = StepCounter()
+        self.episode_counter = EpisodeCounter()
         self.to(device)
 
     def heatup(
@@ -50,7 +48,7 @@ class Single(Agent):
         episode_limit = self.episode_counter.heatup + episodes
         episodes_data = []
 
-        def random_action(*args, **kwargs):
+        def random_action(*args, **kwargs):  # pylint: disable=unused-argument
             env_low = self.env_train.action_space.low.reshape(-1)
             env_high = self.env_train.action_space.high.reshape(-1)
 
@@ -97,9 +95,8 @@ class Single(Agent):
             episodes_data.append(episode)
 
         t_duration = perf_counter() - t_start
-        self.logger.info(
-            f"Heatup Steps Total: {self.step_counter.heatup}, Steps this Heatup: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        )
+        log_info = f"Heatup Steps Total: {self.step_counter.heatup}, Steps this Heatup: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        self.logger.info(log_info)
         return episodes_data
 
     def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
@@ -137,9 +134,8 @@ class Single(Agent):
             episodes_data.append(episode)
 
         t_duration = perf_counter() - t_start
-        self.logger.info(
-            f"Exploration Steps Total: {self.step_counter.exploration}, Steps this Exploration: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        )
+        log_text = f"Exploration Steps Total: {self.step_counter.exploration}, Steps this Exploration: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        self.logger.info(log_text)
         return episodes_data
 
     def update(self, steps) -> List[List[float]]:
@@ -161,9 +157,8 @@ class Single(Agent):
                 self.algo.lr_scheduler_step()
 
         t_duration = perf_counter() - t_start
-        self.logger.info(
-            f"Update Steps Total: {self.step_counter.update}, Steps this update: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        )
+        log_text = f"Update Steps Total: {self.step_counter.update}, Steps this update: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        self.logger.info(log_text)
 
         return results
 
@@ -199,45 +194,56 @@ class Single(Agent):
             n_steps += n_steps_episode
             episodes_data.append(episode)
         t_duration = perf_counter() - t_start
-        self.logger.info(
-            f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        )
+        log_text = f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
+        self.logger.info(log_text)
         return episodes_data
 
     def _play_episode(
         self,
-        env: Env,
+        env: gym.Env,
         action_function: Callable[[np.ndarray], np.ndarray],
         consecutive_actions: int,
     ) -> Tuple[Episode, int]:
-        done = False
+        terminal = False
+        truncation = False
         step_counter = 0
 
         self.algo.reset()
-        state = env.reset()
-        flat_state = env.observation_space.to_flat_array(state)
-        episode = Episode(state, flat_state)
+        obs = env.reset()
+        flat_obs = self._flatten_obs(obs)
+        episode = Episode(obs, flat_obs)
 
-        while done == False:
-            action = action_function(flat_state)
+        while not (terminal or truncation):
+            action = action_function(flat_obs)
 
             for _ in range(consecutive_actions):
-                env_action = action.reshape(env.action_space.low.shape)
+                env_action = action.reshape(env.action_space.shape)
                 if self.normalize_actions:
-                    env_action = (env_action + 1) / 2 * (
-                        env.action_space.high - env.action_space.low
-                    ) + env.action_space.low
-                state, reward, done, info, success = env.step(env_action)
-                flat_state = env.observation_space.to_flat_array(state)
+                    if isinstance(env.action_space, gym.spaces.Box):
+                        env_action = (env_action + 1) / 2 * (
+                            env.action_space.high - env.action_space.low
+                        ) + env.action_space.low
+                    else:
+                        raise NotImplementedError(
+                            "Normaization not implemented for this Action Space"
+                        )
+                obs, reward, terminal, truncation, info = env.step(env_action)
+                flat_obs = self._flatten_obs(obs)
                 step_counter += 1
                 env.render()
                 episode.add_transition(
-                    state, flat_state, action, reward, done, info, success
+                    obs, flat_obs, action, reward, terminal, truncation, info
                 )
-                if done:
+                if terminal or truncation:
                     break
 
         return episode, step_counter
+
+    @staticmethod
+    def _flatten_obs(state: Dict[str, np.ndarray]) -> np.ndarray:
+        obs_list = [obs.flatten() for obs in state.values()]
+        obs_np = np.concatenate(obs_list)
+        return obs_np
 
     def to(self, device: torch.device):
         self.device = device
@@ -250,62 +256,6 @@ class Single(Agent):
         if isinstance(self.replay_buffer, ReplayBufferShared):
             if self.replay_buffer.access_counter.value <= 1:
                 self.replay_buffer.close()
-
-    def save_checkpoint(self, file_path) -> None:
-
-        optimizer_state_dicts = self.algo.model.optimizer_states_container.to_dict()
-        network_state_dicts = self.algo.model.network_states_container.to_dict()
-        scheduler_state_dicts = self.algo.model.scheduler_states_container.to_dict()
-
-        checkpoint_dict = {
-            "optimizer_state_dicts": optimizer_state_dicts,
-            "scheduler_state_dicts": scheduler_state_dicts,
-            "network_state_dicts": network_state_dicts,
-            "heatup_steps": self.step_counter.heatup,
-            "exploration_steps": self.step_counter.exploration,
-            "update_steps": self.step_counter.update,
-            "evaluation_steps": self.step_counter.evaluation,
-        }
-
-        torch.save(checkpoint_dict, file_path)
-
-    def load_checkpoint(self, file_path: str) -> None:
-        checkpoint = torch.load(file_path, map_location=self.device)
-
-        network_states_container = self.algo.model.network_states_container
-        network_states_container.from_dict(checkpoint["network_state_dicts"])
-
-        optimizer_states_container = self.algo.model.optimizer_states_container
-        optimizer_states_container.from_dict(checkpoint["optimizer_state_dicts"])
-
-        # scheduler_states_container = checkpoint["scheduler_state_dicts"]
-
-        self.algo.model.set_network_states(network_states_container)
-        self.algo.model.set_optimizer_states(optimizer_states_container)
-        # self.algo.model.set_scheduler_states(scheduler_states_container)
-
-        self.step_counter = StepCounter(
-            checkpoint["heatup_steps"],
-            checkpoint["exploration_steps"],
-            checkpoint["evaluation_steps"],
-            checkpoint["update_steps"],
-        )
-
-    @property
-    def step_counter(self) -> StepCounter:
-        return self._step_counter
-
-    @property
-    def episode_counter(self) -> EpisodeCounter:
-        return self._episode_counter
-
-    @step_counter.setter
-    def step_counter(self, new_counter: StepCounter) -> None:
-        self._step_counter = new_counter
-
-    @episode_counter.setter
-    def episode_counter(self, new_counter: EpisodeCounter) -> None:
-        self._episode_counter = new_counter
 
     def copy(self):
         ...

@@ -1,8 +1,7 @@
 from copy import deepcopy
 from typing import List, Tuple
+from torch import nn
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from .network import Network
 
@@ -21,14 +20,16 @@ class QNetwork(Network):
         layers_in = [n_input] + hidden_layers[:-1]
         layers_out = hidden_layers
 
-        self.layers: List[nn.Linear] = nn.ModuleList()
-        for input, output in zip(layers_in, layers_out):
-            self.layers.append(nn.Linear(input, output))
+        self.layers: List[nn.Linear] = []
+        for in_size, out_size in zip(layers_in, layers_out):
+            self.layers.append(nn.Linear(in_size, out_size))
+            self.layers.append(nn.ReLU())
 
         self.layers.append(nn.Linear(hidden_layers[-1], 1))
 
         self.layers[-1].weight.data.uniform_(-self.init_w, self.init_w)
         self.layers[-1].bias.data.uniform_(-self.init_w, self.init_w)
+        self.sequential = nn.Sequential(*self.layers)
 
     @property
     def n_inputs(self) -> Tuple[int, int]:
@@ -42,18 +43,14 @@ class QNetwork(Network):
     def device(self) -> torch.device:
         return self.layers[0].weight.device
 
+    # pylint: disable=arguments-differ
     def forward(
-        self, state_batch: torch.Tensor, action_batch: torch.Tensor, *args, **kwargs
+        self, obs_batch: torch.Tensor, action_batch: torch.Tensor, *args, **kwargs
     ) -> torch.Tensor:
 
-        input = torch.dstack([state_batch, action_batch])
-        for layer in self.layers[:-1]:
-            output = layer(input)
-            output = F.relu(output)
-            input = output
+        nn_input = torch.dstack([obs_batch, action_batch])
 
-        # output without relu
-        q_value_batch = self.layers[-1](output)
+        q_value_batch = self.sequential.forward(nn_input)
 
         return q_value_batch
 

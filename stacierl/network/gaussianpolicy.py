@@ -1,9 +1,8 @@
 from copy import deepcopy
-import logging
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from typing import List, Tuple
+import logging
+from torch import nn
+import torch
 
 from .network import Network
 
@@ -32,9 +31,12 @@ class GaussianPolicy(Network):
         layers_input = [n_observations] + hidden_layers[:-1]
         layers_output = hidden_layers
 
-        self.layers: List[nn.Linear] = nn.ModuleList()
-        for input, output in zip(layers_input, layers_output):
-            self.layers.append(nn.Linear(input, output))
+        self.layers: List[nn.Module] = []
+        for in_size, out_size in zip(layers_input, layers_output):
+            self.layers.append(nn.Linear(in_size, out_size))
+            self.layers.append(nn.ReLU())
+
+        self.sequential = nn.Sequential(*self.layers)
 
         init_w = 3e-3
         last_output = self.hidden_layers[-1]
@@ -59,13 +61,9 @@ class GaussianPolicy(Network):
         return self.layers[0].weight.device
 
     def forward(
-        self, state_batch: torch.Tensor, *args, **kwargs
+        self, obs_batch: torch.Tensor, *args, **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        input = state_batch
-        for layer in self.layers:
-            output = layer(input)
-            output = F.relu(output)
-            input = output
+        output = self.sequential.forward(obs_batch)
 
         mean = self.mean(output)
         log_std = self.log_std(output)

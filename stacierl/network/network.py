@@ -1,5 +1,5 @@
-import torch.nn as nn
 from abc import abstractmethod
+import torch.nn as nn
 
 
 import torch
@@ -22,7 +22,7 @@ class Network(nn.Module):
         ...
 
     @abstractmethod
-    def forward(self, input: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+    def forward(self, obs_batch: torch.Tensor, *args, **kwargs) -> torch.Tensor:
         ...
 
     @abstractmethod

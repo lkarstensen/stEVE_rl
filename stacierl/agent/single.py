@@ -9,7 +9,7 @@ import gymnasium as gym
 from stacierl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
-from ..replaybuffer import ReplayBuffer, Episode, ReplayBufferShared
+from ..replaybuffer import ReplayBuffer, Episode
 
 
 class Single(Agent):
@@ -35,17 +35,22 @@ class Single(Agent):
         self.step_counter = StepCounter()
         self.episode_counter = EpisodeCounter()
         self.to(device)
+        self._next_batch = None
+        self._replay_too_small = True
 
     def heatup(
         self,
         steps: int = inf,
         episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
         custom_action_low: List[float] = None,
         custom_action_high: List[float] = None,
     ) -> List[Episode]:
 
-        step_limit = self.step_counter.heatup + steps
-        episode_limit = self.episode_counter.heatup + episodes
+        step_limit = min(step_limit, self.step_counter.heatup + steps)
+        episode_limit = min(episode_limit, self.episode_counter.heatup + episodes)
+        self._limits_sanity_check(steps, episodes, step_limit, episode_limit, "heatup")
         episodes_data = []
 
         def random_action(*args, **kwargs):  # pylint: disable=unused-argument
@@ -99,9 +104,19 @@ class Single(Agent):
         self.logger.info(log_info)
         return episodes_data
 
-    def explore(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        step_limit = self.step_counter.exploration + steps
-        episode_limit = self.episode_counter.exploration + episodes
+    def explore(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> List[Episode]:
+        step_limit = min(step_limit, self.step_counter.exploration + steps)
+        episode_limit = min(episode_limit, self.episode_counter.exploration + episodes)
+        self._limits_sanity_check(
+            steps, episodes, step_limit, episode_limit, "exploration"
+        )
+
         episodes_data = []
         n_episodes = 0
         n_steps = 0
@@ -138,11 +153,16 @@ class Single(Agent):
         self.logger.info(log_text)
         return episodes_data
 
-    def update(self, steps) -> List[List[float]]:
-        step_limit = self.step_counter.update + steps
+    def update(self, steps: int = inf, step_limit: int = inf) -> List[List[float]]:
+        step_limit = min(step_limit, self.step_counter.update + steps)
+        self._limits_sanity_check(steps, 0, step_limit, 0, "update")
         results = []
-        if len(self.replay_buffer) < self.replay_buffer.batch_size:
-            return results
+        if self._replay_too_small:
+            replay_len = len(self.replay_buffer)
+            batch_size = self.replay_buffer.batch_size
+            self._replay_too_small = replay_len <= batch_size
+        if self._replay_too_small or step_limit == 0 or steps == 0:
+            return []
 
         n_steps = 0
         t_start = perf_counter()
@@ -162,9 +182,18 @@ class Single(Agent):
 
         return results
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> List[Episode]:
-        step_limit = self.step_counter.evaluation + steps
-        episode_limit = self.episode_counter.evaluation + episodes
+    def evaluate(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> List[Episode]:
+        step_limit = min(step_limit, self.step_counter.evaluation + steps)
+        episode_limit = min(episode_limit, self.episode_counter.evaluation + episodes)
+        self._limits_sanity_check(
+            steps, episodes, step_limit, episode_limit, "evaluation"
+        )
         episodes_data = []
         n_episodes = 0
         n_steps = 0
@@ -197,6 +226,28 @@ class Single(Agent):
         log_text = f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
         self.logger.info(log_text)
         return episodes_data
+
+    @staticmethod
+    def _limits_sanity_check(steps, episodes, step_limit, episode_limit, task: str):
+        if task == "update":
+            if step_limit == inf:
+                raise ValueError(
+                    f"{steps=} or {step_limit=} for {task} are inf. At least one must be given."
+                )
+            if steps < 0 or step_limit < 0 or episodes < 0 or episode_limit < 0:
+                raise ValueError(
+                    f"{steps=} and {step_limit=} for {task} must be positive integers."
+                )
+
+        if step_limit == inf and episode_limit == inf:
+            raise ValueError(
+                f"{steps=}, {episodes=}, {step_limit=} or {episode_limit=} for {task} are inf. At least one must be given."
+            )
+
+        if steps < 0 or step_limit < 0 or episodes < 0 or episode_limit < 0:
+            raise ValueError(
+                f"{steps=}, {episodes=}, {step_limit=} and {episode_limit=} for {task} must be positive integers."
+            )
 
     def _play_episode(
         self,
@@ -253,9 +304,7 @@ class Single(Agent):
         self.env_train.close()
         if id(self.env_train) != id(self.env_eval):
             self.env_eval.close()
-        if isinstance(self.replay_buffer, ReplayBufferShared):
-            if self.replay_buffer.access_counter.value <= 1:
-                self.replay_buffer.close()
+        self.replay_buffer.close()
 
     def copy(self):
         ...

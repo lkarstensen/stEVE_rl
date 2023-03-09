@@ -144,3 +144,14 @@ class SAC(Algo):
 
     def close(self):
         self.model.close()
+
+    def copy_play_only(self):
+        return self.__class__(
+            self.model.copy_play_only(),
+            self.n_actions,
+            self.gamma,
+            self.tau,
+            self.reward_scaling,
+            self.action_scaling,
+            self.exploration_action_noise,
+        )

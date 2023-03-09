@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from math import inf
 from typing import List
 from dataclasses import dataclass
 import torch.multiprocessing as mp
@@ -136,19 +137,37 @@ class Agent(ABC):
     replay_buffer: ReplayBuffer
 
     @abstractmethod
-    def heatup(self, steps: int = None, episodes: int = None) -> List[Episode]:
+    def heatup(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> List[Episode]:
         ...
 
     @abstractmethod
-    def explore(self, steps: int = None, episodes: int = None) -> List[Episode]:
+    def explore(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> List[Episode]:
         ...
 
     @abstractmethod
-    def update(self, steps) -> List[List[float]]:
+    def update(self, steps: int = inf, step_limit: int = inf) -> List[List[float]]:
         ...
 
     @abstractmethod
-    def evaluate(self, steps: int = None, episodes: int = None) -> List[Episode]:
+    def evaluate(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> List[Episode]:
         ...
 
     @abstractmethod

@@ -46,6 +46,10 @@ class Algo(ABC):
         copy = deepcopy(self)
         return copy
 
+    @abstractmethod
+    def copy_play_only(self):
+        ...
+
     def to(self, device: torch.device):
         self.device = device
 

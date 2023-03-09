@@ -31,6 +31,10 @@ class Model(ABC):
         return copy
 
     @abstractmethod
+    def copy_play_only(self):
+        ...
+
+    @abstractmethod
     def reset(self) -> None:
         ...
 

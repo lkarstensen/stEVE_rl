@@ -83,19 +83,20 @@ def run(
     model_queue,
     step_counter,
     episode_counter,
-    shutdown_event,
+    shutdown,
+    is_shutdown,
     name,
+    nice_level: int,
 ):
+    os.nice(nice_level)
+
     try:
-        torch.set_num_threads(1)
+        torch.set_num_threads(4)
         for handler_name, handler_config in log_config_dict["handlers"].items():
             if "filename" in handler_config.keys():
                 filename = handler_config["filename"]
-                if ".log" in filename:
-                    path = filename[:-4]
-
-                else:
-                    path = filename
+                path, _ = os.path.split(filename)
+                path = os.path.join(path, "logs_subprocesses")
                 if not os.path.isdir(path):
                     os.mkdir(path)
                 filename = os.path.join(path, f"{name}.log")
@@ -114,26 +115,33 @@ def run(
         )
         agent.step_counter = step_counter
         agent.episode_counter = episode_counter
-        while not shutdown_event.is_set():
+        while not shutdown.is_set():
             try:
                 task = task_queue.get(timeout=1)
             except queue.Empty:
                 continue
-
             task_name = task[0]
+
+            if task_name in ["load_state_dicts_network", "state_dicts_network"]:
+                log_debug = f"Received {task[0]=} with {len(task)=}"
+            else:
+                log_debug = f"Received {task=}"
+            logger.debug(log_debug)
             if task_name == "heatup":
-                result = agent.heatup(task[1], task[2], task[3], task[4])
+                result = agent.heatup(
+                    task[1], task[2], task[3], task[4], task[5], task[6]
+                )
             elif task_name == "explore":
-                result = agent.explore(task[1], task[2])
+                result = agent.explore(task[1], task[2], task[3], task[4])
             elif task_name == "evaluate":
-                result = agent.evaluate(task[1], task[2])
+                result = agent.evaluate(task[1], task[2], task[3], task[4])
             elif task_name == "update":
                 try:
-                    result = agent.update(task[1])
+                    result = agent.update(task[1], task[2])
                 except ValueError as error:
                     log_warning = f"Update Error: {error}"
                     logger.warning(log_warning)
-                    shutdown_event.set()
+                    shutdown.set()
                     result = error
             elif task_name == "state_dicts_network":
                 state_dicts = task[1]
@@ -167,8 +175,7 @@ def run(
                 #     agent.algo.model.set_scheduler_states(states_container)
                 # continue
             elif task_name == "shutdown":
-                agent.close()
-                continue
+                break
             else:
                 continue
             result_queue.put(result)
@@ -178,6 +185,15 @@ def run(
         logger.warning(exception)
         result_queue.put(exception)
     agent.close()
+
+    for queue_ in [result_queue, model_queue, task_queue]:
+        while True:
+            try:
+                queue_.get_nowait()
+            except queue.Empty:
+                queue_.close()
+                break
+    is_shutdown.set()
 
 
 class SingleAgentProcess:
@@ -195,12 +211,14 @@ class SingleAgentProcess:
         parent_agent: Agent,
         step_counter: StepCounterShared = None,
         episode_counter: EpisodeCounterShared = None,
+        nice_level: int = 0,
     ) -> None:
 
         self.logger = logging.getLogger(self.__module__)
         self.agent_id = agent_id
         self.name = name
-        self._shutdown_event = mp.Event()
+        self._shutdown = mp.Event()
+        self._is_shutdown = mp.Event()
         self._task_queue = mp.Queue()
         self._result_queue = mp.Queue()
         self._model_queue = mp.Queue()
@@ -227,8 +245,10 @@ class SingleAgentProcess:
                 self._model_queue,
                 self.step_counter,
                 self.episode_counter,
-                self._shutdown_event,
+                self._shutdown,
+                self._is_shutdown,
                 name,
+                nice_level,
             ],
             name=name,
         )
@@ -238,36 +258,80 @@ class SingleAgentProcess:
         self,
         steps: int = inf,
         episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
         custom_action_low: List[float] = None,
         custom_action_high: List[float] = None,
     ) -> None:
         self._task_queue.put(
-            ["heatup", steps, episodes, custom_action_low, custom_action_high]
+            [
+                "heatup",
+                steps,
+                episodes,
+                step_limit,
+                episode_limit,
+                custom_action_low,
+                custom_action_high,
+            ]
         )
 
-    def explore(self, steps: int = inf, episodes: int = inf) -> None:
-        self._task_queue.put(["explore", steps, episodes])
+    def explore(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> None:
+        try:
+            self._task_queue.put(
+                ["explore", steps, episodes, step_limit, episode_limit]
+            )
+        except ValueError:
+            self.close()
 
-    def evaluate(self, steps: int = inf, episodes: int = inf) -> None:
-        self._task_queue.put(["evaluate", steps, episodes])
+    def evaluate(
+        self,
+        steps: int = inf,
+        episodes: int = inf,
+        step_limit: int = inf,
+        episode_limit: int = inf,
+    ) -> None:
+        try:
+            self._task_queue.put(
+                ["evaluate", steps, episodes, step_limit, episode_limit]
+            )
+        except ValueError:
+            self.close()
 
-    def update(self, steps) -> None:
-        self._task_queue.put(["update", steps])
+    def update(self, steps: int = inf, step_limit: int = inf) -> None:
+        try:
+            self._task_queue.put(["update", steps, step_limit])
+        except ValueError:
+            self.close()
 
-    def get_result(self) -> List[Any]:
-        result = self._result_queue.get()
-        if isinstance(result, Exception):
-            log_warn = f"{self.name}: Agent Process stopped because of Exception: {result}. Closing Process."
-            self.logger.warning(log_warn)
-            raise result
+    def get_result(self, timeout: float) -> List[Any]:
+        try:
+            result = self._result_queue.get(timeout=timeout)
+        except queue.Empty as error:
+            result = error
+        except ValueError:
+            self.close()
+            result = []
         return result
 
     def load_state_dicts_network(self, states_container: Dict[str, Any]):
-        self._task_queue.put(["load_state_dicts_network", states_container])
+        try:
+            self._task_queue.put(["load_state_dicts_network", states_container])
+        except ValueError:
+            self.close()
 
     def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
-        self._task_queue.put(["state_dicts_network", destination])
-        return self._model_queue.get()
+        try:
+            self._task_queue.put(["state_dicts_network", destination])
+            return self._model_queue.get()
+        except ValueError:
+            self.close()
+            return None
 
     # def set_optimizer_states(self, states_container: OptimizerStatesContainer):
     #     self._task_queue.put(["set_optimizer_states_container", states_container])
@@ -285,24 +349,30 @@ class SingleAgentProcess:
 
     def close(self) -> None:
         if self._process is not None and self._process.is_alive():
-            self._shutdown_event.set()
+            self._shutdown.set()
             self._task_queue.put(["shutdown"])
             self._process.join(5)
             exitcode = self._process.exitcode
             if exitcode is None:
+                if not self._is_shutdown.is_set():
+                    self._clear_queues()
+                    self._close_queues()
                 self._process.kill()
                 self._process.join()
-        self._process.close()
-        self._process = None
-        self._clear_queues()
-        self._close_queues()
+            self._process.close()
+            self._process = None
+
+    def is_alive(self) -> bool:
+        if self._process is None:
+            return False
+        return self._process.is_alive()
 
     def _clear_queues(self):
         for queue_ in [self._result_queue, self._model_queue, self._task_queue]:
             while True:
                 try:
                     queue_.get_nowait()
-                except queue.Empty:
+                except (queue.Empty, ValueError):
                     break
 
     def _close_queues(self):

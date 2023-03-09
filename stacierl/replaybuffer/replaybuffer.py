@@ -65,6 +65,34 @@ class Batch(NamedTuple):
     terminals: torch.Tensor
     padding_mask: torch.Tensor = None
 
+    def to(self, device: torch.device, non_blocking=False):
+        states = self.states.to(
+            device,
+            dtype=torch.float32,
+            non_blocking=non_blocking,
+        ).share_memory_()
+        actions = self.actions.to(
+            device,
+            dtype=torch.float32,
+            non_blocking=non_blocking,
+        ).share_memory_()
+        rewards = self.rewards.to(
+            device,
+            dtype=torch.float32,
+            non_blocking=non_blocking,
+        ).share_memory_()
+        terminals = self.terminals.to(
+            device,
+            dtype=torch.float32,
+            non_blocking=non_blocking,
+        ).share_memory_()
+        padding_mask = self.padding_mask.to(
+            device,
+            dtype=torch.float32,
+            non_blocking=non_blocking,
+        ).share_memory_()
+        return Batch(states, actions, rewards, terminals, padding_mask)
+
 
 class ReplayBuffer(ABC):
     @property

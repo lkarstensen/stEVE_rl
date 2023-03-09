@@ -8,6 +8,7 @@ import torch
 
 
 from .vanilla import Vanilla
+from ..model import Model
 from ... import network
 from ...network import NetworkDummy, Network
 from ...optimizer import Optimizer
@@ -399,6 +400,11 @@ class InputEmbedding(Vanilla):
 
         self.log_alpha.data.copy_(state_dicts["log_alpha"])
 
+    def copy_play_only(self):
+        return InputEmbeddingPlayOnly(
+            deepcopy(self.policy), deepcopy(self.policy_common_input_embedder)
+        )
+
     # @property
     # def optimizer_states_container(self) -> SACEmbeddedOptimizerStateContainer:
 
@@ -520,3 +526,96 @@ class InputEmbedding(Vanilla):
     #         self.policy_common_input_embedder.scheduler.load_state_dict(
     #             scheduler_states_container.policy_common
     #         )
+
+
+class InputEmbeddingPlayOnly(Model):
+    def __init__(
+        self,
+        policy: network.GaussianPolicy,
+        policy_common_input_embedder: Optional[Embedder] = None,
+    ) -> None:
+        self.policy = policy
+        self.policy_common_input_embedder = policy_common_input_embedder
+        self.policy_common_input_embedder = self._init_common_embedder(
+            self.policy_common_input_embedder
+        )
+
+    def _init_common_embedder(self, common_input_embedder: Embedder):
+
+        if common_input_embedder is None:
+            network = NetworkDummy(self.policy.n_observations)
+            update = False
+            embedder = Embedder(network, update)
+        else:
+
+            embedder = common_input_embedder
+
+        return embedder
+
+    def get_play_action(
+        self, flat_state: np.ndarray = None, evaluation=False
+    ) -> np.ndarray:
+        with torch.no_grad():
+            flat_state = torch.from_numpy(flat_state).unsqueeze(0).unsqueeze(0)
+            flat_state = flat_state.to(self.policy.device)
+            embedded_state = self._get_embedded_state(
+                flat_state,
+                self.policy_common_input_embedder,
+                use_hidden_state=True,
+            )
+            mean, log_std = self.policy.forward(embedded_state, use_hidden_state=True)
+            std = log_std.exp()
+
+            if evaluation:
+                action = torch.tanh(mean)
+                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return action
+            else:
+                normal = Normal(mean, std)
+                z = normal.sample()
+                action = torch.tanh(z)
+                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
+                return action
+
+    def _get_embedded_state(
+        self,
+        state_batch: torch.Tensor,
+        common_embedder: Embedder,
+        use_hidden_state: bool,
+    ):
+        hydra_state = state_batch
+
+        if common_embedder is None:
+            embedded_state = hydra_state
+        else:
+            if common_embedder.update:
+                embedded_state = common_embedder.network.forward(
+                    hydra_state, use_hidden_state=use_hidden_state
+                )
+            else:
+                with torch.no_grad():
+                    embedded_state = common_embedder.network.forward(
+                        hydra_state, use_hidden_state=use_hidden_state
+                    )
+        return embedded_state
+
+    def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
+        return None
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+
+        self.policy.load_state_dict(state_dicts["policy"])
+        self.policy_common_input_embedder.network.load_state_dict(
+            state_dicts["policy_common"]
+        )
+
+    def copy_play_only(self):
+        return deepcopy(self)
+
+    def reset(self) -> None:
+        self.policy.reset()
+        self.policy_common_input_embedder.network.reset()
+
+    def close(self):
+        del self.policy
+        del self.policy_common_input_embedder

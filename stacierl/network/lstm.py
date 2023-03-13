@@ -1,17 +1,12 @@
 from copy import deepcopy
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from typing import List, Tuple, Optional
-
-from torch.nn.utils.rnn import PackedSequence
+from torch import nn
 from .network import Network
 
 
 class LSTM(Network):
     def __init__(self, n_inputs: int, n_layer: int, n_nodes: int):
         super().__init__()
-        self._n_inputs = n_inputs
         self.n_layer = n_layer
         self.n_nodes = n_nodes
         self.lstm = None
@@ -19,8 +14,8 @@ class LSTM(Network):
 
         self.lstm = nn.LSTM(
             input_size=n_inputs,
-            hidden_size=self.n_nodes,
-            num_layers=self.n_layer,
+            hidden_size=n_nodes,
+            num_layers=n_layer,
             batch_first=True,
             bias=True,
         )
@@ -36,7 +31,17 @@ class LSTM(Network):
 
     @property
     def n_inputs(self) -> int:
-        return self._n_inputs
+        return self.lstm.input_size
+
+    @n_inputs.setter
+    def n_inputs(self, n_inputs: int) -> None:
+        self.lstm = nn.LSTM(
+            input_size=n_inputs,
+            hidden_size=self.lstm.hidden_size,
+            num_layers=self.lstm.num_layers,
+            batch_first=True,
+            bias=True,
+        )
 
     @property
     def n_outputs(self) -> int:
@@ -46,15 +51,13 @@ class LSTM(Network):
     def device(self) -> torch.device:
         return self.lstm.all_weights[0][0].device
 
-    def forward(
-        self, input_batch: torch.Tensor, use_hidden_state, *args, **kwargs
-    ) -> torch.Tensor:
-        if use_hidden_state:
-            output, self.hidden_state = self.lstm.forward(
-                input_batch, self.hidden_state
-            )
-        else:
-            output, _ = self.lstm.forward(input_batch)
+    def forward(self, obs_batch: torch.Tensor, *args, **kwds) -> torch.Tensor:
+        output, _ = self.lstm.forward(obs_batch)
+        return output
+
+    def forward_play(self, flat_obs: torch.Tensor, *args, **kwds) -> torch.Tensor:
+        with torch.no_grad():
+            output, self.hidden_state = self.lstm.forward(flat_obs, self.hidden_state)
         return output
 
     def copy(self):

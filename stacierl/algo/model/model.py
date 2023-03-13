@@ -1,9 +1,8 @@
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, Optional
-import numpy as np
 import torch
-from ..util import ConfigHandler
+from ...util import ConfigHandler
 
 
 class Model(ABC):
@@ -17,10 +16,6 @@ class Model(ABC):
 
     @abstractmethod
     def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
-        ...
-
-    @abstractmethod
-    def get_play_action(self, flat_state: np.ndarray, evaluation: bool) -> np.ndarray:
         ...
 
     def to(self, device: torch.device):

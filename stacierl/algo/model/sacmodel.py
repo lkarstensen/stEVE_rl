@@ -1,16 +1,13 @@
 from copy import deepcopy
-from typing import Any, Dict, Iterator, Tuple
-import numpy as np
-from torch.distributions.normal import Normal
+from typing import Any, Dict, Iterator
+from torch import optim
 import torch
-import torch.optim as optim
-
-from .sacmodel import SACModel
+from .model import Model
 from ... import network
 from ...optimizer import Optimizer
 
 
-class Vanilla(SACModel):
+class SACModel(Model):
     def __init__(
         self,
         lr_alpha: float,
@@ -42,132 +39,33 @@ class Vanilla(SACModel):
         self.target_q2 = deepcopy(self.q2)
 
         self.log_alpha = torch.zeros(1, requires_grad=True)
-        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.lr_alpha)
-
-    def get_play_action(
-        self, flat_state: np.ndarray = None, evaluation=False
-    ) -> np.ndarray:
-        with torch.no_grad():
-            flat_state = (
-                torch.as_tensor(
-                    flat_state, dtype=torch.float32, device=self.policy.device
-                )
-                .unsqueeze(0)
-                .unsqueeze(0)
-            )
-
-            mean, log_std = self.policy.forward(flat_state)
-            std = log_std.exp()
-
-            if evaluation:
-                action = torch.tanh(mean)
-                rescaled_action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
-                return rescaled_action
-            else:
-                normal = Normal(mean, std)
-                z = normal.sample()
-                action = torch.tanh(z)
-                action = action.cpu().detach().squeeze(0).squeeze(0).numpy()
-                return action
-
-    def get_q_values(
-        self,
-        states: torch.Tensor,
-        actions: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.reset()
-        q1 = self.q1.forward(states, actions)
-        self.reset()
-        q2 = self.q2.forward(states, actions)
-        return q1, q2
-
-    def get_target_q_values(
-        self,
-        states: torch.Tensor,
-        actions: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        with torch.no_grad():
-            self.reset()
-            q1 = self.target_q1.forward(states, actions)
-            self.reset()
-            q2 = self.target_q2.forward(states, actions)
-            return q1, q2
+        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=lr_alpha)
 
     # epsilon makes sure that log(0) does not occur
-    def get_update_action(
-        self, state_batch: torch.Tensor, epsilon: float = 1e-6
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        self.reset()
-        mean_batch, log_std = self.policy.forward(state_batch)
-        std_batch = log_std.exp()
-
-        normal = Normal(mean_batch, std_batch)
-        z = normal.rsample()
-        action_batch = torch.tanh(z)
-
-        log_pi_batch = normal.log_prob(z) - torch.log(1 - action_batch.pow(2) + epsilon)
-        log_pi_batch = log_pi_batch.sum(-1, keepdim=True)
-
-        # log_pi_batch = torch.sum(normal.log_prob(z), dim=-1, keepdim=True) - torch.sum(
-        #        torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
-
-        return action_batch, log_pi_batch
-
-    def q1_update_zero_grad(self):
-        self.q1_optimizer.zero_grad()
-
-    def q2_update_zero_grad(self):
-        self.q2_optimizer.zero_grad()
-
-    def policy_update_zero_grad(self):
-        self.policy_optimizer.zero_grad()
-
-    def alpha_update_zero_grad(self):
-        self.alpha_optimizer.zero_grad()
-
-    def q1_update_step(self):
-        self.q1_optimizer.step()
-
-    def q2_update_step(self):
-        self.q2_optimizer.step()
-
-    def policy_update_step(self):
-        self.policy_optimizer.step()
-
-    def alpha_update_step(self):
-        self.alpha_optimizer.step()
-
-    def q1_scheduler_step(self):
-        if self.q1_scheduler is not None:
-            self.q1_scheduler.step()
-
-    def q2_scheduler_step(self):
-        if self.q2_scheduler is not None:
-            self.q2_scheduler.step()
-
-    def policy_scheduler_step(self):
-        if self.policy_scheduler is not None:
-            self.policy_scheduler.step()
 
     def to(self, device: torch.device):
         super().to(device)
-        self.q1.to(device)
         self.target_q1.to(device)
-        self.q1_optimizer.param_groups = []
-        self.q1_optimizer.add_param_group({"params": self.q1.parameters()})
-
-        self.q2.to(device)
         self.target_q2.to(device)
-        self.q2_optimizer.param_groups = []
-        self.q2_optimizer.add_param_group({"params": self.q2.parameters()})
 
-        self.policy.to(device)
-        self.policy_optimizer.param_groups = []
-        self.policy_optimizer.add_param_group({"params": self.policy.parameters()})
+        for net, optimizer in zip(
+            [self.q1, self.q2, self.policy],
+            [self.q1_optimizer, self.q2_optimizer, self.policy_optimizer],
+        ):
+
+            old_params = net.parameters()
+            net.to(device)
+            new_params = net.parameters()
+
+            for param_group in optimizer.param_groups:
+                optim_ids = [id(param) for param in param_group["params"]]
+                for old_param, new_param in zip(old_params, new_params):
+                    if id(old_param) in optim_ids:
+                        idx = optim_ids.index(id(old_param))
+                        param_group["params"][idx] = new_param
 
         self.log_alpha = self.log_alpha.detach().to(device=device).requires_grad_()
-        self.alpha_optimizer.param_groups = []
-        self.alpha_optimizer.add_param_group({"params": [self.log_alpha]})
+        self.alpha_optimizer.param_groups[0]["params"] = [self.log_alpha]
 
     def update_target_q(self, tau):
         for target_param, param in zip(
@@ -232,6 +130,9 @@ class Vanilla(SACModel):
 
         self.log_alpha.data.copy_(state_dicts["log_alpha"])
 
+    def copy_play_only(self):
+        return SACModelPolicyOnly(deepcopy(self.policy))
+
     # def set_network_states(self, network_states_container: SACNetworkStateContainer):
     #     self.q1.load_state_dict(network_states_container.q1)
     #     self.q2.load_state_dict(network_states_container.q2)
@@ -270,3 +171,50 @@ class Vanilla(SACModel):
     #     self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
     #     self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
     #     self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
+
+
+class SACModelPolicyOnly(Model):
+    def __init__(
+        self,
+        policy: network.GaussianPolicy,
+    ) -> None:
+        self.policy = policy
+
+    def to(self, device: torch.device):
+        super().to(device)
+        self.policy.to(device)
+
+    def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
+
+        ret = state_dicts = {
+            "q1": None,
+            "q2": None,
+            "target_q1": None,
+            "target_q2": None,
+            "policy": self.policy.state_dict(),
+            "log_alpha": None,
+        }
+
+        if destination is not None:
+
+            for net in ["policy"]:
+                state_dict = state_dicts[net]
+                dest = destination[net]
+
+                for tensor, dest_tensor in zip(state_dict.values(), dest.values()):
+                    dest_tensor.copy_(tensor)
+            ret = destination
+
+        return ret
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+        self.policy.load_state_dict(state_dicts["policy"])
+
+    def reset(self) -> None:
+        self.policy.reset()
+
+    def close(self):
+        del self.policy
+
+    def copy_play_only(self):
+        return deepcopy(self)

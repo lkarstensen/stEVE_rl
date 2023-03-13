@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from math import inf
-from typing import List
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass
+import logging
 import torch.multiprocessing as mp
 import gymnasium as gym
 import torch
@@ -135,38 +136,48 @@ class Agent(ABC):
     env_train: gym.Env
     env_eval: gym.Env
     replay_buffer: ReplayBuffer
+    logger: logging.Logger
 
     @abstractmethod
     def heatup(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
         ...
 
     @abstractmethod
     def explore(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
     ) -> List[Episode]:
         ...
 
     @abstractmethod
-    def update(self, steps: int = inf, step_limit: int = inf) -> List[List[float]]:
+    def update(
+        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
+    ) -> List[List[float]]:
         ...
 
     @abstractmethod
     def evaluate(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
         ...
 
@@ -217,3 +228,82 @@ class Agent(ABC):
         self.episode_counter.heatup = checkpoint["episodes"]["heatup"]
         self.episode_counter.exploration = checkpoint["episodes"]["exploration"]
         self.episode_counter.evaluation = checkpoint["episodes"]["evaluation"]
+
+    def _log_task(
+        self,
+        task: str,
+        steps: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episodes: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
+    ):
+        if task == "update":
+            log_text = f"update: steps {steps}/{step_limit}"
+        elif task == "explore":
+            log_text = f"explore: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit}"
+        elif task == "evaluate":
+            seed_text = f"{len(seeds)=}" if seeds is not None else "seeds=None"
+            options_text = f"{len(options)=}" if options is not None else "options=None"
+            log_text = f"evaluate: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {seed_text}/{options_text}"
+        elif task == "heatup":
+            log_text = f"heatup: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {custom_action_low=}/{custom_action_high=}"
+        else:
+            raise ValueError(f"{task=} is not possible")
+        self.logger.debug(log_text)
+
+    def _log_and_convert_limits(
+        self,
+        task: str,
+        steps: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episodes: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
+    ) -> Tuple[int, int]:
+
+        steps = int(steps) if steps not in [None, inf] else steps
+        episodes = int(episodes) if episodes not in [None, inf] else episodes
+        step_limit = int(step_limit) if step_limit not in [None, inf] else step_limit
+        episode_limit = (
+            int(episode_limit) if episode_limit not in [None, inf] else episode_limit
+        )
+
+        if (
+            steps is None
+            and episodes is None
+            and step_limit is None
+            and episode_limit is None
+            and seeds is None
+            and options is None
+        ):
+            raise ValueError(
+                f"{steps=}, {episodes=}, {step_limit=}, {episode_limit=}, {seeds=} and {options=} for {task}. At least one must be given."
+            )
+        steps = steps if steps is not None else inf
+        episodes = episodes if episodes is not None else inf
+        step_limit = step_limit if step_limit is not None else inf
+        episode_limit = episode_limit if episode_limit is not None else inf
+
+        if steps < 0 or step_limit < 0 or episodes < 0 or episode_limit < 0:
+            raise ValueError(
+                f"{steps=}, {episodes=}, {step_limit=} and {episode_limit=} for {task} must be positive integers."
+            )
+
+        current_steps = getattr(self.step_counter, task)
+        step_limit = min(step_limit, current_steps + steps)
+
+        if task != "update":
+            current_episodes = getattr(self.episode_counter, task)
+            episode_limit = min(episode_limit, current_episodes + episodes)
+
+        if seeds is not None and options is not None:
+            if len(seeds) != len(options):
+                raise ValueError(
+                    f"if seeds and options are given, they must be the same length. {len(seeds)=}, {len(options)=}"
+                )
+        return step_limit, episode_limit

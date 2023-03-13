@@ -1,6 +1,6 @@
 from copy import deepcopy
 from time import perf_counter
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from math import inf
 import logging
 import torch
@@ -49,21 +49,33 @@ class Synchron(Agent):
 
         self.trainer = self._create_trainer_agent()
 
-        self.logger.debug("Synchron Agent initialized")
+        self._eval_seeds = None
+        self._eval_options = None
+
+        self.logger.info("Synchron Agent initialized")
 
     def heatup(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
-        custom_action_low: List[float] = None,
-        custom_action_high: List[float] = None,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
-        log_info = f"heatup: {steps} steps / {episodes} episodes"
-        self.logger.info(log_info)
-        step_limit = min(step_limit, self.step_counter.heatup + steps)
-        episode_limit = min(episode_limit, self.episode_counter.heatup + episodes)
+        self._log_task(
+            "heatup",
+            steps,
+            step_limit,
+            episodes,
+            episode_limit,
+            custom_action_low=custom_action_low,
+            custom_action_high=custom_action_high,
+        )
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "heatup", steps, step_limit, episodes, episode_limit
+        )
         for agent in self.worker:
             agent.heatup(
                 step_limit=step_limit,
@@ -76,24 +88,29 @@ class Synchron(Agent):
 
     def explore(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
     ) -> List[Episode]:
-        log_info = f"explore: {steps} steps / {episodes} episodes"
-        self.logger.info(log_info)
-        step_limit = min(step_limit, self.step_counter.exploration + steps)
-        episode_limit = min(episode_limit, self.episode_counter.exploration + episodes)
+        self._log_task("explore", steps, step_limit, episodes, episode_limit)
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "exploration", steps, step_limit, episodes, episode_limit
+        )
+
         for agent in self.worker:
             agent.explore(step_limit=step_limit, episode_limit=episode_limit)
         result = self._get_worker_results(step_limit, episode_limit, "exploration")
         return result
 
-    def update(self, steps: int = inf, step_limit: int = inf) -> List[float]:
-        log_info = f"update: {steps} steps"
-        self.logger.info(log_info)
-        self.trainer.update(steps, step_limit)
+    def update(
+        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
+    ) -> List[float]:
+        self._log_task("update", steps, step_limit)
+        step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
+
+        self.trainer.update(steps=steps, step_limit=step_limit)
         result = self._get_trainer_results()
         self._update_state_dicts_network()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
@@ -101,42 +118,64 @@ class Synchron(Agent):
 
     def evaluate(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
-        log_info = f"evaluate: {steps} steps / {episodes} episodes"
-        self.logger.info(log_info)
-        step_limit = min(step_limit, self.step_counter.evaluation + steps)
-        episode_limit = min(episode_limit, self.episode_counter.evaluation + episodes)
+        self._log_task(
+            "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
+        )
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "evaluation", steps, step_limit, episodes, episode_limit, seeds, options
+        )
+        if seeds is not None:
+            self._eval_seeds = self._split(seeds, self.n_worker)
+        if options is not None:
+            self._eval_options = self._split(options, self.n_worker)
 
         for agent in self.worker:
-            agent.evaluate(step_limit=step_limit, episode_limit=episode_limit)
+            i = agent.agent_id
+            agent_seeds = self._eval_seeds[i] if seeds is not None else None
+            agent_options = self._eval_options[i] if options is not None else None
+            agent.evaluate(
+                step_limit=step_limit,
+                episode_limit=episode_limit,
+                seeds=agent_seeds,
+                options=agent_options,
+            )
 
+        self._eval_seeds = None
+        self._eval_options = None
         result = self._get_worker_results(step_limit, episode_limit, "evaluation")
         return result
 
     def explore_and_update_parallel(
         self,
-        update_steps: int,
-        explore_steps: int = inf,
-        explore_episodes: int = inf,
-        explore_step_limit: int = inf,
-        explore_episode_limit: int = inf,
+        update_steps: Optional[int] = None,
+        update_step_limit: Optional[int] = None,
+        explore_steps: Optional[int] = None,
+        explore_episodes: Optional[int] = None,
+        explore_step_limit: Optional[int] = None,
+        explore_episode_limit: Optional[int] = None,
     ) -> Tuple[List[Episode], List[float]]:
-        log_info = f"explore: {explore_steps} steps / {explore_episodes} episodes, update: {update_steps} steps "
-        self.logger.info(log_info)
-
-        self.trainer.update(update_steps)
-
-        explore_step_limit = min(
-            self.step_counter.exploration + explore_steps, explore_step_limit
+        log_info = f"explore_and_update: update_steps {update_steps}/{update_step_limit} | explore_steps {explore_steps}/{explore_step_limit} | explore_episodes {explore_episodes}/{explore_episode_limit}"
+        self.logger.debug(log_info)
+        update_step_limit, _ = self._log_and_convert_limits(
+            "update", update_steps, update_step_limit
         )
-        explore_episode_limit = min(
-            self.episode_counter.exploration + explore_episodes, explore_episode_limit
-        )
+        self.trainer.update(step_limit=update_step_limit)
 
+        explore_step_limit, explore_episode_limit = self._log_and_convert_limits(
+            "exploration",
+            explore_steps,
+            explore_step_limit,
+            explore_episodes,
+            explore_episode_limit,
+        )
         for agent in self.worker:
             agent.explore(
                 step_limit=explore_step_limit, episode_limit=explore_episode_limit
@@ -202,12 +241,8 @@ class Synchron(Agent):
 
             for agent in remove:
                 results_pending.remove(agent)
-                log_text = f"Removing Agent {agent.name} from results_pending list. {len(results_pending)=}"
-                self.logger.debug(log_text)
             for agent in add:
                 results_pending.append(agent)
-                log_text = f"Adding Agent {agent.name} from results_pending list. {len(results_pending)=}"
-                self.logger.debug(log_text)
 
             if t_limit_result == inf:
 
@@ -247,7 +282,15 @@ class Synchron(Agent):
         elif task == "exploration":
             new_agent.explore(step_limit=step_limit, episode_limit=episode_limit)
         elif task == "evaluation":
-            new_agent.evaluate(step_limit=step_limit, episode_limit=episode_limit)
+            i = agent.agent_id
+            seeds = self._eval_seeds[i] if self._eval_seeds is not None else None
+            options = self._eval_options[i] if self._eval_options is not None else None
+            new_agent.evaluate(
+                step_limit=step_limit,
+                episode_limit=episode_limit,
+                seeds=seeds,
+                options=options,
+            )
         return new_agent
 
     def _get_trainer_results(self):
@@ -302,3 +345,12 @@ class Synchron(Agent):
 
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
         self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
+
+    @staticmethod
+    def _split(to_split: List, n_parts: int):
+        floor, mod = divmod(len(to_split), n_parts)
+        split_lists = [
+            to_split[i * floor + min(i, mod) : (i + 1) * floor + min(i + 1, mod)]
+            for i in range(n_parts)
+        ]
+        return split_lists

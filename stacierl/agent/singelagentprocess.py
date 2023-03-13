@@ -1,5 +1,4 @@
-from math import inf
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from random import randint
 import logging
 import logging.config
@@ -129,15 +128,32 @@ def run(
             logger.debug(log_debug)
             if task_name == "heatup":
                 result = agent.heatup(
-                    task[1], task[2], task[3], task[4], task[5], task[6]
+                    steps=task[1],
+                    episodes=task[2],
+                    step_limit=task[3],
+                    episode_limit=task[4],
+                    custom_action_low=task[5],
+                    custom_action_high=task[6],
                 )
             elif task_name == "explore":
-                result = agent.explore(task[1], task[2], task[3], task[4])
+                result = agent.explore(
+                    steps=task[1],
+                    episodes=task[2],
+                    step_limit=task[3],
+                    episode_limit=task[4],
+                )
             elif task_name == "evaluate":
-                result = agent.evaluate(task[1], task[2], task[3], task[4])
+                result = agent.evaluate(
+                    steps=task[1],
+                    episodes=task[2],
+                    step_limit=task[3],
+                    episode_limit=task[4],
+                    seeds=task[5],
+                    options=task[6],
+                )
             elif task_name == "update":
                 try:
-                    result = agent.update(task[1], task[2])
+                    result = agent.update(steps=task[1], step_limit=task[2])
                 except ValueError as error:
                     log_warning = f"Update Error: {error}"
                     logger.warning(log_warning)
@@ -256,12 +272,13 @@ class SingleAgentProcess:
 
     def heatup(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
-        custom_action_low: List[float] = None,
-        custom_action_high: List[float] = None,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
     ) -> None:
         self._task_queue.put(
             [
@@ -277,10 +294,11 @@ class SingleAgentProcess:
 
     def explore(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
     ) -> None:
         try:
             self._task_queue.put(
@@ -291,19 +309,24 @@ class SingleAgentProcess:
 
     def evaluate(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         try:
             self._task_queue.put(
-                ["evaluate", steps, episodes, step_limit, episode_limit]
+                ["evaluate", steps, episodes, step_limit, episode_limit, seeds, options]
             )
         except ValueError:
             self.close()
 
-    def update(self, steps: int = inf, step_limit: int = inf) -> None:
+    def update(
+        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
+    ) -> None:
         try:
             self._task_queue.put(["update", steps, step_limit])
         except ValueError:

@@ -1,6 +1,5 @@
 from time import perf_counter
-from typing import Callable, Dict, List, Tuple
-from math import inf
+from typing import Any, Callable, Dict, List, Optional, Tuple
 import logging
 import torch
 import numpy as np
@@ -37,20 +36,31 @@ class Single(Agent):
         self.to(device)
         self._next_batch = None
         self._replay_too_small = True
+        self.logger.info("Single agent initialized")
 
     def heatup(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
-        custom_action_low: List[float] = None,
-        custom_action_high: List[float] = None,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
+        self._log_task(
+            "heatup",
+            steps,
+            step_limit,
+            episodes,
+            episode_limit,
+            custom_action_low=custom_action_low,
+            custom_action_high=custom_action_high,
+        )
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "heatup", steps, step_limit, episodes, episode_limit
+        )
 
-        step_limit = min(step_limit, self.step_counter.heatup + steps)
-        episode_limit = min(episode_limit, self.episode_counter.heatup + episodes)
-        self._limits_sanity_check(steps, episodes, step_limit, episode_limit, "heatup")
         episodes_data = []
 
         def random_action(*args, **kwargs):  # pylint: disable=unused-argument
@@ -79,9 +89,8 @@ class Single(Agent):
             self.step_counter.heatup < step_limit
             and self.episode_counter.heatup < episode_limit
         ):
-            if n_episodes > 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.heatup += 1
+            with self.episode_counter.lock:
+                self.episode_counter.heatup += 1
 
             episode, n_steps_episode = self._play_episode(
                 env=self.env_train,
@@ -89,9 +98,6 @@ class Single(Agent):
                 consecutive_actions=self.consecutive_action_steps,
             )
 
-            if n_episodes == 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.heatup += 1
             with self.step_counter.lock:
                 self.step_counter.heatup += n_steps_episode
             n_steps += n_steps_episode
@@ -106,15 +112,15 @@ class Single(Agent):
 
     def explore(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
     ) -> List[Episode]:
-        step_limit = min(step_limit, self.step_counter.exploration + steps)
-        episode_limit = min(episode_limit, self.episode_counter.exploration + episodes)
-        self._limits_sanity_check(
-            steps, episodes, step_limit, episode_limit, "exploration"
+        self._log_task("explore", steps, step_limit, episodes, episode_limit)
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "exploration", steps, step_limit, episodes, episode_limit
         )
 
         episodes_data = []
@@ -126,18 +132,14 @@ class Single(Agent):
             self.step_counter.exploration < step_limit
             and self.episode_counter.exploration < episode_limit
         ):
-            if n_episodes > 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.exploration += 1
+            with self.episode_counter.lock:
+                self.episode_counter.exploration += 1
 
             episode, n_steps_episode = self._play_episode(
                 env=self.env_train,
                 action_function=self.algo.get_exploration_action,
                 consecutive_actions=self.consecutive_action_steps,
             )
-            if n_episodes == 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.exploration += 1
 
             with self.step_counter.lock:
                 self.step_counter.exploration += n_steps_episode
@@ -153,9 +155,11 @@ class Single(Agent):
         self.logger.info(log_text)
         return episodes_data
 
-    def update(self, steps: int = inf, step_limit: int = inf) -> List[List[float]]:
-        step_limit = min(step_limit, self.step_counter.update + steps)
-        self._limits_sanity_check(steps, 0, step_limit, 0, "update")
+    def update(
+        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
+    ) -> List[List[float]]:
+        self._log_task("update", steps, step_limit)
+        step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
         results = []
         if self._replay_too_small:
             replay_len = len(self.replay_buffer)
@@ -184,83 +188,73 @@ class Single(Agent):
 
     def evaluate(
         self,
-        steps: int = inf,
-        episodes: int = inf,
-        step_limit: int = inf,
-        episode_limit: int = inf,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
-        step_limit = min(step_limit, self.step_counter.evaluation + steps)
-        episode_limit = min(episode_limit, self.episode_counter.evaluation + episodes)
-        self._limits_sanity_check(
-            steps, episodes, step_limit, episode_limit, "evaluation"
+        self._log_task(
+            "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
+        )
+        step_limit, episode_limit = self._log_and_convert_limits(
+            "evaluation", steps, step_limit, episodes, episode_limit, seeds, options
         )
         episodes_data = []
         n_episodes = 0
         n_steps = 0
         t_start = perf_counter()
 
-        while (
-            self.step_counter.evaluation < step_limit
-            and self.episode_counter.evaluation < episode_limit
-        ):
-            if n_episodes > 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.evaluation += 1
+        while True:
+            with self.episode_counter.lock:
+                self.episode_counter.evaluation += 1
+
+            next_seed = seeds.pop(-1) if seeds is not None else None
+            next_options = options.pop(-1) if options is not None else None
 
             episode, n_steps_episode = self._play_episode(
                 env=self.env_eval,
                 action_function=self.algo.get_eval_action,
                 consecutive_actions=self.consecutive_action_steps,
+                seed=next_seed,
+                options=next_options,
             )
 
-            if n_episodes == 0:
-                with self.episode_counter.lock:
-                    self.episode_counter.evaluation += 1
             with self.step_counter.lock:
                 self.step_counter.evaluation += n_steps_episode
 
             n_episodes += 1
             n_steps += n_steps_episode
             episodes_data.append(episode)
+
+            if (
+                (not seeds and not options)
+                or self.step_counter.evaluation > step_limit
+                or self.episode_counter.evaluation > episode_limit
+            ):
+                break
+
         t_duration = perf_counter() - t_start
         log_text = f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
         self.logger.info(log_text)
         return episodes_data
-
-    @staticmethod
-    def _limits_sanity_check(steps, episodes, step_limit, episode_limit, task: str):
-        if task == "update":
-            if step_limit == inf:
-                raise ValueError(
-                    f"{steps=} or {step_limit=} for {task} are inf. At least one must be given."
-                )
-            if steps < 0 or step_limit < 0 or episodes < 0 or episode_limit < 0:
-                raise ValueError(
-                    f"{steps=} and {step_limit=} for {task} must be positive integers."
-                )
-
-        if step_limit == inf and episode_limit == inf:
-            raise ValueError(
-                f"{steps=}, {episodes=}, {step_limit=} or {episode_limit=} for {task} are inf. At least one must be given."
-            )
-
-        if steps < 0 or step_limit < 0 or episodes < 0 or episode_limit < 0:
-            raise ValueError(
-                f"{steps=}, {episodes=}, {step_limit=} and {episode_limit=} for {task} must be positive integers."
-            )
 
     def _play_episode(
         self,
         env: gym.Env,
         action_function: Callable[[np.ndarray], np.ndarray],
         consecutive_actions: int,
+        seed: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> Tuple[Episode, int]:
         terminal = False
         truncation = False
         step_counter = 0
 
         self.algo.reset()
-        obs = env.reset()
+        obs = env.reset(seed=seed, options=options)
         flat_obs = self._flatten_obs(obs)
         episode = Episode(obs, flat_obs)
 

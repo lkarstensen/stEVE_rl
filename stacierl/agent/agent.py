@@ -137,6 +137,7 @@ class Agent(ABC):
     env_eval: gym.Env
     replay_buffer: ReplayBuffer
     logger: logging.Logger
+    update_error: bool
 
     @abstractmethod
     def heatup(

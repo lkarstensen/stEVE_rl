@@ -49,6 +49,8 @@ class Synchron(Agent):
 
         self.trainer = self._create_trainer_agent()
 
+        self.update_error = False
+
         self._eval_seeds = None
         self._eval_options = None
 
@@ -304,6 +306,7 @@ class Synchron(Agent):
             self.trainer = self._create_trainer_agent()
             self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
             result = None
+            self.update_error = True
         return result
 
     def _create_worker_agent(self, i):

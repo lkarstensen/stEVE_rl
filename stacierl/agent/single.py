@@ -31,6 +31,8 @@ class Single(Agent):
         self.consecutive_action_steps = consecutive_action_steps
         self.normalize_actions = normalize_actions
 
+        self.update_error = False
+
         self.step_counter = StepCounter()
         self.episode_counter = EpisodeCounter()
         self.to(device)

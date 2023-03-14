@@ -1,3 +1,4 @@
+from copy import deepcopy
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import logging
@@ -204,6 +205,8 @@ class Single(Agent):
         step_limit, episode_limit = self._log_and_convert_limits(
             "evaluation", steps, step_limit, episodes, episode_limit, seeds, options
         )
+        seeds = deepcopy(seeds)
+        options = deepcopy(options)
         episodes_data = []
         n_episodes = 0
         n_steps = 0

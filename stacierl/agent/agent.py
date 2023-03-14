@@ -243,15 +243,15 @@ class Agent(ABC):
         custom_action_high: Optional[List[float]] = None,
     ):
         if task == "update":
-            log_text = f"update: steps {steps}/{step_limit}"
+            log_text = f"update (amount/limit): steps {steps}/{step_limit}"
         elif task == "explore":
-            log_text = f"explore: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit}"
+            log_text = f"explore (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit}"
         elif task == "evaluate":
             seed_text = f"{len(seeds)=}" if seeds is not None else "seeds=None"
             options_text = f"{len(options)=}" if options is not None else "options=None"
-            log_text = f"evaluate: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {seed_text}/{options_text}"
+            log_text = f"evaluate (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {seed_text}/{options_text}"
         elif task == "heatup":
-            log_text = f"heatup: steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {custom_action_low=}/{custom_action_high=}"
+            log_text = f"heatup (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {custom_action_low=}/{custom_action_high=}"
         else:
             raise ValueError(f"{task=} is not possible")
         self.logger.debug(log_text)

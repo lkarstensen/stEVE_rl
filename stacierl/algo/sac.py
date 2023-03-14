@@ -219,3 +219,18 @@ class SAC(Algo):
             self.action_scaling,
             self.exploration_action_noise,
         )
+
+
+class SACStochasticEval(SAC):
+    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
+        with torch.no_grad():
+            torch_state = torch.as_tensor(
+                flat_state, dtype=torch.float32, device=self.device
+            )
+            torch_state = torch_state.unsqueeze(0).unsqueeze(0)
+            mean, log_std = self.model.policy.forward_play(torch_state)
+            std = log_std.exp()
+            normal = Normal(mean, std)
+            action = torch.tanh(normal.sample())
+            action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
+        return action

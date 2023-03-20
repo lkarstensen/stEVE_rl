@@ -55,9 +55,9 @@ class LSTM(Network):
         output, _ = self.lstm.forward(obs_batch)
         return output
 
-    def forward_play(self, flat_obs: torch.Tensor, *args, **kwds) -> torch.Tensor:
+    def forward_play(self, obs_batch: torch.Tensor, *args, **kwds) -> torch.Tensor:
         with torch.no_grad():
-            output, self.hidden_state = self.lstm.forward(flat_obs, self.hidden_state)
+            output, self.hidden_state = self.lstm.forward(obs_batch, self.hidden_state)
         return output
 
     def copy(self):

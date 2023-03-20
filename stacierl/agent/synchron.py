@@ -66,6 +66,9 @@ class Synchron(Agent):
         custom_action_low: Optional[List[float]] = None,
         custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
+        steps_start = self.step_counter.heatup
+        episodes_start = self.episode_counter.heatup
         self._log_task(
             "heatup",
             steps,
@@ -86,6 +89,10 @@ class Synchron(Agent):
                 custom_action_high=custom_action_high,
             )
         result = self._get_worker_results(step_limit, episode_limit, "heatup")
+        n_steps = self.step_counter.heatup - steps_start
+        n_episodes = self.episode_counter.heatup - episodes_start
+        t_duration = perf_counter() - t_start
+        self._log_task_completion("heatup", n_steps, t_duration, n_episodes)
         return result
 
     def explore(
@@ -96,6 +103,9 @@ class Synchron(Agent):
         step_limit: Optional[int] = None,
         episode_limit: Optional[int] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
+        steps_start = self.step_counter.exploration
+        episodes_start = self.episode_counter.exploration
         self._log_task("explore", steps, step_limit, episodes, episode_limit)
         step_limit, episode_limit = self._log_and_convert_limits(
             "exploration", steps, step_limit, episodes, episode_limit
@@ -104,11 +114,18 @@ class Synchron(Agent):
         for agent in self.worker:
             agent.explore(step_limit=step_limit, episode_limit=episode_limit)
         result = self._get_worker_results(step_limit, episode_limit, "exploration")
+
+        n_episodes = self.episode_counter.exploration - episodes_start
+        n_steps = self.step_counter.exploration - steps_start
+        t_duration = perf_counter() - t_start
+        self._log_task_completion("exploration", n_steps, t_duration, n_episodes)
         return result
 
     def update(
         self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
     ) -> List[float]:
+        t_start = perf_counter()
+        steps_start = self.step_counter.update
         self._log_task("update", steps, step_limit)
         step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
 
@@ -116,6 +133,10 @@ class Synchron(Agent):
         result = self._get_trainer_results()
         self._update_state_dicts_network()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
+
+        n_steps = self.step_counter.update - steps_start
+        t_duration = perf_counter() - t_start
+        self._log_task_completion("update", n_steps, t_duration)
         return result
 
     def evaluate(
@@ -128,6 +149,9 @@ class Synchron(Agent):
         seeds: Optional[List[int]] = None,
         options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
+        steps_start = self.step_counter.evaluation
+        episodes_start = self.episode_counter.evaluation
         self._log_task(
             "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
         )
@@ -153,6 +177,11 @@ class Synchron(Agent):
         self._eval_seeds = None
         self._eval_options = None
         result = self._get_worker_results(step_limit, episode_limit, "evaluation")
+
+        n_steps = self.step_counter.evaluation - steps_start
+        n_episodes = self.episode_counter.evaluation - episodes_start
+        t_duration = perf_counter() - t_start
+        self._log_task_completion("evaluation", n_steps, t_duration, n_episodes)
         return result
 
     def explore_and_update_parallel(
@@ -164,8 +193,18 @@ class Synchron(Agent):
         explore_step_limit: Optional[int] = None,
         explore_episode_limit: Optional[int] = None,
     ) -> Tuple[List[Episode], List[float]]:
-        log_info = f"explore_and_update: update_steps {update_steps}/{update_step_limit} | explore_steps {explore_steps}/{explore_step_limit} | explore_episodes {explore_episodes}/{explore_episode_limit}"
-        self.logger.debug(log_info)
+        t_start = perf_counter()
+        update_steps_start = self.step_counter.update
+        explore_steps_start = self.step_counter.exploration
+        explore_episodes_start = self.episode_counter.exploration
+        self._log_task(
+            "explore",
+            explore_steps,
+            explore_step_limit,
+            explore_episodes,
+            explore_episode_limit,
+        )
+        self._log_task("update", update_steps, update_step_limit)
         update_step_limit, _ = self._log_and_convert_limits(
             "update", update_steps, update_step_limit
         )
@@ -183,15 +222,59 @@ class Synchron(Agent):
                 step_limit=explore_step_limit, episode_limit=explore_episode_limit
             )
 
-        explore_result = self._get_worker_results(
-            explore_step_limit, explore_episode_limit, "exploration"
-        )
-        update_result = self._get_trainer_results()
+        got_worker_results = False
+        got_trainer_results = False
+        explore_results = []
+        update_result = None
+        results_pending = self.worker.copy()
+        t_limit_result = inf
+        while True:
+            if not got_worker_results:
+                (
+                    results_pending,
+                    t_limit_result,
+                    explore_results,
+                ) = self._worker_result_loop(
+                    explore_step_limit,
+                    explore_episode_limit,
+                    "exploration",
+                    explore_results,
+                    results_pending,
+                    t_limit_result,
+                )
+                if not results_pending or perf_counter() > t_limit_result:
+                    for agent in results_pending:
+                        log_warn = f"Restaring Agent {agent.name} because of Timeout"
+                        self.logger.warning(log_warn)
+                        self._restart_worker_agent(agent)
+                    results_pending = []
+                    got_worker_results = True
+                    n_steps_explore = (
+                        self.step_counter.exploration - explore_steps_start
+                    )
+                    n_episodes_explore = (
+                        self.episode_counter.exploration - explore_episodes_start
+                    )
+                    t_duration_explore = perf_counter() - t_start
 
+            if not got_trainer_results:
+                update_result = self._get_trainer_results(0.5)
+                if update_result is not None:
+                    got_trainer_results = True
+                    n_steps_update = self.step_counter.update - update_steps_start
+                    t_duration_update = perf_counter() - t_start
+
+            if got_worker_results and got_trainer_results:
+                break
+
+        self._log_task_completion(
+            "exploration", n_steps_explore, t_duration_explore, n_episodes_explore
+        )
+        self._log_task_completion("update", n_steps_update, t_duration_update)
         self._update_state_dicts_network()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
 
-        return explore_result, update_result
+        return explore_results, update_result
 
     def close(self):
         for agent in self.worker:
@@ -212,23 +295,39 @@ class Synchron(Agent):
         results_pending = self.worker.copy()
         t_limit_result = inf
         while results_pending and perf_counter() < t_limit_result:
-            remove = []
-            add = []
-            for agent in results_pending:
-                result = agent.get_result(timeout=0.1)
-                if isinstance(result, queue.Empty):
-                    if not agent.is_alive():
-                        log_warn = f"Restaring Agent {agent.name} because it is not alive anymore"
-                        self.logger.warning(log_warn)
-                        new = self._restart_worker_agent(
-                            agent, task, step_limit, episode_limit
-                        )
-                        remove.append(agent)
-                        add.append(new)
+            results_pending, t_limit_result, episode_results = self._worker_result_loop(
+                step_limit,
+                episode_limit,
+                task,
+                episode_results,
+                results_pending,
+                t_limit_result,
+            )
 
-                elif isinstance(result, Exception):
+        for agent in results_pending:
+            log_warn = f"Restaring Agent {agent.name} because of Timeout"
+            self.logger.warning(log_warn)
+            self._restart_worker_agent(agent)
+
+        return episode_results
+
+    def _worker_result_loop(
+        self,
+        step_limit,
+        episode_limit,
+        task,
+        episode_results,
+        results_pending,
+        t_limit_result,
+    ):
+        remove = []
+        add = []
+        for agent in results_pending:
+            result = agent.get_result(timeout=0.1)
+            if isinstance(result, queue.Empty):
+                if not agent.is_alive():
                     log_warn = (
-                        f"Restaring Agent {agent.name} because of Exception {result}"
+                        f"Restaring Agent {agent.name} because it is not alive anymore"
                     )
                     self.logger.warning(log_warn)
                     new = self._restart_worker_agent(
@@ -237,32 +336,36 @@ class Synchron(Agent):
                     remove.append(agent)
                     add.append(new)
 
-                else:
-                    episode_results += result
-                    remove.append(agent)
+            elif isinstance(result, Exception):
+                log_warn = f"Restaring Agent {agent.name} because of Exception {result}"
+                self.logger.warning(log_warn)
+                new = self._restart_worker_agent(agent, task, step_limit, episode_limit)
+                remove.append(agent)
+                add.append(new)
 
-            for agent in remove:
-                results_pending.remove(agent)
-            for agent in add:
-                results_pending.append(agent)
+            else:
+                episode_results += result
+                remove.append(agent)
 
-            if t_limit_result == inf:
+        for agent in remove:
+            results_pending.remove(agent)
+        for agent in add:
+            results_pending.append(agent)
 
-                steps = getattr(self.step_counter, task)
-                episodes = getattr(self.episode_counter, task)
-                if steps >= step_limit or episodes >= episode_limit:
-                    log_debug = f"{task=}: Condition ({steps=} >= {step_limit=} or {episodes=} >= {episode_limit=}) met. Setting time limit for workers to finish to {self.timeout_worker_after_reaching_limit}s"
-                    self.logger.debug(log_debug)
-                    t_limit_result = (
-                        perf_counter() + self.timeout_worker_after_reaching_limit
-                    )
+        if t_limit_result == inf:
+            steps = getattr(self.step_counter, task)
+            episodes = getattr(self.episode_counter, task)
+            if steps >= step_limit or episodes >= episode_limit:
+                log_debug = (
+                    task
+                    + f": {steps=} >= {step_limit=} or {episodes=} >= {episode_limit=}. Setting time limit for workers to finish to {self.timeout_worker_after_reaching_limit}s"
+                )
+                self.logger.debug(log_debug)
+                t_limit_result = (
+                    perf_counter() + self.timeout_worker_after_reaching_limit
+                )
 
-        for agent in results_pending:
-            log_warn = f"Restaring Agent {agent.name} because of Timeout"
-            self.logger.warning(log_warn)
-            self._restart_worker_agent(agent)
-
-        return episode_results
+        return results_pending, t_limit_result, episode_results
 
     def _restart_worker_agent(
         self,
@@ -295,18 +398,19 @@ class Synchron(Agent):
             )
         return new_agent
 
-    def _get_trainer_results(self):
+    def _get_trainer_results(self, timeout: Optional[float] = None):
 
-        result = self.trainer.get_result(timeout=None)
-
+        result = self.trainer.get_result(timeout=timeout)
+        if isinstance(result, queue.Empty):
+            return None
         if isinstance(result, Exception):
             log_warn = f"Restaring Trainer because of Exception {result}"
             self.logger.warning(log_warn)
             self.trainer.close()
             self.trainer = self._create_trainer_agent()
             self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
-            result = None
             self.update_error = True
+            return []
         return result
 
     def _create_worker_agent(self, i):

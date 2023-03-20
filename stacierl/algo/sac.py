@@ -135,7 +135,8 @@ class SAC(Algo):
 
     def _update_q2(self, actions, padding_mask, states, expected_q):
         curr_q2 = self.model.q2(states, actions)
-        curr_q2 *= padding_mask if padding_mask is not None else curr_q2
+        if padding_mask is not None:
+            curr_q2 *= padding_mask
         q2_loss = F.mse_loss(curr_q2, expected_q.detach())
 
         self.model.q2_optimizer.zero_grad()
@@ -145,7 +146,8 @@ class SAC(Algo):
 
     def _update_q1(self, actions, padding_mask, states, expected_q):
         curr_q1 = self.model.q1(states, actions)
-        curr_q1 *= padding_mask if padding_mask is not None else curr_q1
+        if padding_mask is not None:
+            curr_q1 *= padding_mask
         q1_loss = F.mse_loss(curr_q1, expected_q.detach())
 
         self.model.q1_optimizer.zero_grad()
@@ -166,7 +168,8 @@ class SAC(Algo):
         # only use next_state for next_q_target
         next_target_q = torch.narrow(next_target_q, dim=1, start=1, length=seq_length)
         expected_q = rewards + (1 - dones) * self.gamma * next_target_q
-        expected_q *= padding_mask if padding_mask is not None else expected_q
+        if padding_mask is not None:
+            expected_q *= padding_mask
         return expected_q
 
     # epsilon makes sure that log(0) does not occur

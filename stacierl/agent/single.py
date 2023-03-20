@@ -51,6 +51,7 @@ class Single(Agent):
         custom_action_low: Optional[List[float]] = None,
         custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
         self._log_task(
             "heatup",
             steps,
@@ -87,7 +88,6 @@ class Single(Agent):
 
         n_episodes = 0
         n_steps = 0
-        t_start = perf_counter()
         while (
             self.step_counter.heatup < step_limit
             and self.episode_counter.heatup < episode_limit
@@ -109,8 +109,7 @@ class Single(Agent):
             episodes_data.append(episode)
 
         t_duration = perf_counter() - t_start
-        log_info = f"Heatup Steps Total: {self.step_counter.heatup}, Steps this Heatup: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        self.logger.info(log_info)
+        self._log_task_completion("heatup", n_steps, t_duration, n_episodes)
         return episodes_data
 
     def explore(
@@ -121,6 +120,7 @@ class Single(Agent):
         step_limit: Optional[int] = None,
         episode_limit: Optional[int] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
         self._log_task("explore", steps, step_limit, episodes, episode_limit)
         step_limit, episode_limit = self._log_and_convert_limits(
             "exploration", steps, step_limit, episodes, episode_limit
@@ -129,8 +129,6 @@ class Single(Agent):
         episodes_data = []
         n_episodes = 0
         n_steps = 0
-        t_start = perf_counter()
-
         while (
             self.step_counter.exploration < step_limit
             and self.episode_counter.exploration < episode_limit
@@ -154,13 +152,13 @@ class Single(Agent):
             episodes_data.append(episode)
 
         t_duration = perf_counter() - t_start
-        log_text = f"Exploration Steps Total: {self.step_counter.exploration}, Steps this Exploration: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        self.logger.info(log_text)
+        self._log_task_completion("exploration", n_steps, t_duration, n_episodes)
         return episodes_data
 
     def update(
         self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
     ) -> List[List[float]]:
+        t_start = perf_counter()
         self._log_task("update", steps, step_limit)
         step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
         results = []
@@ -172,7 +170,7 @@ class Single(Agent):
             return []
 
         n_steps = 0
-        t_start = perf_counter()
+
         while self.step_counter.update < step_limit:
             with self.step_counter.lock:
                 self.step_counter.update += 1
@@ -184,9 +182,7 @@ class Single(Agent):
                 self.algo.lr_scheduler_step()
 
         t_duration = perf_counter() - t_start
-        log_text = f"Update Steps Total: {self.step_counter.update}, Steps this update: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        self.logger.info(log_text)
-
+        self._log_task_completion("update", n_steps, t_duration)
         return results
 
     def evaluate(
@@ -199,6 +195,7 @@ class Single(Agent):
         seeds: Optional[List[int]] = None,
         options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
+        t_start = perf_counter()
         self._log_task(
             "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
         )
@@ -210,7 +207,6 @@ class Single(Agent):
         episodes_data = []
         n_episodes = 0
         n_steps = 0
-        t_start = perf_counter()
 
         while True:
             with self.episode_counter.lock:
@@ -242,8 +238,7 @@ class Single(Agent):
                 break
 
         t_duration = perf_counter() - t_start
-        log_text = f"Evaluation Steps Total: {self.step_counter.evaluation}, Steps this Evaluation: {n_steps}, Steps per Second: {n_steps/t_duration:.2f}"
-        self.logger.info(log_text)
+        self._log_task_completion("evaluation", n_steps, t_duration, n_episodes)
         return episodes_data
 
     def _play_episode(

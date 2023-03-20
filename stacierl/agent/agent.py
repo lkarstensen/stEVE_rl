@@ -256,6 +256,18 @@ class Agent(ABC):
             raise ValueError(f"{task=} is not possible")
         self.logger.debug(log_text)
 
+    def _log_task_completion(
+        self, task: str, steps: int, t_duration: float, episodes: Optional[int] = None
+    ):
+        current_steps = getattr(self.step_counter, task)
+        if task == "update":
+
+            log_text = f"{task:<11}: {t_duration:>6.1f}s | {steps/t_duration:>5.1f} steps/s | {steps:>7} steps | Total: {current_steps:>8} steps"
+        else:
+            current_episodes = getattr(self.episode_counter, task)
+            log_text = f"{task:<11}: {t_duration:>6.1f}s | {steps/t_duration:>5.1f} steps/s | {steps:>7} steps / {episodes:>4} episodes | Total: {current_steps:>8} steps / {current_episodes:>5} episodes"
+        self.logger.info(log_text)
+
     def _log_and_convert_limits(
         self,
         task: str,

@@ -88,7 +88,9 @@ class VanillaStepShared(VanillaSharedBase):
                 self._sample_queue.empty()
                 and len(internal_replay_buffer) > self.batch_size
             ):
-                batch = internal_replay_buffer.sample().to(self.sample_device)
+                batch = internal_replay_buffer.sample()
+                if self.sample_device != torch.device("mps"):
+                    batch = batch.to(self.sample_device)
                 self._sample_queue.put(batch)
             elif not self._task_queue.empty():
                 task = self._task_queue.get()

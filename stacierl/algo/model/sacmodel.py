@@ -36,7 +36,9 @@ class SACModel(Model):
         self.policy_scheduler = policy_scheduler
 
         self.target_q1 = deepcopy(self.q1)
+        self.target_q1.eval()
         self.target_q2 = deepcopy(self.q2)
+        self.target_q2.eval()
 
         self.log_alpha = torch.zeros(1, requires_grad=True)
         self.alpha_optimizer = optim.Adam([self.log_alpha], lr=lr_alpha)
@@ -131,7 +133,9 @@ class SACModel(Model):
         self.log_alpha.data.copy_(state_dicts["log_alpha"])
 
     def copy_play_only(self):
-        return SACModelPolicyOnly(deepcopy(self.policy))
+        policy = deepcopy(self.policy)
+        policy.eval()
+        return SACModelPolicyOnly(policy)
 
     # def set_network_states(self, network_states_container: SACNetworkStateContainer):
     #     self.q1.load_state_dict(network_states_container.q1)

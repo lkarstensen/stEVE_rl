@@ -6,7 +6,7 @@ import torch
 import numpy as np
 import gymnasium as gym
 
-from everl.replaybuffer.replaybuffer import Episode
+from eve_rl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer, Episode
@@ -178,7 +178,6 @@ class Single(Agent):
             result = self.algo.update(batch)
             results.append(result)
             n_steps += 1
-           
 
         t_duration = perf_counter() - t_start
         self._log_task_completion("update", n_steps, t_duration)

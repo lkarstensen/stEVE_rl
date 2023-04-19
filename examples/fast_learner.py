@@ -5,7 +5,7 @@ import torch
 import numpy as np
 
 import eve
-import everl
+import eve_rl
 
 
 def sac_training(
@@ -38,28 +38,28 @@ def sac_training(
 
     n_observations = obs_np.shape[0]
     n_actions = env.action_space.sample().flatten().shape[0]
-    q1_mlp = everl.network.components.MLP(hidden_layers)
-    q_net_1 = everl.network.QNetwork(q1_mlp, n_observations, n_actions)
-    q1_optimizer = everl.optim.Adam(q_net_1, lr)
+    q1_mlp = eve_rl.network.components.MLP(hidden_layers)
+    q_net_1 = eve_rl.network.QNetwork(q1_mlp, n_observations, n_actions)
+    q1_optimizer = eve_rl.optim.Adam(q_net_1, lr)
     q1_scheduler = optim.lr_scheduler.LinearLR(
         q1_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    q2_mlp = everl.network.components.MLP(hidden_layers)
-    q_net_2 = everl.network.QNetwork(q2_mlp, n_observations, n_actions)
-    q2_optimizer = everl.optim.Adam(q_net_2, lr)
+    q2_mlp = eve_rl.network.components.MLP(hidden_layers)
+    q_net_2 = eve_rl.network.QNetwork(q2_mlp, n_observations, n_actions)
+    q2_optimizer = eve_rl.optim.Adam(q_net_2, lr)
     q2_scheduler = optim.lr_scheduler.LinearLR(
         q2_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    policy_mlp = everl.network.components.MLP(hidden_layers)
-    policy_net = everl.network.GaussianPolicy(policy_mlp, n_observations, n_actions)
-    policy_optimizer = everl.optim.Adam(policy_net, lr)
+    policy_mlp = eve_rl.network.components.MLP(hidden_layers)
+    policy_net = eve_rl.network.GaussianPolicy(policy_mlp, n_observations, n_actions)
+    policy_optimizer = eve_rl.optim.Adam(policy_net, lr)
     policy_scheduler = optim.lr_scheduler.LinearLR(
         policy_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    sac_model = everl.model.SACModel(
+    sac_model = eve_rl.model.SACModel(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
@@ -71,9 +71,9 @@ def sac_training(
         policy_scheduler=policy_scheduler,
         lr_alpha=lr,
     )
-    algo = everl.algo.SAC(sac_model, n_actions=n_actions, gamma=gamma)
-    replay_buffer = everl.replaybuffer.VanillaStep(replay_buffer, batch_size)
-    agent = everl.agent.Single(
+    algo = eve_rl.algo.SAC(sac_model, n_actions=n_actions, gamma=gamma)
+    replay_buffer = eve_rl.replaybuffer.VanillaStep(replay_buffer, batch_size)
+    agent = eve_rl.agent.Single(
         algo,
         env,
         env,

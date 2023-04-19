@@ -4,15 +4,13 @@ from typing import Any, List, Dict, Optional
 import numpy as np
 import torch
 from ..replaybuffer import Batch
-from .model import Model
-from ..util import ConfigHandler
+from ..model import Model
+from ..util import EveRLObject
 
 
-class Algo(ABC):
+class Algo(EveRLObject, ABC):
     model: Model
     device: torch.device
-
-    lr_scheduler_step_counter = 0
 
     def state_dicts_network(
         self, destination: Optional[Dict[str, Any]] = None
@@ -25,10 +23,6 @@ class Algo(ABC):
     @abstractmethod
     def update(self, batch: Batch) -> List[float]:
         ...
-
-    @abstractmethod
-    def lr_scheduler_step(self) -> None:
-        self.lr_scheduler_step_counter += 1
 
     @abstractmethod
     def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
@@ -56,7 +50,3 @@ class Algo(ABC):
     @abstractmethod
     def close(self):
         ...
-
-    def save_config(self, file_path: str):
-        confighandler = ConfigHandler()
-        confighandler.save_config(self, file_path)

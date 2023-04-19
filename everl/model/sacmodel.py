@@ -3,8 +3,7 @@ from typing import Any, Dict, Iterator
 from torch import optim
 import torch
 from .model import Model
-from ... import network
-from ...optimizer import Optimizer
+from .. import network
 
 
 class SACModel(Model):
@@ -14,9 +13,9 @@ class SACModel(Model):
         q1: network.QNetwork,
         q2: network.QNetwork,
         policy: network.GaussianPolicy,
-        q1_optimizer: Optimizer,
-        q2_optimizer: Optimizer,
-        policy_optimizer: Optimizer,
+        q1_optimizer: torch.optim.Optimizer,
+        q2_optimizer: torch.optim.Optimizer,
+        policy_optimizer: torch.optim.Optimizer,
         q1_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
         q2_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
         policy_scheduler: torch.optim.lr_scheduler._LRScheduler = None,
@@ -54,7 +53,6 @@ class SACModel(Model):
             [self.q1, self.q2, self.policy],
             [self.q1_optimizer, self.q2_optimizer, self.policy_optimizer],
         ):
-
             old_params = net.parameters()
             net.to(device)
             new_params = net.parameters()
@@ -97,7 +95,6 @@ class SACModel(Model):
         del self.alpha_optimizer
 
     def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
-
         ret = state_dicts = {
             "q1": self.q1.state_dict(),
             "q2": self.q2.state_dict(),
@@ -108,7 +105,6 @@ class SACModel(Model):
         }
 
         if destination is not None:
-
             for net in ["q1", "q2", "target_q1", "target_q2", "policy"]:
                 state_dict = state_dicts[net]
                 dest = destination[net]
@@ -189,7 +185,6 @@ class SACModelPolicyOnly(Model):
         self.policy.to(device)
 
     def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
-
         ret = state_dicts = {
             "q1": None,
             "q2": None,
@@ -200,7 +195,6 @@ class SACModelPolicyOnly(Model):
         }
 
         if destination is not None:
-
             for net in ["policy"]:
                 state_dict = state_dicts[net]
                 dest = destination[net]

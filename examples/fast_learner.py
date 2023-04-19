@@ -4,8 +4,8 @@ from torch import optim
 import torch
 import numpy as np
 
-import eve_bench
-import stacierl
+import eve
+import everl
 
 
 def sac_training(
@@ -26,12 +26,11 @@ def sac_training(
     *args,
     **kwargs,
 ):
-
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
     success = 0.0
 
-    env = eve_bench.aorticarch.ArchVMR94(normalize_obs=True)
+    env = make_env()
 
     obs_dict = env.observation_space.sample()
     obs_list = [obs.flatten() for obs in obs_dict.values()]
@@ -39,27 +38,28 @@ def sac_training(
 
     n_observations = obs_np.shape[0]
     n_actions = env.action_space.sample().flatten().shape[0]
-    q_net_1 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    q1_optimizer = optim.Adam(q_net_1.parameters(), 2e-4)
+    q1_mlp = everl.network.components.MLP(hidden_layers)
+    q_net_1 = everl.network.QNetwork(q1_mlp, n_observations, n_actions)
+    q1_optimizer = everl.optim.Adam(q_net_1, lr)
     q1_scheduler = optim.lr_scheduler.LinearLR(
         q1_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    q_net_2 = stacierl.network.QNetwork(n_observations, n_actions, hidden_layers)
-    q2_optimizer = optim.Adam(q_net_2.parameters(), 2e-4)
+    q2_mlp = everl.network.components.MLP(hidden_layers)
+    q_net_2 = everl.network.QNetwork(q2_mlp, n_observations, n_actions)
+    q2_optimizer = everl.optim.Adam(q_net_2, lr)
     q2_scheduler = optim.lr_scheduler.LinearLR(
         q2_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    policy_net = stacierl.network.GaussianPolicy(
-        n_observations, n_actions, hidden_layers
-    )
-    policy_optimizer = optim.Adam(policy_net.parameters(), 2e-4)
+    policy_mlp = everl.network.components.MLP(hidden_layers)
+    policy_net = everl.network.GaussianPolicy(policy_mlp, n_observations, n_actions)
+    policy_optimizer = everl.optim.Adam(policy_net, lr)
     policy_scheduler = optim.lr_scheduler.LinearLR(
         policy_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    sac_model = stacierl.algo.sacmodel.Vanilla(
+    sac_model = everl.model.SACModel(
         q1=q_net_1,
         q2=q_net_2,
         policy=policy_net,
@@ -71,9 +71,9 @@ def sac_training(
         policy_scheduler=policy_scheduler,
         lr_alpha=lr,
     )
-    algo = stacierl.algo.SAC(sac_model, n_actions=n_actions, gamma=gamma)
-    replay_buffer = stacierl.replaybuffer.VanillaStep(replay_buffer, batch_size)
-    agent = stacierl.agent.Single(
+    algo = everl.algo.SAC(sac_model, n_actions=n_actions, gamma=gamma)
+    replay_buffer = everl.replaybuffer.VanillaStep(replay_buffer, batch_size)
+    agent = everl.agent.Single(
         algo,
         env,
         env,
@@ -83,7 +83,7 @@ def sac_training(
         normalize_actions=True,
         # n_worker=5,
     )
-    agent.save_config("/Users/lennartkarstensen/stacie/stacierl/test.yml")
+    agent.save_config("/Users/lennartkarstensen/stacie/eve_training/test_agent.yml")
 
     while True:
         logfile = log_folder + f"/{name}_{id_training}.csv"
@@ -107,7 +107,7 @@ def sac_training(
         agent.explore(steps=consecutive_explore_steps)
         step_counter = agent.step_counter
         update_steps = step_counter.exploration - step_counter.update
-        agent.update(update_steps)
+        agent.update(steps=update_steps)
 
         if step_counter.exploration >= next_eval_step_limt:
             agent.save_checkpoint(
@@ -135,6 +135,81 @@ def sac_training(
                 )
 
     return success, agent.step_counter.exploration
+
+
+def make_env() -> eve.Env:
+    vessel_tree = eve.vesseltree.AorticArch(
+        seed=30,
+        scale_xyzd=[1.0, 1.0, 1.0, 0.75],
+        rotate_yzx_deg=[0, -20, -5],
+    )
+
+    device = eve.intervention.device.JWire()
+
+    simulation = eve.intervention.Intervention(
+        vessel_tree=vessel_tree,
+        devices=[device],
+        stop_device_at_tree_end=True,
+    )
+    start = eve.start.MaxDeviceLength(
+        intervention=simulation,
+        max_length=500,
+    )
+    target = eve.target.CenterlineRandom(
+        vessel_tree=vessel_tree,
+        intervention=simulation,
+        threshold=10,
+    )
+    pathfinder = eve.pathfinder.BruteForceBFS(
+        vessel_tree=vessel_tree,
+        intervention=simulation,
+        target=target,
+    )
+
+    position = eve.observation.Tracking(
+        intervention=simulation,
+        n_points=5,
+    )
+    position = eve.observation.wrapper.NormalizeTrackingPerEpisode(position)
+    target_state = eve.observation.Target(target=target)
+    target_state = eve.observation.wrapper.ToTrackingCS(target_state, simulation)
+    rotation = eve.observation.Rotations(intervention=simulation)
+
+    state = eve.observation.ObsDict(
+        {"position": position, "target": target_state, "rotation": rotation}
+    )
+
+    target_reward = eve.reward.TargetReached(
+        target=target,
+        factor=1.0,
+    )
+    path_delta = eve.reward.PathLengthDelta(
+        pathfinder=pathfinder,
+        factor=0.01,
+    )
+    reward = eve.reward.Combination([target_reward, path_delta])
+
+    target_reached = eve.terminal.TargetReached(target=target)
+    max_steps = eve.truncation.MaxSteps(200)
+
+    imaging = None
+
+    visualisation = None
+
+    env = eve.Env(
+        vessel_tree=vessel_tree,
+        intervention=simulation,
+        start=start,
+        target=target,
+        observation=state,
+        reward=reward,
+        terminal=target_reached,
+        truncation=max_steps,
+        visualisation=visualisation,
+        pathfinder=pathfinder,
+        imaging=imaging,
+    )
+    return env
 
 
 if __name__ == "__main__":

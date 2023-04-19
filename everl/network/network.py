@@ -1,25 +1,13 @@
 from abc import abstractmethod
-import torch.nn as nn
-
-
+from torch import nn
 import torch
 
+from ..util import EveRLObject
 
-class Network(nn.Module):
-    @property
-    @abstractmethod
-    def n_inputs(self) -> int:
-        ...
 
-    @n_inputs.setter
-    @abstractmethod
-    def n_inputs(self, n_inputs: int) -> None:
-        ...
-
-    @property
-    @abstractmethod
-    def n_outputs(self) -> int:
-        ...
+class Network(nn.Module, EveRLObject):
+    n_observations: int
+    n_actions: int
 
     @property
     @abstractmethod
@@ -34,10 +22,6 @@ class Network(nn.Module):
         with torch.no_grad():
             output = self.forward(*args, obs_batch=obs_batch, **kwds)
         return output
-
-    @abstractmethod
-    def copy(self):
-        ...
 
     @abstractmethod
     def reset(self) -> None:

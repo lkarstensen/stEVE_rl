@@ -5,11 +5,13 @@ from torch.distributions import Normal
 import torch
 import torch.nn.functional as F
 from .algo import Algo
-from .model import SACModel
+from ..model import SACModel
 from ..replaybuffer import Batch
 
 
 class SAC(Algo):
+    model: SACModel
+
     def __init__(
         self,
         model: SACModel,
@@ -20,7 +22,6 @@ class SAC(Algo):
         action_scaling: float = 1,
         exploration_action_noise: float = 0.25,
     ):
-        super().__init__()
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
         self.n_actions = n_actions
@@ -67,7 +68,6 @@ class SAC(Algo):
         return action * self.action_scaling
 
     def update(self, batch: Batch) -> Tuple[float, float, float]:
-
         (all_states, actions, rewards, dones, padding_mask) = batch
         # actions /= self.action_scaling
 
@@ -131,6 +131,8 @@ class SAC(Algo):
         self.model.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.model.policy_optimizer.step()
+        if self.model.policy_scheduler:
+            self.model.policy_scheduler.step()
         return log_pi, policy_loss
 
     def _update_q2(self, actions, padding_mask, states, expected_q):
@@ -142,6 +144,8 @@ class SAC(Algo):
         self.model.q2_optimizer.zero_grad()
         q2_loss.backward()
         self.model.q2_optimizer.step()
+        if self.model.q2_scheduler:
+            self.model.q2_scheduler.step()
         return q2_loss
 
     def _update_q1(self, actions, padding_mask, states, expected_q):
@@ -153,6 +157,8 @@ class SAC(Algo):
         self.model.q1_optimizer.zero_grad()
         q1_loss.backward()
         self.model.q1_optimizer.step()
+        if self.model.q1_scheduler:
+            self.model.q1_scheduler.step()
         return q1_loss
 
     def _get_expected_q(self, all_states, rewards, dones, padding_mask, seq_length):
@@ -190,15 +196,6 @@ class SAC(Algo):
         #        torch.log(1 - action_batch.pow(2) + epsilon), dim=-1, keepdim=True)
 
         return action_batch, log_pi_batch
-
-    def lr_scheduler_step(self) -> None:
-        super().lr_scheduler_step()
-        if self.model.q1_scheduler is not None:
-            self.model.q1_scheduler.step()
-        if self.model.q2_scheduler is not None:
-            self.model.q2_scheduler.step()
-        if self.model.policy_scheduler is not None:
-            self.model.policy_scheduler.step()
 
     def to(self, device: torch.device):
         super().to(device)

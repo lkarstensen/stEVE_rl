@@ -2,10 +2,10 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Any, Dict, Optional
 import torch
-from ...util import ConfigHandler
+from ..util import EveRLObject
 
 
-class Model(ABC):
+class Model(EveRLObject, ABC):
     device: torch.device
 
     @abstractmethod
@@ -36,7 +36,3 @@ class Model(ABC):
     @abstractmethod
     def close(self):
         ...
-
-    def save_config(self, file_path: str):
-        confighandler = ConfigHandler()
-        confighandler.save_config(self, file_path)

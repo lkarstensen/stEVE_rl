@@ -5,6 +5,8 @@ import numpy as np
 
 import torch
 
+from ..util import EveRLObject
+
 
 class Episode:
     def __init__(
@@ -94,7 +96,7 @@ class Batch(NamedTuple):
         return Batch(states, actions, rewards, terminals, padding_mask)
 
 
-class ReplayBuffer(ABC):
+class ReplayBuffer(EveRLObject, ABC):
     @property
     @abstractmethod
     def batch_size(self) -> int:

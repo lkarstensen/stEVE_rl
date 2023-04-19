@@ -4,14 +4,9 @@ from importlib import import_module
 import inspect
 
 import numpy as np
-import gymnasium as gym
+import eve
 import torch
 import yaml
-
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
 
 
 class ConfigHandler:
@@ -29,7 +24,7 @@ class ConfigHandler:
 
     def object_to_config_dict(self, stacierl_object: Any) -> dict:
         self.object_registry = {}
-        config_dict = self._obj_to_dict(stacierl_object)
+        config_dict = self._everl_obj_to_dict(stacierl_object)
         self.object_registry = {}
         return config_dict
 
@@ -46,7 +41,10 @@ class ConfigHandler:
         return obj
 
     def load_config_dict(self, file: str) -> dict:
-
+        try:
+            from yaml import CLoader as Loader
+        except ImportError:
+            from yaml import Loader
         with open(file, "r", encoding="utf-8") as config:
             config_dict = yaml.load(config, Loader=Loader)
         return config_dict
@@ -55,93 +53,79 @@ class ConfigHandler:
         if not file.endswith(".yml"):
             file += ".yml"
         with open(file, "w", encoding="utf-8") as dumpfile:
-            yaml.dump(config_dict, dumpfile, default_flow_style=False, sort_keys=False)
+            yaml.dump(
+                config_dict,
+                dumpfile,
+                default_flow_style=False,
+                sort_keys=False,
+                indent=4,
+            )
 
-    def _obj_to_dict(self, stacierl_object) -> dict:
+    def _everl_obj_to_dict(self, everl_object) -> dict:
         attributes_dict = {}
         attributes_dict[
             "class"
-        ] = f"{stacierl_object.__module__}.{stacierl_object.__class__.__name__}"
-        attributes_dict["_id"] = id(stacierl_object)
-        if id(stacierl_object) in self.object_registry:
+        ] = f"{everl_object.__module__}.{everl_object.__class__.__name__}"
+        attributes_dict["_id"] = id(everl_object)
+        if id(everl_object) in self.object_registry:
             return attributes_dict
-        init_attributes = self._get_init_attributes(stacierl_object.__init__)
+        init_attributes = self._get_init_attributes(everl_object.__init__)
 
         if "args" in init_attributes:
             init_attributes.remove("args")
-
         if "kwargs" in init_attributes:
             init_attributes.remove("kwargs")
-
-        if isinstance(stacierl_object, torch.optim.Optimizer):
-            init_attributes.remove("params")
-            defaults = stacierl_object.defaults
-            for key in list(defaults.keys()):
-                if key in init_attributes:
-                    init_attributes.remove(key)
-                else:
-                    defaults.pop(key)
-            attributes_dict.update(defaults)
+        if "kwds" in init_attributes:
+            init_attributes.remove("kwds")
 
         for attribute in init_attributes:
-            value = getattr(stacierl_object, attribute)
-
-            if isinstance(value, np.integer):
-                dict_value = int(value)
-
-            elif isinstance(value, torch.device):
-                dict_value = str(value)
-
-            elif isinstance(value, Enum):
-                dict_value = value.value
-
-            elif isinstance(value, np.ndarray):
-                dict_value = value.tolist()
-
-            elif isinstance(value, gym.Env):
-                dict_value = f"{value.__module__}.{value.__class__.__name__}"
-
-            elif isinstance(value, list):
-                dict_value = []
-                for v in value:
-                    if hasattr(v, "__module__"):
-                        search_string = v.__module__ + str(type(v).__bases__)
-                        if "stacierl." in search_string:
-                            dict_value.append(self._obj_to_dict(v))
-                        continue
-
-                    dict_value.append(v)
-
-            else:
-                if hasattr(value, "__module__"):
-                    search_string = value.__module__ + str(type(value).__bases__)
-                    if "stacierl.optimizer" in value.__module__:
-                        dict_value = self._obj_to_dict(value)
-
-                    elif "stacierl." in search_string:
-                        dict_value = self._obj_to_dict(value)
-
-                    elif "torch.optim.lr_scheduler" in value.__module__:
-                        dict_value = self._obj_to_dict(value)
-
-                    elif isinstance(value, torch.optim.Optimizer):
-                        dict_value = self._obj_to_dict(value)
-
-                    else:
-                        raise NotImplementedError(
-                            f"Handling this class {value.__class__} in not implemented "
-                        )
-
-                else:
-                    dict_value = value
-
-            attributes_dict[attribute] = dict_value
-        self.object_registry[id(stacierl_object)] = attributes_dict
+            nested_object = getattr(everl_object, attribute)
+            attributes_dict[attribute] = self._obj_to_native_datatypes(nested_object)
+        self.object_registry[id(everl_object)] = attributes_dict
         return attributes_dict
+
+    def _obj_to_native_datatypes(self, obj) -> Any:
+        if isinstance(obj, np.integer):
+            return int(obj)
+
+        if isinstance(obj, torch.device):  # pylint: disable=no-member
+            return str(obj)
+
+        if isinstance(obj, Enum):
+            return obj.value
+
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+
+        if isinstance(obj, eve.Env):
+            return f"{obj.__module__}.{obj.__class__.__name__}"
+
+        if isinstance(obj, list):
+            return [self._obj_to_native_datatypes(v) for v in obj]
+
+        if isinstance(obj, tuple):
+            return tuple(self._obj_to_native_datatypes(v) for v in obj)
+
+        if isinstance(obj, dict):
+            return {k: self._obj_to_native_datatypes(v) for k, v in obj.items()}
+
+        if hasattr(obj, "__module__"):
+            search_string = obj.__module__ + str(type(obj).__bases__)
+
+            if "everl." in search_string:
+                return self._everl_obj_to_dict(obj)
+
+            if isinstance(obj, torch.optim.lr_scheduler.LRScheduler):
+                return self._everl_obj_to_dict(obj)
+
+            raise NotImplementedError(
+                f"Handling this class {obj.__class__} in not implemented "
+            )
+
+        return obj
 
     @staticmethod
     def _get_init_attributes(init_function):
-
         init_attributes = []
         kwargs = inspect.signature(init_function)
         for param in kwargs.parameters.values():

@@ -8,7 +8,7 @@ import gymnasium as gym
 import torch
 
 from ..replaybuffer.replaybuffer import Episode
-from ..util import ConfigHandler
+from ..util import EveRLObject
 from ..algo import Algo
 from ..replaybuffer import ReplayBuffer
 
@@ -129,7 +129,7 @@ class EpisodeCounterShared(EpisodeCounter):
         return self
 
 
-class Agent(ABC):
+class Agent(EveRLObject, ABC):
     step_counter: StepCounter
     episode_counter: EpisodeCounter
     algo: Algo
@@ -186,20 +186,15 @@ class Agent(ABC):
     def close(self) -> None:
         ...
 
-    def save_config(self, file_path: str):
-        confighandler = ConfigHandler()
-        confighandler.save_config(self, file_path)
-
     def save_checkpoint(self, file_path) -> None:
-        confighandler = ConfigHandler()
-        algo_dict = confighandler.object_to_config_dict(self.algo)
-        replay_dict = confighandler.object_to_config_dict(self.replay_buffer)
+        algo_config = self.algo.get_config_dict()
+        replay_config = self.replay_buffer.get_config_dict()
         checkpoint_dict = {
             "algo": {
                 "network": self.algo.state_dicts_network(),
-                "config": algo_dict,
+                "config": algo_config,
             },
-            "replay_buffer": {"config": replay_dict},
+            "replay_buffer": {"config": replay_config},
             "steps": {
                 "heatup": self.step_counter.heatup,
                 "exploration": self.step_counter.exploration,
@@ -261,7 +256,6 @@ class Agent(ABC):
     ):
         current_steps = getattr(self.step_counter, task)
         if task == "update":
-
             log_text = f"{task:<11}: {t_duration:>6.1f}s | {steps/t_duration:>5.1f} steps/s | {steps:>7} steps | Total: {current_steps:>8} steps"
         else:
             current_episodes = getattr(self.episode_counter, task)
@@ -278,7 +272,6 @@ class Agent(ABC):
         seeds: Optional[List[int]] = None,
         options: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[int, int]:
-
         steps = int(steps) if steps not in [None, inf] else steps
         episodes = int(episodes) if episodes not in [None, inf] else episodes
         step_limit = int(step_limit) if step_limit not in [None, inf] else step_limit

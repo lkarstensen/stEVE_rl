@@ -129,45 +129,12 @@ class EpisodeCounterShared(EpisodeCounter):
         return self
 
 
-class Agent(EveRLObject, ABC):
+class AgentEvalOnly(EveRLObject, ABC):
     step_counter: StepCounter
     episode_counter: EpisodeCounter
     algo: Algo
-    env_train: gym.Env
     env_eval: gym.Env
-    replay_buffer: ReplayBuffer
     logger: logging.Logger
-    update_error: bool
-
-    @abstractmethod
-    def heatup(
-        self,
-        *,
-        steps: Optional[int] = None,
-        episodes: Optional[int] = None,
-        step_limit: Optional[int] = None,
-        episode_limit: Optional[int] = None,
-        custom_action_low: Optional[List[float]] = None,
-        custom_action_high: Optional[List[float]] = None,
-    ) -> List[Episode]:
-        ...
-
-    @abstractmethod
-    def explore(
-        self,
-        *,
-        steps: Optional[int] = None,
-        episodes: Optional[int] = None,
-        step_limit: Optional[int] = None,
-        episode_limit: Optional[int] = None,
-    ) -> List[Episode]:
-        ...
-
-    @abstractmethod
-    def update(
-        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
-    ) -> List[List[float]]:
-        ...
 
     @abstractmethod
     def evaluate(
@@ -182,39 +149,11 @@ class Agent(EveRLObject, ABC):
     ) -> List[Episode]:
         ...
 
-    @abstractmethod
-    def close(self) -> None:
-        ...
-
-    def save_checkpoint(self, file_path) -> None:
-        algo_config = self.algo.get_config_dict()
-        replay_config = self.replay_buffer.get_config_dict()
-        checkpoint_dict = {
-            "algo": {
-                "network": self.algo.state_dicts_network(),
-                "config": algo_config,
-            },
-            "replay_buffer": {"config": replay_config},
-            "steps": {
-                "heatup": self.step_counter.heatup,
-                "exploration": self.step_counter.exploration,
-                "update": self.step_counter.update,
-                "evaluation": self.step_counter.evaluation,
-            },
-            "episodes": {
-                "heatup": self.episode_counter.heatup,
-                "exploration": self.episode_counter.exploration,
-                "evaluation": self.episode_counter.evaluation,
-            },
-        }
-
-        torch.save(checkpoint_dict, file_path)
-
     def load_checkpoint(self, file_path: str) -> None:
         checkpoint = torch.load(file_path)
 
-        state_dicts_network = checkpoint["algo"]["network"]
-        self.algo.load_state_dicts_network(state_dicts_network)
+        network_state_dicts = checkpoint["network_state_dicts"]
+        self.algo.load_state_dicts_network(network_state_dicts)
 
         self.step_counter.heatup = checkpoint["steps"]["heatup"]
         self.step_counter.exploration = checkpoint["steps"]["exploration"]
@@ -313,3 +252,101 @@ class Agent(EveRLObject, ABC):
                     f"if seeds and options are given, they must be the same length. {len(seeds)=}, {len(options)=}"
                 )
         return step_limit, episode_limit
+
+    @classmethod
+    def from_config_file(cls, config_file: str, env_train: gym.Env, env_eval: gym.Env):
+        to_exchange = {"env_train": env_train, "env_eval": env_eval}
+        return super().from_config_file(config_file, to_exchange)
+
+
+class Agent(AgentEvalOnly, ABC):
+    step_counter: StepCounter
+    episode_counter: EpisodeCounter
+    algo: Algo
+    env_train: gym.Env
+    env_eval: gym.Env
+    replay_buffer: ReplayBuffer
+    logger: logging.Logger
+    update_error: bool
+
+    @abstractmethod
+    def heatup(
+        self,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        custom_action_low: Optional[List[float]] = None,
+        custom_action_high: Optional[List[float]] = None,
+    ) -> List[Episode]:
+        ...
+
+    @abstractmethod
+    def explore(
+        self,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+    ) -> List[Episode]:
+        ...
+
+    @abstractmethod
+    def update(
+        self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
+    ) -> List[List[float]]:
+        ...
+
+    @abstractmethod
+    def evaluate(
+        self,
+        *,
+        steps: Optional[int] = None,
+        episodes: Optional[int] = None,
+        step_limit: Optional[int] = None,
+        episode_limit: Optional[int] = None,
+        seeds: Optional[List[int]] = None,
+        options: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[Episode]:
+        ...
+
+    @abstractmethod
+    def close(self) -> None:
+        ...
+
+    def save_checkpoint(self, file_path) -> None:
+        algo_config = self.algo.get_config_dict()
+        replay_config = self.replay_buffer.get_config_dict()
+        env_eval_config = (
+            self.env_eval.get_config_dict()
+            if hasattr(self.env_train, "get_config_dict")
+            else None
+        )
+        env_train_config = (
+            self.env_eval.get_config_dict()
+            if hasattr(self.env_train, "get_config_dict")
+            else None
+        )
+
+        checkpoint_dict = {
+            "algo": algo_config,
+            "replay_buffer": replay_config,
+            "env_train": env_train_config,
+            "env_eval": env_eval_config,
+            "steps": {
+                "heatup": self.step_counter.heatup,
+                "exploration": self.step_counter.exploration,
+                "update": self.step_counter.update,
+                "evaluation": self.step_counter.evaluation,
+            },
+            "episodes": {
+                "heatup": self.episode_counter.heatup,
+                "exploration": self.episode_counter.exploration,
+                "evaluation": self.episode_counter.evaluation,
+            },
+            "network_state_dicts": self.algo.state_dicts_network(),
+        }
+
+        torch.save(checkpoint_dict, file_path)

@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import gymnasium as gym
 
-from everl.replaybuffer.replaybuffer import Episode
+from eve_rl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter, AgentEvalOnly
 from ..algo import Algo, AlgoPlayOnly
 from ..replaybuffer import ReplayBuffer, Episode

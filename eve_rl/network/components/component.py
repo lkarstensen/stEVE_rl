@@ -2,9 +2,10 @@ from abc import abstractmethod
 from typing import List, Union
 from torch import nn
 import torch
+from ...util import EveRLObject
 
 
-class Component(nn.Module):
+class Component(nn.Module, EveRLObject):
     n_inputs: int
     n_outputs: int
     output_layer_size: int

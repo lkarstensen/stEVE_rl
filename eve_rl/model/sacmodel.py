@@ -2,8 +2,29 @@ from copy import deepcopy
 from typing import Any, Dict, Iterator
 from torch import optim
 import torch
-from .model import Model
+from .model import Model, ModelPlayOnly
 from .. import network
+
+
+class SACModelPlayOnly(ModelPlayOnly):
+    def __init__(
+        self,
+        policy: network.GaussianPolicy,
+    ) -> None:
+        self.policy = policy
+
+    def to(self, device: torch.device):
+        super().to(device)
+        self.policy.to(device)
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+        self.policy.load_state_dict(state_dicts["policy"])
+
+    def reset(self) -> None:
+        self.policy.reset()
+
+    def close(self):
+        del self.policy
 
 
 class SACModel(Model):
@@ -128,10 +149,10 @@ class SACModel(Model):
 
         self.log_alpha.data.copy_(state_dicts["log_alpha"])
 
-    def copy_play_only(self):
+    def to_play_only(self) -> SACModelPlayOnly:
         policy = deepcopy(self.policy)
         policy.eval()
-        return SACModelPolicyOnly(policy)
+        return SACModelPlayOnly(policy)
 
     # def set_network_states(self, network_states_container: SACNetworkStateContainer):
     #     self.q1.load_state_dict(network_states_container.q1)
@@ -171,48 +192,3 @@ class SACModel(Model):
     #     self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
     #     self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
     #     self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
-
-
-class SACModelPolicyOnly(Model):
-    def __init__(
-        self,
-        policy: network.GaussianPolicy,
-    ) -> None:
-        self.policy = policy
-
-    def to(self, device: torch.device):
-        super().to(device)
-        self.policy.to(device)
-
-    def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
-        ret = state_dicts = {
-            "q1": None,
-            "q2": None,
-            "target_q1": None,
-            "target_q2": None,
-            "policy": self.policy.state_dict(),
-            "log_alpha": None,
-        }
-
-        if destination is not None:
-            for net in ["policy"]:
-                state_dict = state_dicts[net]
-                dest = destination[net]
-
-                for tensor, dest_tensor in zip(state_dict.values(), dest.values()):
-                    dest_tensor.copy_(tensor)
-            ret = destination
-
-        return ret
-
-    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
-        self.policy.load_state_dict(state_dicts["policy"])
-
-    def reset(self) -> None:
-        self.policy.reset()
-
-    def close(self):
-        del self.policy
-
-    def copy_play_only(self):
-        return deepcopy(self)

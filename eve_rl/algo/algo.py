@@ -1,11 +1,37 @@
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from typing import Any, List, Dict, Optional
 import numpy as np
 import torch
 from ..replaybuffer import Batch
-from ..model import Model
+from ..model import Model, ModelPlayOnly
 from ..util import EveRLObject
+
+
+class AlgoPlayOnly(EveRLObject, ABC):
+    model: ModelPlayOnly
+    device: torch.device
+
+    def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
+        return self.model.load_state_dicts_network(state_dicts)
+
+    @abstractmethod
+    def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
+        ...
+
+    @abstractmethod
+    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
+        ...
+
+    @abstractmethod
+    def reset(self) -> None:
+        ...
+
+    def to(self, device: torch.device):
+        self.device = device
+
+    @abstractmethod
+    def close(self):
+        ...
 
 
 class Algo(EveRLObject, ABC):
@@ -36,12 +62,8 @@ class Algo(EveRLObject, ABC):
     def reset(self) -> None:
         ...
 
-    def copy(self):
-        copy = deepcopy(self)
-        return copy
-
     @abstractmethod
-    def copy_play_only(self):
+    def to_play_only(self) -> AlgoPlayOnly:
         ...
 
     def to(self, device: torch.device):

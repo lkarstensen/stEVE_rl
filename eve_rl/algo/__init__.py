@@ -1,2 +1,2 @@
-from .algo import Algo
-from .sac import SAC, SACStochasticEval
+from .algo import Algo, AlgoPlayOnly
+from .sac import SAC, SACPlayOnly

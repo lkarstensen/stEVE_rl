@@ -4,9 +4,76 @@ import numpy as np
 from torch.distributions import Normal
 import torch
 import torch.nn.functional as F
-from .algo import Algo
-from ..model import SACModel
+from .algo import Algo, AlgoPlayOnly
+from ..model import SACModel, SACModelPlayOnly
 from ..replaybuffer import Batch
+
+
+class SACPlayOnly(AlgoPlayOnly):
+    model: SACModelPlayOnly
+
+    def __init__(
+        self,
+        model: SACModelPlayOnly,
+        n_actions: int,
+        action_scaling: float = 1,
+        exploration_action_noise: float = 0.25,
+        stochastic_eval: bool = False,
+    ):
+        self.logger = logging.getLogger(self.__module__)
+        # HYPERPARAMETERS
+        self.n_actions = n_actions
+        self.exploration_action_noise = exploration_action_noise
+        # Model
+        self.model = model
+
+        # REST
+        self.action_scaling = action_scaling
+        self.stochastic_eval = stochastic_eval
+
+        self.device = torch.device("cpu")
+
+    def get_exploration_action(self, flat_state: np.ndarray) -> np.ndarray:
+        with torch.no_grad():
+            torch_state = torch.as_tensor(
+                flat_state, dtype=torch.float32, device=self.device
+            )
+            torch_state = torch_state.unsqueeze(0).unsqueeze(0)
+            mean, log_std = self.model.policy.forward_play(torch_state)
+            std = log_std.exp()
+            normal = Normal(mean, std)
+            action = torch.tanh(normal.sample())
+            action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
+            action += np.random.normal(0, self.exploration_action_noise)
+        return action
+
+    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
+        with torch.no_grad():
+            torch_state = torch.as_tensor(
+                flat_state, dtype=torch.float32, device=self.device
+            )
+            torch_state = torch_state.unsqueeze(0).unsqueeze(0)
+            mean, log_std = self.model.policy.forward_play(torch_state)
+            if self.stochastic_eval:
+                std = log_std.exp()
+                normal = Normal(mean, std)
+                action = torch.tanh(normal.sample())
+            else:
+                mean, _ = self.model.policy.forward_play(torch_state)
+                action = torch.tanh(mean)
+
+            action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
+        return action * self.action_scaling
+
+    def to(self, device: torch.device):
+        super().to(device)
+        self.model.to(device)
+
+    def reset(self) -> None:
+        self.model.reset()
+
+    def close(self):
+        self.model.close()
 
 
 class SAC(Algo):
@@ -21,6 +88,7 @@ class SAC(Algo):
         reward_scaling: float = 1,
         action_scaling: float = 1,
         exploration_action_noise: float = 0.25,
+        stochastic_eval: bool = False,
     ):
         self.logger = logging.getLogger(self.__module__)
         # HYPERPARAMETERS
@@ -34,6 +102,7 @@ class SAC(Algo):
         # REST
         self.reward_scaling = reward_scaling
         self.action_scaling = action_scaling
+        self.stochastic_eval = stochastic_eval
 
         self.device = torch.device("cpu")
         self.update_step = 0
@@ -62,8 +131,15 @@ class SAC(Algo):
                 flat_state, dtype=torch.float32, device=self.device
             )
             torch_state = torch_state.unsqueeze(0).unsqueeze(0)
-            mean, _ = self.model.policy.forward_play(torch_state)
-            action = torch.tanh(mean)
+            mean, log_std = self.model.policy.forward_play(torch_state)
+            if self.stochastic_eval:
+                std = log_std.exp()
+                normal = Normal(mean, std)
+                action = torch.tanh(normal.sample())
+            else:
+                mean, _ = self.model.policy.forward_play(torch_state)
+                action = torch.tanh(mean)
+
             action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
         return action * self.action_scaling
 
@@ -209,28 +285,10 @@ class SAC(Algo):
     def close(self):
         self.model.close()
 
-    def copy_play_only(self):
-        return self.__class__(
-            self.model.copy_play_only(),
+    def to_play_only(self):
+        return SACPlayOnly(
+            self.model.to_play_only(),
             self.n_actions,
-            self.gamma,
-            self.tau,
-            self.reward_scaling,
             self.action_scaling,
             self.exploration_action_noise,
         )
-
-
-class SACStochasticEval(SAC):
-    def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
-        with torch.no_grad():
-            torch_state = torch.as_tensor(
-                flat_state, dtype=torch.float32, device=self.device
-            )
-            torch_state = torch_state.unsqueeze(0).unsqueeze(0)
-            mean, log_std = self.model.policy.forward_play(torch_state)
-            std = log_std.exp()
-            normal = Normal(mean, std)
-            action = torch.tanh(normal.sample())
-            action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
-        return action

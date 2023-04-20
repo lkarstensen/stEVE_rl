@@ -83,7 +83,15 @@ def sac_training(
         normalize_actions=True,
         # n_worker=5,
     )
-    agent.save_config("/Users/lennartkarstensen/stacie/eve_training/test_agent.yml")
+    folder = os.path.dirname(os.path.abspath(__file__))
+    agent_config_path = os.path.join(folder, "agent_config.yml")
+    agent.save_config(agent_config_path)
+    # env_config_path = os.path.join(folder, "env_config.yml")
+    # env.save_config(env_config_path)
+
+    agent: eve_rl.agent.Single = eve_rl.agent.Single.from_config_file(
+        agent_config_path, env_train=env, env_eval=env
+    )
 
     while True:
         logfile = log_folder + f"/{name}_{id_training}.csv"
@@ -146,7 +154,7 @@ def make_env() -> eve.Env:
 
     device = eve.intervention.device.JWire()
 
-    simulation = eve.intervention.Intervention(
+    simulation = eve.intervention.Simulation(
         vessel_tree=vessel_tree,
         devices=[device],
         stop_device_at_tree_end=True,
@@ -166,13 +174,14 @@ def make_env() -> eve.Env:
         target=target,
     )
 
-    position = eve.observation.Tracking(
+    position = eve.observation.Tracking2D(
         intervention=simulation,
         n_points=5,
     )
-    position = eve.observation.wrapper.NormalizeTrackingPerEpisode(position)
-    target_state = eve.observation.Target(target=target)
-    target_state = eve.observation.wrapper.ToTrackingCS(target_state, simulation)
+    position = eve.observation.wrapper.NormalizeTracking2DEpisode(
+        position, intervention=simulation
+    )
+    target_state = eve.observation.Target2D(target=target)
     rotation = eve.observation.Rotations(intervention=simulation)
 
     state = eve.observation.ObsDict(

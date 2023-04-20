@@ -253,6 +253,7 @@ class AgentEvalOnly(EveRLObject, ABC):
                 )
         return step_limit, episode_limit
 
+    # pylint: disable=arguments-differ
     @classmethod
     def from_config_file(cls, config_file: str, env_train: gym.Env, env_eval: gym.Env):
         to_exchange = {"env_train": env_train, "env_eval": env_eval}

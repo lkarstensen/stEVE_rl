@@ -84,11 +84,15 @@ def sac_training(
         # n_worker=5,
     )
     folder = os.path.dirname(os.path.abspath(__file__))
-    agent_config_path = os.path.join(folder, "agent_config.yml")
+    agent_config_path = os.path.join(folder, "test_agent_config.yml")
     agent.save_config(agent_config_path)
+    agent_cp_path = os.path.join(folder, "test_checkpoint")
+    agent.save_checkpoint(agent_cp_path)
     # env_config_path = os.path.join(folder, "env_config.yml")
     # env.save_config(env_config_path)
-
+    agent: eve_rl.agent.Single = eve_rl.agent.SingleEvalOnly.from_checkpoint(
+        agent_cp_path
+    )
     agent: eve_rl.agent.Single = eve_rl.agent.Single.from_config_file(
         agent_config_path, env_train=env, env_eval=env
     )

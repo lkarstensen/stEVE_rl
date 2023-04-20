@@ -244,8 +244,8 @@ class SynchronEvalOnly(Agent):
         cp = torch.load(checkpoint_path)
         confighandler = ConfigHandler()
         algo: Algo = confighandler.load_config_dict(cp["algo"])
-        eve = import_module("eve")
-        eve_cfh = eve.util.Confighandler()
+        eve = import_module("eve.util")
+        eve_cfh = eve.ConfigHandler()
         env_eval = env_eval or eve_cfh.load_config_dict(cp["env_eval"])
         agent = cls(
             algo.to_play_only(),
@@ -590,9 +590,8 @@ class Synchron(SynchronEvalOnly, Agent):
         replay_buffer = replay_buffer or confighandler.load_config_dict(
             cp["replay_buffer"]
         )
-
-        eve = import_module("eve")
-        eve_cfh = eve.util.Confighandler()
+        eve = import_module("eve.util")
+        eve_cfh = eve.ConfigHandler()
         env_train = env_train or eve_cfh.load_config_dict(cp["env_train"])
         env_eval = env_eval or eve_cfh.load_config_dict(cp["env_eval"])
         agent = cls(

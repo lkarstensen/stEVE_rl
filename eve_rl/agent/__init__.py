@@ -1,3 +1,3 @@
-from .agent import Agent
-from .single import Single
-from .synchron import Synchron
+from .agent import Agent, AgentEvalOnly
+from .single import Single, SingleEvalOnly
+from .synchron import Synchron, SynchronEvalOnly

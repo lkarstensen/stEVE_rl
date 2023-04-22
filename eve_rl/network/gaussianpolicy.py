@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 import logging
 import torch
 
-from .components import Component, ComponentDummy
+from .component import Component, ComponentDummy
 from .network import Network
 
 

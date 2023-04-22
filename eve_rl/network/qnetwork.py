@@ -4,7 +4,7 @@
 from typing import Optional
 import torch
 
-from .components import Component, ComponentDummy
+from .component import Component, ComponentDummy
 from .network import Network
 
 

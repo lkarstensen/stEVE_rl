@@ -241,10 +241,10 @@ class SynchronEvalOnly(Agent):
     ):
         cp = torch.load(checkpoint_path)
         confighandler = ConfigHandler()
-        algo: Algo = confighandler.load_config_dict(cp["algo"])
+        algo: Algo = confighandler.config_dict_to_object(cp["algo"])
         eve = import_module("eve.util")
         eve_cfh = eve.ConfigHandler()
-        env_eval = env_eval or eve_cfh.load_config_dict(cp["env_eval"])
+        env_eval = env_eval or eve_cfh.config_dict_to_object(cp["env_eval"])
         agent = cls(
             algo.to_play_only(),
             env_eval,
@@ -589,14 +589,14 @@ class Synchron(SynchronEvalOnly, Agent):
     ):
         cp = torch.load(checkpoint_path)
         confighandler = ConfigHandler()
-        algo = confighandler.load_config_dict(cp["algo"])
-        replay_buffer = replay_buffer or confighandler.load_config_dict(
+        algo = confighandler.config_dict_to_object(cp["algo"])
+        replay_buffer = replay_buffer or confighandler.config_dict_to_object(
             cp["replay_buffer"]
         )
         eve = import_module("eve.util")
         eve_cfh = eve.ConfigHandler()
-        env_train = env_train or eve_cfh.load_config_dict(cp["env_train"])
-        env_eval = env_eval or eve_cfh.load_config_dict(cp["env_eval"])
+        env_train = env_train or eve_cfh.config_dict_to_object(cp["env_train"])
+        env_eval = env_eval or eve_cfh.config_dict_to_object(cp["env_eval"])
         agent = cls(
             algo,
             env_train,

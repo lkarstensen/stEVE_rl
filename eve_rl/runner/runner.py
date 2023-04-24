@@ -72,7 +72,7 @@ class Runner(EveRLObject):
     ):
         explore_steps = self.step_counter.exploration
         checkpoint_file = os.path.join(
-            self.checkpoint_folder, f"checkpoint{explore_steps}"
+            self.checkpoint_folder, f"checkpoint{explore_steps}.everl"
         )
         self.agent.save_checkpoint(checkpoint_file)
         episodes = self.agent.evaluate(episodes=episodes, seeds=seeds)
@@ -92,7 +92,9 @@ class Runner(EveRLObject):
         self._results["reward"] = round(reward, 3)
 
         if success > self.best_eval["success"]:
-            checkpoint_file = os.path.join(self.checkpoint_folder, "checkpoint_best")
+            checkpoint_file = os.path.join(
+                self.checkpoint_folder, "checkpoint_best.everl"
+            )
             self.agent.save_checkpoint(checkpoint_file)
             self.best_eval["success"] = success
             self.best_eval["steps"] = explore_steps

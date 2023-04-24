@@ -38,21 +38,21 @@ def sac_training(
 
     n_observations = obs_np.shape[0]
     n_actions = env.action_space.sample().flatten().shape[0]
-    q1_mlp = eve_rl.network.components.MLP(hidden_layers)
+    q1_mlp = eve_rl.network.component.MLP(hidden_layers)
     q_net_1 = eve_rl.network.QNetwork(q1_mlp, n_observations, n_actions)
     q1_optimizer = eve_rl.optim.Adam(q_net_1, lr)
     q1_scheduler = optim.lr_scheduler.LinearLR(
         q1_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    q2_mlp = eve_rl.network.components.MLP(hidden_layers)
+    q2_mlp = eve_rl.network.component.MLP(hidden_layers)
     q_net_2 = eve_rl.network.QNetwork(q2_mlp, n_observations, n_actions)
     q2_optimizer = eve_rl.optim.Adam(q_net_2, lr)
     q2_scheduler = optim.lr_scheduler.LinearLR(
         q2_optimizer, end_factor=5e-5, total_iters=1e5
     )
 
-    policy_mlp = eve_rl.network.components.MLP(hidden_layers)
+    policy_mlp = eve_rl.network.component.MLP(hidden_layers)
     policy_net = eve_rl.network.GaussianPolicy(policy_mlp, n_observations, n_actions)
     policy_optimizer = eve_rl.optim.Adam(policy_net, lr)
     policy_scheduler = optim.lr_scheduler.LinearLR(

@@ -2,27 +2,33 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Union
 from torch import optim
 from ..network import Network
+from ..network.component import Component
 from ..util import EveRLObject
 
 
 class Optimizer(EveRLObject, ABC):
     @abstractmethod
     def __init__(
-        self, networks: Union[Network, List[Network], List[Dict]], *args, **kwargs
+        self,
+        networks: Union[
+            Union[Network, Component], List[Union[Network, Component]], List[Dict]
+        ],
+        *args,
+        **kwargs
     ) -> None:
         self.networks = networks
 
     def _networks_to_params(self, networks):
-        if isinstance(networks, Network):
+        if isinstance(networks, (Network, Component)):
             networks = [networks]
 
-        if isinstance(networks[0], Network):
+        if isinstance(networks[0], (Network, Component)):
             params = self._networks_list_to_params(networks)
         else:
             params = self._networks_groups_to_params_groups(networks)
         return params
 
-    def _networks_list_to_params(self, networks: List[Network]):
+    def _networks_list_to_params(self, networks: List[Union[Network, Component]]):
         params = []
         for network in networks:
             params += network.parameters()
@@ -49,12 +55,12 @@ class Adam(optim.Adam, Optimizer):
         eps=1e-08,
         weight_decay=0,
         amsgrad=False,
-        *,
-        foreach=None,
-        maximize=False,
-        capturable=False,
-        differentiable=False,
-        fused=None
+        # *,
+        # foreach=None,
+        # maximize=False,
+        # capturable=False,
+        # differentiable=False,
+        # fused=None
     ) -> None:
         self.networks = networks
 
@@ -66,11 +72,11 @@ class Adam(optim.Adam, Optimizer):
             eps,
             weight_decay,
             amsgrad,
-            foreach=foreach,
-            maximize=maximize,
-            capturable=capturable,
-            differentiable=differentiable,
-            fused=fused,
+            # foreach=foreach,
+            # maximize=maximize,
+            # capturable=capturable,
+            # differentiable=differentiable,
+            # fused=fused,
         )
         for key, value in self.defaults.items():
             setattr(self, key, value)

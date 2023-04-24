@@ -58,9 +58,7 @@ class SynchronEvalOnly(Agent):
         t_start = perf_counter()
         steps_start = self.step_counter.evaluation
         episodes_start = self.episode_counter.evaluation
-        self._log_task(
-            "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
-        )
+        self._log_eval(steps, step_limit, episodes, episode_limit, seeds, options)
         step_limit, episode_limit = self._log_and_convert_limits(
             "evaluation", steps, step_limit, episodes, episode_limit, seeds, options
         )
@@ -260,7 +258,7 @@ class SynchronEvalOnly(Agent):
 
 
 class Synchron(SynchronEvalOnly, Agent):
-    def __init__(
+    def __init__(  # pylint: disable=super-init-not-called
         self,
         algo: Algo,
         env_train: gym.Env,
@@ -315,8 +313,7 @@ class Synchron(SynchronEvalOnly, Agent):
         t_start = perf_counter()
         steps_start = self.step_counter.heatup
         episodes_start = self.episode_counter.heatup
-        self._log_task(
-            "heatup",
+        self._log_heatup(
             steps,
             step_limit,
             episodes,
@@ -352,7 +349,8 @@ class Synchron(SynchronEvalOnly, Agent):
         t_start = perf_counter()
         steps_start = self.step_counter.exploration
         episodes_start = self.episode_counter.exploration
-        self._log_task("explore", steps, step_limit, episodes, episode_limit)
+        self._log_exploration(steps, step_limit, episodes, episode_limit)
+
         step_limit, episode_limit = self._log_and_convert_limits(
             "exploration", steps, step_limit, episodes, episode_limit
         )
@@ -372,7 +370,7 @@ class Synchron(SynchronEvalOnly, Agent):
     ) -> List[float]:
         t_start = perf_counter()
         steps_start = self.step_counter.update
-        self._log_task("update", steps, step_limit)
+        self._log_update(steps, step_limit)
         step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
 
         self.trainer.update(steps=steps, step_limit=step_limit)
@@ -385,27 +383,29 @@ class Synchron(SynchronEvalOnly, Agent):
         self._log_task_completion("update", n_steps, t_duration)
         return result
 
-    def explore_and_update_parallel(
+    def explore_and_update(
         self,
-        update_steps: Optional[int] = None,
-        update_step_limit: Optional[int] = None,
+        *,
         explore_steps: Optional[int] = None,
         explore_episodes: Optional[int] = None,
         explore_step_limit: Optional[int] = None,
         explore_episode_limit: Optional[int] = None,
+        update_steps: Optional[int] = None,
+        update_step_limit: Optional[int] = None,
     ) -> Tuple[List[Episode], List[float]]:
         t_start = perf_counter()
         update_steps_start = self.step_counter.update
         explore_steps_start = self.step_counter.exploration
         explore_episodes_start = self.episode_counter.exploration
-        self._log_task(
-            "explore",
+        self._log_explore_and_update(
             explore_steps,
-            explore_step_limit,
             explore_episodes,
+            explore_step_limit,
             explore_episode_limit,
+            update_steps,
+            update_step_limit,
         )
-        self._log_task("update", update_steps, update_step_limit)
+
         update_step_limit, _ = self._log_and_convert_limits(
             "update", update_steps, update_step_limit
         )
@@ -468,10 +468,13 @@ class Synchron(SynchronEvalOnly, Agent):
             if got_worker_results and got_trainer_results:
                 break
 
-        self._log_task_completion(
-            "exploration", n_steps_explore, t_duration_explore, n_episodes_explore
+        self._log_task_completion_explore_and_update(
+            n_steps_update,
+            t_duration_update,
+            n_steps_explore,
+            n_episodes_explore,
+            t_duration_explore,
         )
-        self._log_task_completion("update", n_steps_update, t_duration_update)
         self._update_state_dicts_network()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
 
@@ -571,7 +574,7 @@ class Synchron(SynchronEvalOnly, Agent):
         self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
 
     @classmethod
-    def from_checkpoint(
+    def from_checkpoint(  # pylint: disable=arguments-renamed
         cls,
         checkpoint_path: str,
         n_worker: int,

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from random import randint
 import logging
 import logging.config
@@ -17,6 +17,7 @@ from .agent import (
     EpisodeCounter,
 )
 from .single import Single, Algo, ReplayBuffer, gym
+from ..replaybuffer import Episode
 
 
 def file_handler_callback(handler: logging.FileHandler):
@@ -42,7 +43,6 @@ handler_callback = {logging.FileHandler: file_handler_callback}
 
 
 def get_logging_config_dict():
-
     config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -159,6 +159,15 @@ def run(
                     logger.warning(log_warning)
                     shutdown.set()
                     result = error
+            elif task_name == "explore_and_update":
+                result = agent.explore_and_update(
+                    explore_steps=task[1],
+                    explore_episodes=task[2],
+                    explore_step_limit=task[3],
+                    explore_episode_limit=task[4],
+                    update_steps=task[5],
+                    update_step_limit=task[6],
+                )
             elif task_name == "state_dicts_network":
                 state_dicts = task[1]
                 state_dicts = agent.algo.state_dicts_network(state_dicts)
@@ -212,7 +221,7 @@ def run(
     is_shutdown.set()
 
 
-class SingleAgentProcess:
+class SingleAgentProcess(Agent):
     def __init__(
         self,
         agent_id: int,
@@ -229,7 +238,6 @@ class SingleAgentProcess:
         episode_counter: EpisodeCounterShared = None,
         nice_level: int = 0,
     ) -> None:
-
         self.logger = logging.getLogger(self.__module__)
         self.agent_id = agent_id
         self.name = name
@@ -329,6 +337,31 @@ class SingleAgentProcess:
     ) -> None:
         try:
             self._task_queue.put(["update", steps, step_limit])
+        except ValueError:
+            self.close()
+
+    def explore_and_update(
+        self,
+        *,
+        explore_steps: Optional[int] = None,
+        explore_episodes: Optional[int] = None,
+        explore_step_limit: Optional[int] = None,
+        explore_episode_limit: Optional[int] = None,
+        update_steps: Optional[int] = None,
+        update_step_limit: Optional[int] = None,
+    ) -> Tuple[List[Episode], List[float]]:
+        try:
+            self._task_queue.put(
+                [
+                    "explore_and_update",
+                    explore_steps,
+                    explore_episodes,
+                    explore_step_limit,
+                    explore_episode_limit,
+                    update_steps,
+                    update_step_limit,
+                ]
+            )
         except ValueError:
             self.close()
 

@@ -164,30 +164,18 @@ class AgentEvalOnly(EveRLObject, ABC):
         self.episode_counter.exploration = checkpoint["episodes"]["exploration"]
         self.episode_counter.evaluation = checkpoint["episodes"]["evaluation"]
 
-    def _log_task(
+    def _log_eval(
         self,
-        task: str,
         steps: Optional[int] = None,
         step_limit: Optional[int] = None,
         episodes: Optional[int] = None,
         episode_limit: Optional[int] = None,
         seeds: Optional[List[int]] = None,
         options: Optional[List[Dict[str, Any]]] = None,
-        custom_action_low: Optional[List[float]] = None,
-        custom_action_high: Optional[List[float]] = None,
     ):
-        if task == "update":
-            log_text = f"update (amount/limit): steps {steps}/{step_limit}"
-        elif task == "explore":
-            log_text = f"explore (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit}"
-        elif task == "evaluate":
-            seed_text = f"{len(seeds)=}" if seeds is not None else "seeds=None"
-            options_text = f"{len(options)=}" if options is not None else "options=None"
-            log_text = f"evaluate (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {seed_text}/{options_text}"
-        elif task == "heatup":
-            log_text = f"heatup (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {custom_action_low=}/{custom_action_high=}"
-        else:
-            raise ValueError(f"{task=} is not possible")
+        seed_text = f"{len(seeds)=}" if seeds is not None else "seeds=None"
+        options_text = f"{len(options)=}" if options is not None else "options=None"
+        log_text = f"evaluate (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {seed_text}/{options_text}"
         self.logger.debug(log_text)
 
     def _log_task_completion(
@@ -301,6 +289,19 @@ class Agent(AgentEvalOnly, ABC):
         ...
 
     @abstractmethod
+    def explore_and_update(
+        self,
+        *,
+        explore_steps: Optional[int] = None,
+        explore_episodes: Optional[int] = None,
+        explore_step_limit: Optional[int] = None,
+        explore_episode_limit: Optional[int] = None,
+        update_steps: Optional[int] = None,
+        update_step_limit: Optional[int] = None,
+    ) -> Tuple[List[Episode], List[float]]:
+        ...
+
+    @abstractmethod
     def evaluate(
         self,
         *,
@@ -351,3 +352,59 @@ class Agent(AgentEvalOnly, ABC):
         }
 
         torch.save(checkpoint_dict, file_path)
+
+    def _log_heatup(
+        self,
+        steps: int,
+        step_limit: int,
+        episodes: int,
+        episode_limit: int,
+        custom_action_low: List[float],
+        custom_action_high: List[float],
+    ):
+        log_text = f"heatup (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit} | {custom_action_low=}/{custom_action_high=}"
+        self.logger.debug(log_text)
+
+    def _log_exploration(
+        self,
+        steps: int,
+        step_limit: int,
+        episodes: int,
+        episode_limit: int,
+    ):
+        log_text = f"explore (amount/limit): steps {steps}/{step_limit} | episodes {episodes}/{episode_limit}"
+        self.logger.debug(log_text)
+
+    def _log_update(
+        self,
+        steps: int,
+        step_limit: int,
+    ):
+        log_text = f"update (amount/limit): steps {steps}/{step_limit}"
+        self.logger.debug(log_text)
+
+    def _log_explore_and_update(
+        self,
+        explore_steps: int,
+        explore_episodes: int,
+        explore_step_limit: int,
+        explore_episode_limit: int,
+        update_steps: int,
+        update_step_limit: int,
+    ):
+        log_text = f"explore (amount/limit): steps {explore_steps}/{explore_step_limit} | episodes {explore_episodes}/{explore_episode_limit} || update (amount/limit): steps {update_steps}/{update_step_limit}"
+        self.logger.debug(log_text)
+
+    def _log_task_completion_explore_and_update(
+        self,
+        update_steps: int,
+        update_duration: float,
+        explore_steps: int,
+        explore_episodes: int,
+        explore_duration: float,
+    ):
+        current_update_steps = self.step_counter.update
+        current_explore_steps = self.step_counter.exploration
+        current_episodes = self.episode_counter.exploration
+        log_text = f"update / exploration: {update_duration:>5.1f}/{explore_duration:>5.1f} s | {update_steps/update_duration:>5.1f}/{explore_steps/explore_duration:>5.1f} steps/s | {update_steps:>5}/{explore_steps:>6} steps, {explore_episodes:>3} episodes | {current_update_steps:>6}/{current_explore_steps:>7} steps total, {current_episodes:>5} episodes total"
+        self.logger.info(log_text)

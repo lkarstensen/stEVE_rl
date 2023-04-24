@@ -7,7 +7,6 @@ import torch
 import numpy as np
 import gymnasium as gym
 
-from eve_rl.replaybuffer.replaybuffer import Episode
 from .agent import Agent, StepCounter, EpisodeCounter, AgentEvalOnly
 from ..algo import Algo, AlgoPlayOnly
 from ..replaybuffer import ReplayBuffer, Episode
@@ -46,9 +45,7 @@ class SingleEvalOnly(AgentEvalOnly):
         options: Optional[List[Dict[str, Any]]] = None,
     ) -> List[Episode]:
         t_start = perf_counter()
-        self._log_task(
-            "evaluate", steps, step_limit, episodes, episode_limit, seeds, options
-        )
+        self._log_eval(steps, step_limit, episodes, episode_limit, seeds, options)
         step_limit, episode_limit = self._log_and_convert_limits(
             "evaluation", steps, step_limit, episodes, episode_limit, seeds, options
         )
@@ -172,7 +169,7 @@ class SingleEvalOnly(AgentEvalOnly):
 
 
 class Single(SingleEvalOnly, Agent):
-    def __init__(
+    def __init__(  # pylint: disable=super-init-not-called
         self,
         algo: Algo,
         env_train: gym.Env,
@@ -211,8 +208,7 @@ class Single(SingleEvalOnly, Agent):
         custom_action_high: Optional[List[float]] = None,
     ) -> List[Episode]:
         t_start = perf_counter()
-        self._log_task(
-            "heatup",
+        self._log_heatup(
             steps,
             step_limit,
             episodes,
@@ -280,7 +276,7 @@ class Single(SingleEvalOnly, Agent):
         episode_limit: Optional[int] = None,
     ) -> List[Episode]:
         t_start = perf_counter()
-        self._log_task("explore", steps, step_limit, episodes, episode_limit)
+        self._log_exploration(steps, step_limit, episodes, episode_limit)
         step_limit, episode_limit = self._log_and_convert_limits(
             "exploration", steps, step_limit, episodes, episode_limit
         )
@@ -318,7 +314,7 @@ class Single(SingleEvalOnly, Agent):
         self, *, steps: Optional[int] = None, step_limit: Optional[int] = None
     ) -> List[List[float]]:
         t_start = perf_counter()
-        self._log_task("update", steps, step_limit)
+        self._log_update(steps, step_limit)
         step_limit, _ = self._log_and_convert_limits("update", steps, step_limit)
         results = []
         if self._replay_too_small:
@@ -342,6 +338,25 @@ class Single(SingleEvalOnly, Agent):
         self._log_task_completion("update", n_steps, t_duration)
         return results
 
+    def explore_and_update(
+        self,
+        *,
+        explore_steps: Optional[int] = None,
+        explore_episodes: Optional[int] = None,
+        explore_step_limit: Optional[int] = None,
+        explore_episode_limit: Optional[int] = None,
+        update_steps: Optional[int] = None,
+        update_step_limit: Optional[int] = None,
+    ) -> Tuple[List[Episode], List[float]]:
+        explore_result = self.explore(
+            steps=explore_steps,
+            episodes=explore_episodes,
+            step_limit=explore_step_limit,
+            episode_limit=explore_episode_limit,
+        )
+        update_result = self.update(steps=update_steps, step_limit=update_step_limit)
+        return explore_result, update_result
+
     def close(self):
         self.env_train.close()
         if id(self.env_train) != id(self.env_eval):
@@ -349,7 +364,7 @@ class Single(SingleEvalOnly, Agent):
         self.replay_buffer.close()
 
     @classmethod
-    def from_checkpoint(
+    def from_checkpoint(  # pylint: disable=arguments-renamed
         cls,
         checkpoint_path: str,
         device: torch.device = torch.device("cpu"),

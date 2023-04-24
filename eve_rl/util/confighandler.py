@@ -62,7 +62,7 @@ class ConfigHandler:
 
     def config_dict_to_list_of_objects(
         self, config_dict: dict, full_config_dict: Optional[dict] = None
-    ) -> dict[int, str]:
+    ) -> Dict[int, str]:
         if full_config_dict is not None:
             full_config_registry, _ = self._config_dict_to_object_list_recursive(
                 full_config_dict
@@ -76,7 +76,7 @@ class ConfigHandler:
 
     def _config_dict_to_object_list_recursive(
         self, config_dict: dict, object_list=None, full_config_registry: dict = None
-    ) -> dict[int, str]:
+    ) -> Dict[int, str]:
         object_list = object_list or {}
         full_config_registry = full_config_registry or {}
         obj_id = config_dict["_id"]

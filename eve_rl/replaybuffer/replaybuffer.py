@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List, NamedTuple, Union
+from typing import Any, Dict, List, NamedTuple, Optional, Union
 import numpy as np
 
 import torch
@@ -10,29 +10,37 @@ from ..util import EveRLObject
 
 class Episode:
     def __init__(
-        self, reset_state: Dict[str, np.ndarray], reset_flat_state: np.ndarray
+        self,
+        reset_obs: Dict[str, np.ndarray],
+        reset_flat_obs: np.ndarray,
+        flat_obs_to_obs: Optional[Union[List, Dict]] = None,
+        seed: Optional[int] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> None:
-        self.states: List[Dict[str, np.ndarray]] = [reset_state]
-        self.flat_states: List[np.ndarray] = [reset_flat_state]
+        self.obs: List[Dict[str, np.ndarray]] = [reset_obs]
+        self.flat_obs: List[np.ndarray] = [reset_flat_obs]
         self.actions: List[np.ndarray] = []
         self.rewards: List[float] = []
         self.terminals: List[bool] = []
         self.truncations: List[bool] = []
         self.infos: List[Dict[str, np.ndarray]] = []
         self.episode_reward: float = 0.0
+        self.flat_state_to_state = flat_obs_to_obs
+        self.seed = seed
+        self.options = options
 
     def add_transition(
         self,
-        state: Dict[str, np.ndarray],
-        flat_state: np.ndarray,
+        obs: Dict[str, np.ndarray],
+        flat_obs: np.ndarray,
         action: np.ndarray,
         reward: float,
         terminal: bool,
         truncation: bool,
         info: Dict[str, np.ndarray],
     ):
-        self.states.append(state)
-        self.flat_states.append(flat_state)
+        self.obs.append(obs)
+        self.flat_obs.append(flat_obs)
         self.actions.append(action)
         self.rewards.append(reward)
         self.terminals.append(terminal)
@@ -41,9 +49,7 @@ class Episode:
         self.episode_reward += reward
 
     def to_replay(self):
-        return EpisodeReplay(
-            self.flat_states, self.actions, self.rewards, self.terminals
-        )
+        return EpisodeReplay(self.flat_obs, self.actions, self.rewards, self.terminals)
 
     def __len__(self):
         return len(self.actions)
@@ -51,7 +57,7 @@ class Episode:
 
 @dataclass
 class EpisodeReplay:
-    flat_states: List[np.ndarray]
+    flat_obs: List[np.ndarray]
     actions: List[np.ndarray]
     rewards: List[float]
     terminals: List[bool]
@@ -61,14 +67,14 @@ class EpisodeReplay:
 
 
 class Batch(NamedTuple):
-    states: torch.Tensor
+    obs: torch.Tensor
     actions: torch.Tensor
     rewards: torch.Tensor
     terminals: torch.Tensor
     padding_mask: torch.Tensor = None
 
     def to(self, device: torch.device, non_blocking=False):
-        states = self.states.to(
+        obs = self.obs.to(
             device,
             dtype=torch.float32,
             non_blocking=non_blocking,
@@ -88,12 +94,7 @@ class Batch(NamedTuple):
             dtype=torch.float32,
             non_blocking=non_blocking,
         ).share_memory_()
-        padding_mask = self.padding_mask.to(
-            device,
-            dtype=torch.float32,
-            non_blocking=non_blocking,
-        ).share_memory_()
-        return Batch(states, actions, rewards, terminals, padding_mask)
+        return Batch(obs, actions, rewards, terminals, padding_mask)
 
 
 class ReplayBuffer(EveRLObject, ABC):

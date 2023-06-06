@@ -16,12 +16,11 @@ class VanillaStep(ReplayBuffer):
         return self._batch_size
 
     def push(self, episode: Episode):
-
         for i in range(len(episode) - 1):
             if len(self.buffer) < self.capacity:
                 self.buffer.append(None)
             episode_np = (
-                np.array(episode.flat_states[i : i + 2]),  # state + next_state
+                np.array(episode.flat_obs[i : i + 2]),  # state + next_state
                 np.array(episode.actions[i]),
                 np.array(episode.rewards[i]),
                 np.array(episode.terminals[i]),

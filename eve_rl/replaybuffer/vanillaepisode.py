@@ -25,7 +25,7 @@ class VanillaEpisode(ReplayBuffer):
             self.buffer.append(None)
 
         episode_np = (
-            np.array(episode.flat_states),
+            np.array(episode.flat_obs),
             np.array(episode.actions),
             np.array(episode.rewards),
             np.array(episode.terminals),

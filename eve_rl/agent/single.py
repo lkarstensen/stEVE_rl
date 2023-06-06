@@ -10,7 +10,7 @@ import gymnasium as gym
 from .agent import Agent, StepCounter, EpisodeCounter, AgentEvalOnly
 from ..algo import Algo, AlgoPlayOnly
 from ..replaybuffer import ReplayBuffer, Episode
-from ..util import ConfigHandler
+from ..util import ConfigHandler, flatten_obs
 
 
 class SingleEvalOnly(AgentEvalOnly):
@@ -102,8 +102,8 @@ class SingleEvalOnly(AgentEvalOnly):
 
         self.algo.reset()
         obs = env.reset(seed=seed, options=options)
-        flat_obs = self._flatten_obs(obs)
-        episode = Episode(obs, flat_obs)
+        flat_obs, flat_obs_to_obs = flatten_obs(obs)
+        episode = Episode(obs, flat_obs, flat_obs_to_obs, seed, options)
 
         while not (terminal or truncation):
             action = action_function(flat_obs)
@@ -111,16 +111,11 @@ class SingleEvalOnly(AgentEvalOnly):
             for _ in range(consecutive_actions):
                 env_action = action.reshape(env.action_space.shape)
                 if self.normalize_actions:
-                    if isinstance(env.action_space, gym.spaces.Box):
-                        env_action = (env_action + 1) / 2 * (
-                            env.action_space.high - env.action_space.low
-                        ) + env.action_space.low
-                    else:
-                        raise NotImplementedError(
-                            "Normaization not implemented for this Action Space"
-                        )
+                    env_action = (env_action + 1) / 2 * (
+                        env.action_space.high - env.action_space.low
+                    ) + env.action_space.low
                 obs, reward, terminal, truncation, info = env.step(env_action)
-                flat_obs = self._flatten_obs(obs)
+                flat_obs, _ = flatten_obs(obs)
                 step_counter += 1
                 env.render()
                 episode.add_transition(
@@ -130,12 +125,6 @@ class SingleEvalOnly(AgentEvalOnly):
                     break
 
         return episode, step_counter
-
-    @staticmethod
-    def _flatten_obs(state: Dict[str, np.ndarray]) -> np.ndarray:
-        obs_list = [obs.flatten() for obs in state.values()]
-        obs_np = np.concatenate(obs_list)
-        return obs_np
 
     def to(self, device: torch.device):
         self.device = device

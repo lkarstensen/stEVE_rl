@@ -94,6 +94,14 @@ class Batch(NamedTuple):
             dtype=torch.float32,
             non_blocking=non_blocking,
         ).share_memory_()
+        if self.padding_mask is not None:
+            padding_mask = self.padding_mask.to(
+                device,
+                dtype=torch.float32,
+                non_blocking=non_blocking,
+            ).share_memory_()
+        else:
+            padding_mask = None
         return Batch(obs, actions, rewards, terminals, padding_mask)
 
 

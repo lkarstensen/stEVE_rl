@@ -214,8 +214,6 @@ class ConfigHandler:
             return self.object_registry[obj_id]
 
         class_str: str = obj_config_dict.pop("_class")
-        if "optim" in class_str:
-            print("optim")
         obj_kwds = {}
         for attribute_name, value in obj_config_dict.items():
             obj_kwds[attribute_name] = self._config_dict_value_converter(value)

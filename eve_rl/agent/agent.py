@@ -318,7 +318,9 @@ class Agent(AgentEvalOnly, ABC):
     def close(self) -> None:
         ...
 
-    def save_checkpoint(self, file_path) -> None:
+    def save_checkpoint(
+        self, file_path, additional_info: Optional[Dict] = None
+    ) -> None:
         algo_config = self.algo.get_config_dict()
         replay_config = self.replay_buffer.get_config_dict()
         env_eval_config = (
@@ -349,6 +351,7 @@ class Agent(AgentEvalOnly, ABC):
                 "evaluation": self.episode_counter.evaluation,
             },
             "network_state_dicts": self.algo.state_dicts_network(),
+            "additional_info": additional_info,
         }
 
         torch.save(checkpoint_dict, file_path)

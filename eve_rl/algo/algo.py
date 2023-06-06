@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from ..replaybuffer import Batch
 from ..model import Model, ModelPlayOnly
-from ..util import EveRLObject
+from ..util import EveRLObject, ConfigHandler
 
 
 class AlgoPlayOnly(EveRLObject, ABC):
@@ -32,6 +32,18 @@ class AlgoPlayOnly(EveRLObject, ABC):
     @abstractmethod
     def close(self):
         ...
+
+    @classmethod
+    def from_checkpoint(cls, checkpoint_path: str):
+        cp = torch.load(checkpoint_path)
+        confighandler = ConfigHandler()
+        algo = confighandler.config_dict_to_object(cp["algo"])
+        if isinstance(algo, Algo):
+            algo = algo.to_play_only()
+        elif not isinstance(algo, AlgoPlayOnly):
+            raise ValueError("Wrong Algo Class in Checkpoint")
+        algo.load_state_dicts_network(cp["network_state_dicts"])
+        return algo
 
 
 class Algo(EveRLObject, ABC):
@@ -72,3 +84,13 @@ class Algo(EveRLObject, ABC):
     @abstractmethod
     def close(self):
         ...
+
+    @classmethod
+    def from_checkpoint(cls, checkpoint_path: str):
+        cp = torch.load(checkpoint_path)
+        confighandler = ConfigHandler()
+        algo = confighandler.config_dict_to_object(cp["algo"])
+        if not isinstance(algo, Algo):
+            raise ValueError("Wrong Algo Class in Checkpoint")
+
+        return algo

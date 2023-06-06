@@ -253,6 +253,15 @@ class SingleAgentProcess(Agent):
         self._step_counter = step_counter or StepCounterShared()
         self._episode_counter = episode_counter or EpisodeCounterShared()
         logging_config = get_logging_config_dict()
+
+        for handler_config in logging_config["handlers"].values():
+            if "filename" in handler_config.keys():
+                filename = handler_config["filename"]
+                path, _ = os.path.split(filename)
+                path = os.path.join(path, "logs_subprocesses")
+                if not os.path.isdir(path):
+                    os.mkdir(path)
+
         self._process = mp.Process(
             target=run,
             args=[

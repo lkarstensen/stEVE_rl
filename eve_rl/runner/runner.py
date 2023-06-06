@@ -16,6 +16,7 @@ class Runner(EveRLObject):
         agent_parameter_for_result_file: dict,
         checkpoint_folder: str,
         results_file: str,
+        quality_info: Optional[str] = None,
         info_results: Optional[List[str]] = None,
     ) -> None:
         self.agent = agent
@@ -24,6 +25,7 @@ class Runner(EveRLObject):
         self.agent_parameter_dict = agent_parameter_for_result_file
         self.checkpoint_folder = checkpoint_folder
         self.results_file = results_file
+        self.quality_info = quality_info
         self.info_results = info_results or []
         self.logger = logging.getLogger(self.__module__)
 
@@ -31,10 +33,11 @@ class Runner(EveRLObject):
             "episodes explore": 0,
             "steps explore": 0,
         }
+        self._results["quality"] = 0.0
         for info_result in self.info_results:
             self._results[info_result] = 0.0
         self._results["reward"] = 0.0
-        self._results["best success"] = 0.0
+        self._results["best quality"] = 0.0
         self._results["best explore steps"] = 0.0
 
         with open(results_file, "w", newline="", encoding="utf-8") as csvfile:
@@ -44,7 +47,7 @@ class Runner(EveRLObject):
             writer.writerow([])
             writer.writerow(self._results.keys())
 
-        self.best_eval = {"steps": 0, "success": -inf}
+        self.best_eval = {"steps": 0, "quality": -inf}
 
     @property
     def step_counter(self) -> StepCounter:
@@ -74,43 +77,70 @@ class Runner(EveRLObject):
         checkpoint_file = os.path.join(
             self.checkpoint_folder, f"checkpoint{explore_steps}.everl"
         )
-        self.agent.save_checkpoint(checkpoint_file)
-        episodes = self.agent.evaluate(episodes=episodes, seeds=seeds)
+        result_episodes = self.agent.evaluate(episodes=episodes, seeds=seeds)
+        qualities, rewards = [], []
+        results_for_info = {
+            info_result_name: [] for info_result_name in self.info_results
+        }
+        eval_results = {"episodes": []}
+        for episode in result_episodes:
+            reward = episode.episode_reward
+            quality = (
+                episode.infos[-1][self.quality_info]
+                if self.quality_info is not None
+                else reward
+            )
+            qualities.append(quality)
+            rewards.append(reward)
+            for info_result_name in self.info_results:
+                info = episode.infos[-1][info_result_name]
+                results_for_info[info_result_name].append(info)
+            eval_results["episodes"].append(
+                {
+                    "seed": episode.seed,
+                    "options": episode.options,
+                    "quality": episode.infos[-1][self.quality_info],
+                }
+            )
+
+        reward = sum(rewards) / len(rewards)
+        quality = sum(qualities) / len(qualities)
+        for info_result_name, results in results_for_info.items():
+            result = sum(results) / len(results)
+            self._results[info_result_name] = round(result, 3)
+        save_best = False
+        if quality > self.best_eval["quality"]:
+            save_best = True
+            self.best_eval["quality"] = quality
+            self.best_eval["steps"] = explore_steps
 
         self._results["episodes explore"] = self.episode_counter.exploration
         self._results["steps explore"] = explore_steps
-        successes = [episode.infos[-1]["success"] for episode in episodes]
-        success = sum(successes) / len(successes)
-
-        for info_result in self.info_results:
-            result = [episode.infos[-1][info_result] for episode in episodes]
-            result = sum(result) / len(result)
-            self._results[info_result] = round(result, 3)
-
-        rewards = [episode.episode_reward for episode in episodes]
-        reward = sum(rewards) / len(rewards)
         self._results["reward"] = round(reward, 3)
-
-        if success > self.best_eval["success"]:
-            checkpoint_file = os.path.join(
-                self.checkpoint_folder, "checkpoint_best.everl"
-            )
-            self.agent.save_checkpoint(checkpoint_file)
-            self.best_eval["success"] = success
-            self.best_eval["steps"] = explore_steps
-
-        self._results["best success"] = self.best_eval["success"]
+        self._results["quality"] = round(quality, 3)
+        self._results["best quality"] = self.best_eval["quality"]
         self._results["best explore steps"] = self.best_eval["steps"]
 
+        eval_results.update(self._results)
+        eval_results.pop("best quality")
+        eval_results.pop("best explore steps")
+
+        self.agent.save_checkpoint(checkpoint_file, eval_results)
+        if save_best:
+            checkpoint_file = os.path.join(
+                self.checkpoint_folder, "best_checkpoint.everl"
+            )
+            self.agent.save_checkpoint(checkpoint_file, eval_results)
+
         log_info = (
-            f"Success: {success}, Reward: {reward}, Exploration steps: {explore_steps}"
+            f"Quality: {quality}, Reward: {reward}, Exploration steps: {explore_steps}"
         )
         self.logger.info(log_info)
         with open(self.results_file, "a+", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile, delimiter=";")
             writer.writerow(self._results.values())
 
-        return success, reward
+        return quality, reward
 
     def explore_and_update(
         self,
@@ -160,8 +190,7 @@ class Runner(EveRLObject):
                 update_steps_per_explore_step,
                 explore_steps_limit=next_eval_step_limt,
             )
-            self.eval(episodes=eval_episodes, seeds=eval_seeds)
+            quality, reward = self.eval(episodes=eval_episodes, seeds=eval_seeds)
             next_eval_step_limt += explore_steps_between_eval
 
-        reward, success = self.eval(episodes=eval_episodes, seeds=eval_seeds)
-        return reward, success
+        return quality, reward

@@ -101,7 +101,7 @@ class SingleEvalOnly(AgentEvalOnly):
         step_counter = 0
 
         self.algo.reset()
-        obs = env.reset(seed=seed, options=options)
+        obs, _ = env.reset(seed=seed, options=options)
         flat_obs, flat_obs_to_obs = flatten_obs(obs)
         episode = Episode(obs, flat_obs, flat_obs_to_obs, seed, options)
 

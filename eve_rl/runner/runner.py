@@ -22,7 +22,7 @@ class Runner(EveRLObject):
         self.agent = agent
         self.heatup_action_low = heatup_action_low
         self.heatup_action_high = heatup_action_high
-        self.agent_parameter_dict = agent_parameter_for_result_file
+        self.agent_parameter_for_result_file = agent_parameter_for_result_file
         self.checkpoint_folder = checkpoint_folder
         self.results_file = results_file
         self.quality_info = quality_info
@@ -42,10 +42,16 @@ class Runner(EveRLObject):
 
         with open(results_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile, delimiter=";")
-            writer.writerow(agent_parameter_for_result_file.keys())
-            writer.writerow(agent_parameter_for_result_file.values())
-            writer.writerow([])
-            writer.writerow(self._results.keys())
+            writer.writerow(
+                list(self._results.keys())
+                + [" "]
+                + list(agent_parameter_for_result_file.keys())
+            )
+            writer.writerow(
+                list(self._results.values())
+                + [" "]
+                + list(agent_parameter_for_result_file.values())
+            )
 
         self.best_eval = {"steps": 0, "quality": -inf}
 
@@ -182,6 +188,7 @@ class Runner(EveRLObject):
         eval_episodes: Optional[int] = None,
         eval_seeds: Optional[List[int]] = None,
     ):
+        # TODO: Log Training Run Infos
         self.heatup(heatup_steps)
         next_eval_step_limt = explore_steps_between_eval
         while self.agent.step_counter.exploration < training_steps:

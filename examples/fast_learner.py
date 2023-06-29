@@ -5,6 +5,7 @@ import torch
 import numpy as np
 
 import eve
+from eve.visualisation import SofaPygame
 import eve_rl
 
 
@@ -150,50 +151,57 @@ def sac_training(
 
 
 def make_env() -> eve.Env:
-    vessel_tree = eve.vesseltree.AorticArch(
+    vessel_tree = eve.intervention.vesseltree.AorticArch(
         seed=30,
-        scale_xyzd=[1.0, 1.0, 1.0, 0.75],
-        rotate_yzx_deg=[0, -20, -5],
+        scaling_xyzd=[1.0, 1.0, 1.0, 0.75],
+        # rotation_yzx_deg=[0, -20, -5],
     )
 
-    device = eve.intervention.device.JWire()
+    device = eve.intervention.device.JShaped()
 
-    simulation = eve.intervention.Simulation(
+    simulation = eve.intervention.simulation.SofaBeamAdapter(friction=0.001)
+
+    fluoroscopy = eve.intervention.fluoroscopy.Fluoroscopy(
+        simulation=simulation,
+        vessel_tree=vessel_tree,
+        image_frequency=7.5,
+        image_rot_zx=[20, 5],
+    )
+
+    target = eve.intervention.target.CenterlineRandom(
+        vessel_tree=vessel_tree,
+        fluoroscopy=fluoroscopy,
+        threshold=5,
+        branches=["lcca", "rcca", "lsa", "rsa", "bct", "co"],
+    )
+
+    intervention = eve.intervention.MonoPlaneStatic(
         vessel_tree=vessel_tree,
         devices=[device],
-        stop_device_at_tree_end=True,
-    )
-    start = eve.start.MaxDeviceLength(
-        intervention=simulation,
-        max_length=500,
-    )
-    target = eve.target.CenterlineRandom(
-        vessel_tree=vessel_tree,
-        intervention=simulation,
-        threshold=10,
-    )
-    pathfinder = eve.pathfinder.BruteForceBFS(
-        vessel_tree=vessel_tree,
-        intervention=simulation,
+        simulation=simulation,
+        fluoroscopy=fluoroscopy,
         target=target,
     )
 
-    position = eve.observation.Tracking2D(
-        intervention=simulation,
-        n_points=5,
-    )
+    start = eve.start.MaxDeviceLength(intervention=intervention, max_length=500)
+    pathfinder = eve.pathfinder.BruteForceBFS(intervention=intervention)
+
+    position = eve.observation.Tracking2D(intervention=intervention, n_points=5)
     position = eve.observation.wrapper.NormalizeTracking2DEpisode(
-        position, intervention=simulation
+        position, intervention
     )
-    target_state = eve.observation.Target2D(target=target)
-    rotation = eve.observation.Rotations(intervention=simulation)
+    target_state = eve.observation.Target2D(intervention=intervention)
+    target_state = eve.observation.wrapper.NormalizeTracking2DEpisode(
+        target_state, intervention
+    )
+    rotation = eve.observation.Rotations(intervention=intervention)
 
     state = eve.observation.ObsDict(
         {"position": position, "target": target_state, "rotation": rotation}
     )
 
     target_reward = eve.reward.TargetReached(
-        target=target,
+        intervention=intervention,
         factor=1.0,
     )
     path_delta = eve.reward.PathLengthDelta(
@@ -202,25 +210,20 @@ def make_env() -> eve.Env:
     )
     reward = eve.reward.Combination([target_reward, path_delta])
 
-    target_reached = eve.terminal.TargetReached(target=target)
+    target_reached = eve.terminal.TargetReached(intervention=intervention)
     max_steps = eve.truncation.MaxSteps(200)
 
-    imaging = None
-
-    visualisation = None
+    visualisation = SofaPygame(intervention=intervention)
 
     env = eve.Env(
-        vessel_tree=vessel_tree,
-        intervention=simulation,
-        start=start,
-        target=target,
+        intervention=intervention,
         observation=state,
         reward=reward,
         terminal=target_reached,
         truncation=max_steps,
         visualisation=visualisation,
+        start=start,
         pathfinder=pathfinder,
-        imaging=imaging,
     )
     return env
 

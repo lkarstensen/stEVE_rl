@@ -486,6 +486,10 @@ class Synchron(SynchronEvalOnly, Agent):
         self.trainer.close()
         self.replay_buffer.close()
 
+        del self.worker
+        del self.trainer
+        del self.replay_buffer
+
     def _update_state_dicts_network(self):
         state_dicts = self.algo.state_dicts_network()
         self.trainer.state_dicts_network(state_dicts)

@@ -351,6 +351,8 @@ class Single(SingleEvalOnly, Agent):
         if id(self.env_train) != id(self.env_eval):
             self.env_eval.close()
         self.replay_buffer.close()
+        del self.algo
+        del self.replay_buffer
 
     @classmethod
     def from_checkpoint(  # pylint: disable=arguments-renamed

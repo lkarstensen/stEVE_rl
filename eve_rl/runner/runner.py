@@ -190,7 +190,9 @@ class Runner(EveRLObject):
     ):
         # TODO: Log Training Run Infos
         self.heatup(heatup_steps)
-        next_eval_step_limt = explore_steps_between_eval
+        next_eval_step_limt = (
+            self.agent.step_counter.exploration + explore_steps_between_eval
+        )
         while self.agent.step_counter.exploration < training_steps:
             self.explore_and_update(
                 explore_episodes_between_updates,

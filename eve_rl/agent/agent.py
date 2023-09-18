@@ -9,7 +9,7 @@ import torch
 
 from ..replaybuffer.replaybuffer import Episode
 from ..util import EveRLObject
-from ..algo import Algo
+from ..algo import Algo, AlgoPlayOnly
 from ..replaybuffer import ReplayBuffer
 
 
@@ -132,7 +132,7 @@ class EpisodeCounterShared(EpisodeCounter):
 class AgentEvalOnly(EveRLObject, ABC):
     step_counter: StepCounter
     episode_counter: EpisodeCounter
-    algo: Algo
+    algo: AlgoPlayOnly
     env_eval: gym.Env
     logger: logging.Logger
 
@@ -351,10 +351,33 @@ class Agent(AgentEvalOnly, ABC):
                 "evaluation": self.episode_counter.evaluation,
             },
             "network_state_dicts": self.algo.state_dicts_network(),
+            "optimizer_state_dicts": self.algo.state_dicts_optimizer(),
+            "scheduler_state_dicts": self.algo.state_dicts_scheduler(),
             "additional_info": additional_info,
         }
 
         torch.save(checkpoint_dict, file_path)
+
+    def load_checkpoint(self, file_path: str) -> None:
+        checkpoint = torch.load(file_path)
+
+        network_state_dicts = checkpoint["network_state_dicts"]
+        self.algo.load_state_dicts_network(network_state_dicts)
+
+        optimizer_state_dicts = checkpoint["optimizer_state_dicts"]
+        self.algo.load_state_dicts_optimizer(optimizer_state_dicts)
+
+        scheduler_state_dicts = checkpoint["scheduler_state_dicts"]
+        self.algo.load_state_dicts_scheduler(scheduler_state_dicts)
+
+        self.step_counter.heatup = checkpoint["steps"]["heatup"]
+        self.step_counter.exploration = checkpoint["steps"]["exploration"]
+        self.step_counter.evaluation = checkpoint["steps"]["evaluation"]
+        self.step_counter.update = checkpoint["steps"]["update"]
+
+        self.episode_counter.heatup = checkpoint["episodes"]["heatup"]
+        self.episode_counter.exploration = checkpoint["episodes"]["exploration"]
+        self.episode_counter.evaluation = checkpoint["episodes"]["evaluation"]
 
     def _log_heatup(
         self,

@@ -36,6 +36,22 @@ class Model(EveRLObject, ABC):
     def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
         ...
 
+    @abstractmethod
+    def state_dicts_optimizer(self) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def load_state_dicts_optimizer(self, state_dicts: Dict[str, Any]) -> None:
+        ...
+
+    @abstractmethod
+    def state_dicts_scheduler(self) -> Dict[str, Any]:
+        ...
+
+    @abstractmethod
+    def load_state_dicts_scheduler(self, state_dicts: Dict[str, Any]) -> None:
+        ...
+
     def to(self, device: torch.device):
         self.device = device
 

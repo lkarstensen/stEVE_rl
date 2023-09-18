@@ -1,6 +1,6 @@
 from copy import deepcopy
 from importlib import import_module
-from time import perf_counter
+from time import perf_counter, sleep
 from typing import Any, Dict, List, Optional, Tuple
 from math import inf
 import logging
@@ -8,7 +8,12 @@ import torch
 import queue
 
 from ..util import DummyEnv
-from .agent import Agent, Episode, StepCounterShared, EpisodeCounterShared
+from .agent import (
+    Agent,
+    Episode,
+    StepCounterShared,
+    EpisodeCounterShared,
+)
 from .single import Algo, ReplayBuffer, gym
 from .singelagentprocess import SingleAgentProcess
 from ..util import ConfigHandler
@@ -95,6 +100,7 @@ class SynchronEvalOnly(Agent):
     def _worker_load_state_dicts_network(self, state_dicts: Dict[str, Any]):
         for agent in self.worker:
             agent.load_state_dicts_network(state_dicts)
+            sleep(0.1)
 
     def _get_worker_results(self, step_limit: int, episode_limit: int, task: str):
         episode_results = []
@@ -375,7 +381,7 @@ class Synchron(SynchronEvalOnly, Agent):
 
         self.trainer.update(steps=steps, step_limit=step_limit)
         result = self._get_trainer_results()
-        self._update_state_dicts_network()
+        self._update_algo_state_dicts()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
 
         n_steps = self.step_counter.update - steps_start
@@ -475,7 +481,7 @@ class Synchron(SynchronEvalOnly, Agent):
             n_episodes_explore,
             t_duration_explore,
         )
-        self._update_state_dicts_network()
+        self._update_algo_state_dicts()
         self._worker_load_state_dicts_network(self.algo.state_dicts_network())
 
         return explore_results, update_result
@@ -490,9 +496,15 @@ class Synchron(SynchronEvalOnly, Agent):
         del self.trainer
         del self.replay_buffer
 
-    def _update_state_dicts_network(self):
+    def _update_algo_state_dicts(self):
         state_dicts = self.algo.state_dicts_network()
         self.trainer.state_dicts_network(state_dicts)
+
+        state_dicts = self.trainer.state_dicts_optimizer()
+        self.algo.load_state_dicts_optimizer(state_dicts)
+
+        state_dicts = self.trainer.state_dicts_scheduler()
+        self.algo.load_state_dicts_scheduler(state_dicts)
 
     def _restart_worker_agent(
         self,
@@ -535,6 +547,8 @@ class Synchron(SynchronEvalOnly, Agent):
             self.trainer.close()
             self.trainer = self._create_trainer_agent()
             self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
+            self.trainer.load_state_dicts_optimizer(self.algo.state_dicts_optimizer())
+            self.trainer.load_state_dicts_scheduler(self.algo.state_dicts_scheduler())
             self.update_error = True
             return []
         return result
@@ -576,6 +590,8 @@ class Synchron(SynchronEvalOnly, Agent):
     def load_checkpoint(self, file_path: str) -> None:
         super().load_checkpoint(file_path)
         self.trainer.load_state_dicts_network(self.algo.state_dicts_network())
+        self.trainer.load_state_dicts_optimizer(self.algo.state_dicts_optimizer())
+        self.trainer.load_state_dicts_scheduler(self.algo.state_dicts_scheduler())
 
     @classmethod
     def from_checkpoint(  # pylint: disable=arguments-renamed

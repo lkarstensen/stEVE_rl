@@ -169,8 +169,8 @@ def run(
                     update_step_limit=task[6],
                 )
             elif task_name == "state_dicts_network":
-                state_dicts = task[1]
-                state_dicts = agent.algo.state_dicts_network(state_dicts)
+                destination = task[1]
+                state_dicts = agent.algo.state_dicts_network(destination)
                 model_queue.put(state_dicts)
                 del state_dicts
                 continue
@@ -179,26 +179,26 @@ def run(
                 agent.algo.load_state_dicts_network(state_dicts)
                 del state_dicts
                 continue
-                # elif task_name == "put_optimizer_states_container":
-                #     optimizer_states_container = deepcopy(
-                #         agent.algo.model.optimizer_states_container
-                #     )
-                #     optimizer_states_container.to(torch.device("cpu"))
-                #     model_queue.put(optimizer_states_container)
-                #     continue
-                # elif task_name == "set_optmizer_states_container":
-                #     optimizer_states_container = task[1]
-                #     optimizer_states_container.to(device)
-                #     agent.algo.model.set_optimizer_states(optimizer_states_container)
-                #     continue
-                # elif task_name == "put_scheduler_states_container":
-                #     states_container = deepcopy(agent.algo.model.scheduler_states_container)
-                #     model_queue.put(states_container)
-                #     continue
-                # elif task_name == "set_scheduler_states_container":
-                #     states_container = task[1]
-                #     agent.algo.model.set_scheduler_states(states_container)
-                # continue
+            elif task_name == "state_dicts_optimizer":
+                state_dicts = agent.algo.state_dicts_optimizer()
+                model_queue.put(state_dicts)
+                del state_dicts
+                continue
+            elif task_name == "load_state_dicts_optimizer":
+                state_dicts = task[1]
+                agent.algo.load_state_dicts_optimizer(state_dicts)
+                del state_dicts
+                continue
+            elif task_name == "state_dicts_scheduler":
+                state_dicts = agent.algo.state_dicts_scheduler()
+                model_queue.put(state_dicts)
+                del state_dicts
+                continue
+            elif task_name == "load_state_dicts_scheduler":
+                state_dicts = task[1]
+                agent.algo.load_state_dicts_scheduler(state_dicts)
+                del state_dicts
+                continue
             elif task_name == "shutdown":
                 break
             else:
@@ -384,12 +384,6 @@ class SingleAgentProcess(Agent):
             result = []
         return result
 
-    def load_state_dicts_network(self, states_container: Dict[str, Any]):
-        try:
-            self._task_queue.put(["load_state_dicts_network", states_container])
-        except ValueError:
-            self.close()
-
     def state_dicts_network(self, destination: Dict[str, Any] = None) -> Dict[str, Any]:
         try:
             self._task_queue.put(["state_dicts_network", destination])
@@ -398,19 +392,39 @@ class SingleAgentProcess(Agent):
             self.close()
             return None
 
-    # def set_optimizer_states(self, states_container: OptimizerStatesContainer):
-    #     self._task_queue.put(["set_optimizer_states_container", states_container])
+    def load_state_dicts_network(self, states_dict: Dict[str, Any]):
+        try:
+            self._task_queue.put(["load_state_dicts_network", states_dict])
+        except ValueError:
+            self.close()
 
-    # def get_optimizer_states_container(self) -> OptimizerStatesContainer:
-    #     self._task_queue.put(["put_optimizer_states_container"])
-    #     return self._model_queue.get()
+    def state_dicts_optimizer(self) -> Dict[str, Any]:
+        try:
+            self._task_queue.put(["state_dicts_optimizer"])
+            return self._model_queue.get()
+        except ValueError:
+            self.close()
+            return None
 
-    # def set_scheduler_states(self, states_container: SchedulerStatesContainer):
-    #     self._task_queue.put(["set_scheduler_states_container", states_container])
+    def load_state_dicts_optimizer(self, states_dict: Dict[str, Any]):
+        try:
+            self._task_queue.put(["load_state_dicts_optimizer", states_dict])
+        except ValueError:
+            self.close()
 
-    # def get_scheduler_states_container(self) -> SchedulerStatesContainer:
-    #     self._task_queue.put(["put_scheduler_states_container"])
-    #     return self._model_queue.get()
+    def state_dicts_scheduler(self) -> Dict[str, Any]:
+        try:
+            self._task_queue.put(["state_dicts_scheduler"])
+            return self._model_queue.get()
+        except ValueError:
+            self.close()
+            return None
+
+    def load_state_dicts_scheduler(self, states_dict: Dict[str, Any]):
+        try:
+            self._task_queue.put(["load_state_dicts_scheduler", states_dict])
+        except ValueError:
+            self.close()
 
     def close(self) -> None:
         if self._process is not None and self._process.is_alive():

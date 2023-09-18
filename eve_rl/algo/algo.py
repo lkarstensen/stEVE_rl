@@ -58,6 +58,18 @@ class Algo(EveRLObject, ABC):
     def load_state_dicts_network(self, state_dicts: Dict[str, Any]) -> None:
         return self.model.load_state_dicts_network(state_dicts)
 
+    def state_dicts_optimizer(self) -> Dict[str, Any]:
+        return self.model.state_dicts_optimizer()
+
+    def load_state_dicts_optimizer(self, state_dicts: Dict[str, Any]) -> None:
+        return self.model.load_state_dicts_optimizer(state_dicts)
+
+    def state_dicts_scheduler(self) -> Dict[str, Any]:
+        return self.model.state_dicts_scheduler()
+
+    def load_state_dicts_scheduler(self, state_dicts: Dict[str, Any]) -> None:
+        return self.model.load_state_dicts_scheduler(state_dicts)
+
     @abstractmethod
     def update(self, batch: Batch) -> List[float]:
         ...

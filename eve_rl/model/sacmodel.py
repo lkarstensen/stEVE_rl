@@ -154,41 +154,44 @@ class SACModel(Model):
         policy.eval()
         return SACModelPlayOnly(policy)
 
-    # def set_network_states(self, network_states_container: SACNetworkStateContainer):
-    #     self.q1.load_state_dict(network_states_container.q1)
-    #     self.q2.load_state_dict(network_states_container.q2)
-    #     self.target_q1.load_state_dict(network_states_container.target_q1)
-    #     self.target_q2.load_state_dict(network_states_container.target_q2)
-    #     self.policy.load_state_dict(network_states_container.policy)
-    #     self.log_alpha.data.copy_(network_states_container.log_alpha["log_alpha"])
+    def state_dicts_optimizer(self) -> Dict[str, Any]:
+        ret = {
+            "q1_optim": self.q1_optimizer.state_dict(),
+            "q2_optim": self.q2_optimizer.state_dict(),
+            "policy_optim": self.policy_optimizer.state_dict(),
+            "alpha_optim": self.alpha_optimizer.state_dict(),
+        }
 
-    # @property
-    # def network_states_container(self) -> SACNetworkStateContainer:
-    #     network_states_container = SACNetworkStateContainer(
-    #         self.q1.state_dict(),
-    #         self.q2.state_dict(),
-    #         self.target_q1.state_dict(),
-    #         self.target_q2.state_dict(),
-    #         self.policy.state_dict(),
-    #         {"log_alpha": self.log_alpha.detach()},
-    #     )
-    #     return network_states_container
+        return ret
 
-    # @property
-    # def optimizer_states_container(self) -> SACOptimizerStateContainer:
-    #     optimizer_states_container = SACOptimizerStateContainer(
-    #         self.q1_optimizer.state_dict(),
-    #         self.q2_optimizer.state_dict(),
-    #         self.policy_optimizer.state_dict(),
-    #         self.alpha_optimizer.state_dict(),
-    #     )
+    def load_state_dicts_optimizer(self, state_dicts: Dict[str, Any]) -> None:
+        self.q1_optimizer.load_state_dict(state_dicts["q1_optim"])
+        self.q2_optimizer.load_state_dict(state_dicts["q2_optim"])
+        self.policy_optimizer.load_state_dict(state_dicts["policy_optim"])
+        self.alpha_optimizer.load_state_dict(state_dicts["alpha_optim"])
 
-    #     return optimizer_states_container
+    def state_dicts_scheduler(self) -> Dict[str, Any]:
+        if (
+            self.q1_scheduler is None
+            and self.q2_scheduler is None
+            and self.policy_scheduler is None
+        ):
+            return {}
+        ret = {
+            "q1_schedule": self.q1_scheduler.state_dict()
+            if self.q1_scheduler is not None
+            else {},
+            "q2_schedule": self.q2_scheduler.state_dict()
+            if self.q2_scheduler is not None
+            else {},
+            "policy_schedule": self.policy_scheduler.state_dict()
+            if self.policy_scheduler is not None
+            else {},
+        }
 
-    # def set_optimizer_states(
-    #     self, optimizer_states_container: SACOptimizerStateContainer
-    # ):
-    #     self.q1_optimizer.load_state_dict(optimizer_states_container.q1)
-    #     self.q2_optimizer.load_state_dict(optimizer_states_container.q2)
-    #     self.policy_optimizer.load_state_dict(optimizer_states_container.policy)
-    #     self.alpha_optimizer.load_state_dict(optimizer_states_container.alpha)
+        return ret
+
+    def load_state_dicts_scheduler(self, state_dicts: Dict[str, Any]) -> None:
+        self.q1_scheduler.load_state_dict(state_dicts["q1_schedule"])
+        self.q2_scheduler.load_state_dict(state_dicts["q2_schedule"])
+        self.policy_scheduler.load_state_dict(state_dicts["policy_schedule"])

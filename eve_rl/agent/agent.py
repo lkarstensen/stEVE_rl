@@ -363,12 +363,12 @@ class Agent(AgentEvalOnly, ABC):
 
         network_state_dicts = checkpoint["network_state_dicts"]
         self.algo.load_state_dicts_network(network_state_dicts)
-
-        optimizer_state_dicts = checkpoint["optimizer_state_dicts"]
-        self.algo.load_state_dicts_optimizer(optimizer_state_dicts)
-
-        scheduler_state_dicts = checkpoint["scheduler_state_dicts"]
-        self.algo.load_state_dicts_scheduler(scheduler_state_dicts)
+        if "optimizer_state_dicts" in checkpoint.keys():
+            optimizer_state_dicts = checkpoint["optimizer_state_dicts"]
+            self.algo.load_state_dicts_optimizer(optimizer_state_dicts)
+        if "scheduler_state_dicts" in checkpoint.keys():
+            scheduler_state_dicts = checkpoint["scheduler_state_dicts"]
+            self.algo.load_state_dicts_scheduler(scheduler_state_dicts)
 
         self.step_counter.heatup = checkpoint["steps"]["heatup"]
         self.step_counter.exploration = checkpoint["steps"]["exploration"]

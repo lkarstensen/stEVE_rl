@@ -40,18 +40,20 @@ class Runner(EveRLObject):
         self._results["best quality"] = 0.0
         self._results["best explore steps"] = 0.0
 
-        with open(results_file, "w", newline="", encoding="utf-8") as csvfile:
+        file_existed = os.path.isfile(results_file)
+
+        with open(results_file, "a", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile, delimiter=";")
-            writer.writerow(
-                list(self._results.keys())
-                + [" "]
-                + list(agent_parameter_for_result_file.keys())
-            )
-            writer.writerow(
-                list(self._results.values())
-                + [" "]
-                + list(agent_parameter_for_result_file.values())
-            )
+            if not file_existed:
+                writer.writerow(
+                    list(self._results.keys())
+                    + [" "]
+                    + list(agent_parameter_for_result_file.keys())
+                )
+                writer.writerow(
+                    [" "] * (len(self._results.values()) + 1)
+                    + list(agent_parameter_for_result_file.values())
+                )
 
         self.best_eval = {"steps": 0, "quality": -inf}
 

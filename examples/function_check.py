@@ -15,7 +15,7 @@ import torch.mps
 def sac_training(
     device=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
     lr=0.001991743536437494,
-    hidden_layers=[255, 255, 255],
+    hidden_layers=(255, 255, 255),
     gamma=0.99,
     replay_buffer=1e6,
     training_steps=1e3,
@@ -27,8 +27,6 @@ def sac_training(
     log_folder: str = os.getcwd() + "/fast_learner_example_results/",
     id_training=0,
     name="fast_learner",
-    *args,
-    **kwargs,
 ):
     if not os.path.isdir(log_folder):
         os.mkdir(log_folder)
@@ -217,10 +215,10 @@ def make_env() -> eve.Env:
 
 if __name__ == "__main__":
     if torch.cuda.is_available():
-        device = torch.device("cuda")
+        trainer_device = torch.device("cuda")
     elif torch.backends.mps.is_available():
-        device = torch.device("mps")
+        trainer_device = torch.device("mps")
     else:
-        device = torch.device("cpu")
+        trainer_device = torch.device("cpu")
 
-    result = sac_training(device=device)
+    result = sac_training(device=trainer_device)

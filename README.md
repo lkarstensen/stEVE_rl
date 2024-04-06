@@ -29,4 +29,4 @@ The emphasis of this library lies on parallelisation of working agents, which pe
 7. Define an Agent. 
 8. Write your training loop or use one of the runners. 
 
-Have a look at the *example* folder!
+Have a look at the *example* folder! More sophisticated usage examples can be found in [eve-training](https://github.com/lkarstensen/eve_training).

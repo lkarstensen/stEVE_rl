@@ -1,6 +1,6 @@
-# eve_rl
+# dEVE_rl
 
-This is a reinforcement learning library implemented for the use with the [EVE](https://github.com/lkarstensen/eve) framework. Albeit it can be used with any environment implementing the Farama gymnasium interface. 
+This is a reinforcement learning library implemented for the use with the [dEVE](https://github.com/lkarstensen/eve) framework. Albeit it can be used with any environment implementing the Farama gymnasium interface. 
 
 This framework implements the Soft-Actor-Critic method using pytorch. 
 
@@ -8,8 +8,8 @@ The emphasis of this library lies on parallelisation of working agents, which pe
 
 ## Getting Started
 
-1. Setup [EVE](https://github.com/lkarstensen/eve?tab=readme-ov-file#getting-started) (including Sofa)
-2. Install EVE_bench package
+1. Setup [dEVE](https://github.com/lkarstensen/eve?tab=readme-ov-file#getting-started) (including Sofa)
+2. Install dEVE_bench package
    ```
    python3 -m pip install -e .
    ```

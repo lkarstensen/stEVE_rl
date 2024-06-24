@@ -14,13 +14,17 @@ class ConfigHandler:
     def __init__(self):
         self.object_registry = {}
 
-    def save_config(self, stacierl_object: Any, file: str) -> None:
-        obj_dict = self.object_to_config_dict(stacierl_object)
+    def save_config(
+        self, stacierl_object: Any, file: str, eve_rl_classes_only: bool = True
+    ) -> None:
+        obj_dict = self.object_to_config_dict(stacierl_object, eve_rl_classes_only)
         self.save_config_dict(obj_dict, file)
 
-    def object_to_config_dict(self, stacierl_object: Any) -> dict:
+    def object_to_config_dict(
+        self, stacierl_object: Any, eve_rl_classes_only: bool = True
+    ) -> dict:
         self.object_registry = {}
-        config_dict = self._everl_obj_to_dict(stacierl_object)
+        config_dict = self._everl_obj_to_dict(stacierl_object, eve_rl_classes_only)
         self.object_registry = {}
         return config_dict
 
@@ -129,15 +133,19 @@ class ConfigHandler:
                     )
         return object_list, obj_id
 
-    def _everl_obj_to_dict(self, everl_object) -> dict:
+    def _everl_obj_to_dict(self, everl_object, eve_rl_classes_only: bool) -> dict:
         attributes_dict = {}
-        attributes_dict[
-            "_class"
-        ] = f"{everl_object.__module__}.{everl_object.__class__.__name__}"
-        attributes_dict["_id"] = id(everl_object)
-        if id(everl_object) in self.object_registry:
-            return attributes_dict
-        init_attributes = self._get_init_attributes(everl_object.__init__)
+
+        if eve_rl_classes_only and not everl_object.__module__.startswith("eve_rl."):
+            parent = everl_object.__class__.__base__
+            while not parent.__module__.startswith("eve_rl."):
+                parent = parent.__class__.__base__
+            class_str = str(parent)[8:-2]
+            init_attributes = self._get_init_attributes(parent.__init__)
+
+        else:
+            class_str = f"{everl_object.__module__}.{everl_object.__class__.__name__}"
+            init_attributes = self._get_init_attributes(everl_object.__init__)
 
         if "args" in init_attributes:
             init_attributes.remove("args")
@@ -145,14 +153,24 @@ class ConfigHandler:
             init_attributes.remove("kwargs")
         if "kwds" in init_attributes:
             init_attributes.remove("kwds")
+        if "self" in init_attributes:
+            init_attributes.remove("self")
+
+        attributes_dict["_class"] = class_str
+        object_id = id(everl_object)
+        attributes_dict["_id"] = object_id
+        if object_id in self.object_registry:
+            return attributes_dict
 
         for attribute in init_attributes:
             nested_object = getattr(everl_object, attribute)
-            attributes_dict[attribute] = self._obj_to_native_datatypes(nested_object)
+            attributes_dict[attribute] = self._obj_to_native_datatypes(
+                nested_object, eve_rl_classes_only
+            )
         self.object_registry[id(everl_object)] = attributes_dict
         return attributes_dict
 
-    def _obj_to_native_datatypes(self, obj) -> Any:
+    def _obj_to_native_datatypes(self, obj, eve_rl_classes_only: bool) -> Any:
         if isinstance(obj, np.integer):
             return int(obj)
 
@@ -172,26 +190,31 @@ class ConfigHandler:
             }
 
         if isinstance(obj, list):
-            return [self._obj_to_native_datatypes(v) for v in obj]
+            return [self._obj_to_native_datatypes(v, eve_rl_classes_only) for v in obj]
 
         if isinstance(obj, tuple):
-            return tuple(self._obj_to_native_datatypes(v) for v in obj)
+            return tuple(
+                self._obj_to_native_datatypes(v, eve_rl_classes_only) for v in obj
+            )
 
         if isinstance(obj, dict):
-            return {k: self._obj_to_native_datatypes(v) for k, v in obj.items()}
+            return {
+                k: self._obj_to_native_datatypes(v, eve_rl_classes_only)
+                for k, v in obj.items()
+            }
 
         if hasattr(obj, "__module__"):
             everlobject = self._get_class_constructor(
                 "eve_rl.util.everlobject.EveRLObject"
             )
             if isinstance(obj, everlobject):
-                return self._everl_obj_to_dict(obj)
+                return self._everl_obj_to_dict(obj, eve_rl_classes_only)
 
             if isinstance(obj, torch.optim.lr_scheduler.LRScheduler):
                 new_obj = deepcopy(obj)
                 new_obj.last_epoch = -1
                 new_obj.optimizer = obj.optimizer
-                return self._everl_obj_to_dict(new_obj)
+                return self._everl_obj_to_dict(new_obj, eve_rl_classes_only)
 
             raise NotImplementedError(
                 f"Handling this class {obj.__class__} in not implemented "

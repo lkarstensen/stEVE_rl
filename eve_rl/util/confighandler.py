@@ -15,9 +15,9 @@ class ConfigHandler:
         self.object_registry = {}
 
     def save_config(
-        self, stacierl_object: Any, file: str, eve_rl_classes_only: bool = True
+        self, everl_object: Any, file: str, eve_rl_classes_only: bool = True
     ) -> None:
-        obj_dict = self.object_to_config_dict(stacierl_object, eve_rl_classes_only)
+        obj_dict = self.object_to_config_dict(everl_object, eve_rl_classes_only)
         self.save_config_dict(obj_dict, file)
 
     def object_to_config_dict(
@@ -136,7 +136,13 @@ class ConfigHandler:
     def _everl_obj_to_dict(self, everl_object, eve_rl_classes_only: bool) -> dict:
         attributes_dict = {}
 
-        if eve_rl_classes_only and not everl_object.__module__.startswith("eve_rl."):
+        from .everlobject import EveRLObject
+
+        if (
+            eve_rl_classes_only
+            and not everl_object.__module__.startswith("eve_rl.")
+            and isinstance(everl_object, EveRLObject)
+        ):
             parent = everl_object.__class__.__base__
             while not parent.__module__.startswith("eve_rl."):
                 parent = parent.__class__.__base__

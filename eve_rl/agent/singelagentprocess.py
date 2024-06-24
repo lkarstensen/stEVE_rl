@@ -1,3 +1,4 @@
+import platform
 from typing import Any, Dict, List, Optional, Tuple
 from random import randint
 import logging
@@ -87,7 +88,8 @@ def run(
     name,
     nice_level: int,
 ):
-    os.nice(nice_level)
+    if platform.system() != "Windows":
+        os.nice(nice_level)
 
     try:
         torch.set_num_threads(4)

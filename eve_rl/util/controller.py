@@ -18,7 +18,7 @@ class Controller:
         device: torch.device = torch.device("cpu"),
     ) -> None:
         image_rot_zx = image_rot_zx or [0, 0]
-        image_center = image_center or [0,0,0]
+        image_center = image_center or [0, 0, 0]
 
         cp = torch.load(checkpoint)
         env_config = cp["env_eval"]
@@ -76,7 +76,10 @@ class Controller:
         tracking: np.ndarray,
         target: np.ndarray,
         device_lengths_inserted: Optional[List[float]] = None,
-    ) -> np.ndarray:
+        custom_action: np.ndarray = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        if custom_action is not None:
+            self.last_action = custom_action
         self._update_tracking_target_lengths(tracking, target, device_lengths_inserted)
 
         obs, _ = self.env.step(self.last_action)
@@ -88,7 +91,7 @@ class Controller:
         tracking: np.ndarray,
         target: np.ndarray,
         device_lengths_inserted: Optional[List[float]] = None,
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         self._update_tracking_target_lengths(tracking, target, device_lengths_inserted)
         self.last_action *= 0.0
         obs, _ = self.env.reset()

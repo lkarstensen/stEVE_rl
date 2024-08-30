@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 
@@ -73,7 +73,7 @@ class Controller:
 
     def step(
         self,
-        tracking: np.ndarray,
+        tracking: Union[np.ndarray, List[np.ndarray]],
         target: np.ndarray,
         device_lengths_inserted: Optional[List[float]] = None,
         custom_action: np.ndarray = None,
@@ -88,7 +88,7 @@ class Controller:
 
     def reset(
         self,
-        tracking: np.ndarray,
+        tracking: Union[np.ndarray, List[np.ndarray]],
         target: np.ndarray,
         device_lengths_inserted: Optional[List[float]] = None,
     ) -> Tuple[np.ndarray, np.ndarray]:
@@ -101,16 +101,28 @@ class Controller:
 
     def _update_tracking_target_lengths(
         self,
-        tracking: np.ndarray,
+        tracking: Union[np.ndarray, List[np.ndarray]],
         target: np.ndarray,
         device_lengths_inserted: Optional[List[float]],
     ):
-        if tracking.shape[1] == 3:
-            self.fluoroscopy.tracking3d = tracking
-        elif tracking.shape[1] == 2:
-            self.fluoroscopy.tracking2d = tracking
+        if isinstance(tracking, list):
+            tracking_list = tracking
+            tracking_sorted = sorted(tracking, key=len)
+            single_tracking = tracking_sorted[-1]
+        elif isinstance(tracking, np.ndarray):
+            tracking_list = [tracking]
+            single_tracking = tracking
         else:
-            raise ValueError("Wrong tracking shape")
+            raise ValueError("Wrong tracking type.")
+
+        if single_tracking.shape[1] == 3:
+            self.fluoroscopy.tracking3d = single_tracking
+            self.fluoroscopy.device_trackings3d = tracking_list
+        elif single_tracking.shape[1] == 2:
+            self.fluoroscopy.tracking2d = single_tracking
+            self.fluoroscopy.device_trackings2d = tracking_list
+        else:
+            raise ValueError("Wrong tracking shape.")
         self.intervention.device_lengths_inserted = device_lengths_inserted
         if target.shape[0] == 3:
             self.target.coordinates3d = target

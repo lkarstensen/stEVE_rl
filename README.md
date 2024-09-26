@@ -1,6 +1,6 @@
-# dEVE_rl
+# stEVE_rl
 
-This is a reinforcement learning library implemented for the use with the [dEVE](https://github.com/lkarstensen/eve) framework. Albeit it can be used with any environment implementing the Farama gymnasium interface. 
+This is a reinforcement learning library implemented for the use with the [stEVE](https://github.com/lkarstensen/stEVE) framework. Albeit it can be used with any environment implementing the Farama gymnasium interface. 
 
 This framework implements the Soft-Actor-Critic method using pytorch. 
 
@@ -8,8 +8,8 @@ The emphasis of this library lies on parallelisation of working agents, which pe
 
 ## Getting Started
 
-1. Setup [dEVE](https://github.com/lkarstensen/eve?tab=readme-ov-file#getting-started) (including Sofa)
-2. Install dEVE_bench package
+1. Setup [stEVE](https://github.com/lkarstensen/stEVE?tab=readme-ov-file#getting-started) (including Sofa)
+2. Install stEVE_rl package
    ```
    python3 -m pip install -e .
    ```
@@ -29,4 +29,4 @@ The emphasis of this library lies on parallelisation of working agents, which pe
 7. Define an Agent. 
 8. Write your training loop or use one of the runners. 
 
-Have a look at the *example* folder! More sophisticated usage examples can be found in [eve-training](https://github.com/lkarstensen/eve_training).
+Have a look at the *example* folder! More sophisticated usage examples can be found in [stEVE_training](https://github.com/lkarstensen/stEVE_training).

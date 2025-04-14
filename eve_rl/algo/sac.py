@@ -59,7 +59,7 @@ class SACPlayOnly(AlgoPlayOnly):
             action = torch.tanh(normal.sample())
             action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
             action += np.random.normal(0, self.exploration_action_noise)
-        return action, mean, log_std
+        return action, mean, std
 
     def get_eval_action(self, flat_state: np.ndarray) -> np.ndarray:
         with torch.no_grad():
@@ -86,8 +86,8 @@ class SACPlayOnly(AlgoPlayOnly):
             )
             torch_state = torch_state.unsqueeze(0).unsqueeze(0)
             mean, log_std = self.model.policy.forward_play(torch_state)
+            std = log_std.exp()
             if self.stochastic_eval:
-                std = log_std.exp()
                 normal = Normal(mean, std)
                 action = torch.tanh(normal.sample())
             else:
@@ -95,7 +95,7 @@ class SACPlayOnly(AlgoPlayOnly):
                 action = torch.tanh(mean)
 
             action = action.squeeze(0).squeeze(0).cpu().detach().numpy()
-        return action * self.action_scaling, mean, log_std
+        return action * self.action_scaling, mean, std
 
     def to(self, device: torch.device):
         super().to(device)
